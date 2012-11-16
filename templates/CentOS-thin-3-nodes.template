@@ -1,0 +1,440 @@
+{
+   "AWSTemplateFormatVersion":"2010-09-09",
+   "Description":"AWS CloudFormation Sample Template WordPress_Single_Instance: WordPress is web software you can use to create a beautiful website or blog. This template installs a single-instance WordPress deployment using a local MySQL database to store the data.",
+   "Parameters":{
+      "KeyName":{
+         "Description":"Name of an existing EC2 KeyPair to enable SSH access to the instances",
+         "Type":"String"
+      },
+      "InstanceType":{
+         "Description":"WebServer EC2 instance type",
+         "Type":"String",
+         "Default":"m1.tiny",
+         "AllowedValues":[
+            "t1.micro",
+            "m1.tiny",
+            "m1.small",
+            "m1.large",
+            "m1.xlarge",
+            "m2.xlarge",
+            "m2.2xlarge",
+            "m2.4xlarge",
+            "c1.medium",
+            "c1.xlarge",
+            "cc1.4xlarge"
+         ],
+         "ConstraintDescription":"must be a valid EC2 instance type."
+      },
+      "LinuxDistribution":{
+         "Default":"CentOS",
+         "Description":"Distribution of choice",
+         "Type":"String",
+         "AllowedValues":[
+            "CentOS"
+         ]
+      },
+      "Applications":{
+         "Description":"Applications to install",
+         "Type":"String",
+         "MinLength":"1",
+         "ConstraintDescription":"must be longer than 1 character.",
+         "Default":"none"
+      }
+   },
+   "Mappings":{
+      "AWSInstanceType2Arch":{
+         "t1.micro":{
+            "Arch":"64"
+         },
+         "m1.tiny":{
+            "Arch":"64"
+         },
+         "m1.small":{
+            "Arch":"64"
+         },
+         "m1.large":{
+            "Arch":"64"
+         },
+         "m1.xlarge":{
+            "Arch":"64"
+         },
+         "m2.xlarge":{
+            "Arch":"64"
+         },
+         "m2.2xlarge":{
+            "Arch":"64"
+         },
+         "m2.4xlarge":{
+            "Arch":"64"
+         },
+         "c1.medium":{
+            "Arch":"64"
+         },
+         "c1.xlarge":{
+            "Arch":"64"
+         },
+         "cc1.4xlarge":{
+            "Arch":"64"
+         }
+      },
+      "DistroArch2AMI":{
+         "CentOS":{
+            "64":"CentOS"
+         }
+      }
+   },
+   "Resources":{
+
+      "IPAddress-node1" : {
+         "Type" : "AWS::EC2::EIP"
+      },
+
+      "IPAddress-node3" : {
+         "Type" : "AWS::EC2::EIP"
+      },
+
+      "IPAssoc-node1" : {
+         "Type" : "AWS::EC2::EIPAssociation",
+         "Properties" : {
+            "InstanceId" : { "Ref" : "CentOS-ChefClient-node1" },
+            "EIP" : { "Ref" : "IPAddress-node1" }
+         }
+      },
+
+      "IPAssoc-node3" : {
+         "Type" : "AWS::EC2::EIPAssociation",
+         "Properties" : {
+            "InstanceId" : { "Ref" : "CentOS-ChefClient-node3" },
+            "EIP" : { "Ref" : "IPAddress-node3" }
+         }
+      },
+
+      "CentOS-ChefClient-node1":{
+         "Type":"AWS::EC2::Instance",
+         "Metadata":{
+            "AWS::CloudFormation::Init":{
+               "config":{
+                  "files":{
+                     "/etc/base-generated.json":{
+                        "content":{
+                           "Fn::Join":[
+                              "",
+                              [
+                                 "",
+                                 {
+                                    "Ref":"Applications"
+                                 },
+                                 ""
+                              ]
+                           ]
+                        },
+                        "mode":"000644",
+                        "owner":"root",
+                        "group":"root"
+                     }
+                  }
+               }
+            }
+         },
+         "Properties":{
+            "ImageId":{
+               "Fn::FindInMap":[
+                  "DistroArch2AMI",
+                  {
+                     "Ref":"LinuxDistribution"
+                  },
+                  {
+                     "Fn::FindInMap":[
+                        "AWSInstanceType2Arch",
+                        {
+                           "Ref":"InstanceType"
+                        },
+                        "Arch"
+                     ]
+                  }
+               ]
+            },
+            "InstanceType":{
+               "Ref":"InstanceType"
+            },
+            "KeyName":{
+               "Ref":"KeyName"
+            },
+            "SecurityGroups":[{
+               "Ref":"WebServerSecurityGroup"
+            }],
+            "UserData":{
+               "Fn::Base64":{
+                  "Fn::Join":[
+                     "\n",
+                     [
+                        "#!/bin/bash -v",
+                        "export http_proxy=http://10.105.15.27:8080",
+                        "export https_proxy=http://10.105.15.27:8080",
+                        "export no_proxy=127.0.0.1,localhost,.amg.net.pl,169.254.169.254",
+                        "mkdir -p /opt/sysusers; useradd -d /opt/sysusers/vca -m -s /bin/bash vca",
+                        "echo \"vca:vca\" | chpasswd",
+                        "echo -e 'vca\\tALL(ALL)\\tNOPASSWD:ALL'>>/etc/sudoers",
+                        "/opt/aws/bin/cfn-init",
+                        "# success"
+                     ]
+                  ]
+               }
+            }
+         }
+      },
+      "CentOS-ChefClient-node2":{
+         "Type":"AWS::EC2::Instance",
+         "Metadata":{
+            "AWS::CloudFormation::Init":{
+               "config":{
+                  "files":{
+                     "/etc/chef/client.rb":{
+                        "content":{
+                           "Fn::Join":[
+                              "\n",
+                              [
+                                 "log_level        :info",
+                                 "log_location     STDOUT",
+                                 "chef_server_url  'http://10.0.0.1:4000'",
+                                 "validation_client_name 'chef-validator'"
+                              ]
+                           ]
+                        },
+                        "mode":"000644",
+                        "owner":"root",
+                        "group":"root"
+                     },
+                     "/etc/chef/base.json":{
+                        "content":{
+                           "run_list":[
+                              "receipe[mysql]",
+                              "role[glassfish]"
+                           ],
+                           "mysql":{
+                              "login":"root",
+                              "password":"dbPassword"
+                           }
+                        },
+                        "mode":"000644",
+                        "owner":"root",
+                        "group":"root"
+                     },
+                     "/etc/chef/validation.pem":{
+                        "source":{
+                           "Fn::Join":[
+                              "",
+                              [
+                                 "http://10.0.0.1/",
+                                 "validation.pem"
+                              ]
+                           ]
+                        }
+                     }
+                  }
+               }
+            }
+         },
+         "Properties":{
+            "ImageId":{
+               "Fn::FindInMap":[
+                  "DistroArch2AMI",
+                  {
+                     "Ref":"LinuxDistribution"
+                  },
+                  {
+                     "Fn::FindInMap":[
+                        "AWSInstanceType2Arch",
+                        {
+                           "Ref":"InstanceType"
+                        },
+                        "Arch"
+                     ]
+                  }
+               ]
+            },
+            "InstanceType":{
+               "Ref":"InstanceType"
+            },
+            "KeyName":{
+               "Ref":"KeyName"
+            },
+            "UserData":{
+               "Fn::Base64":{
+                  "Fn::Join":[
+                     "\n",
+                     [
+                        "#!/bin/bash -v",
+                        "export http_proxy=http://10.105.15.27:8080",
+                        "export https_proxy=http://10.105.15.27:8080",
+                        "export no_proxy=127.0.0.1,localhost,.amg.net.pl,169.254.169.254",
+                        "mkdir -p /opt/sysusers; useradd -d /opt/sysusers/vca -m -s /bin/bash vca",
+                        "echo \"vca:vca\" | chpasswd",
+                        "echo -e 'vca\\tALL(ALL)\\tNOPASSWD:ALL'>>/etc/sudoers",
+                        "/opt/aws/bin/cfn-init",
+                        "# success"
+                     ]
+                  ]
+               }
+            }
+         }
+      },
+
+      "CentOS-ChefClient-node3":{
+         "Type":"AWS::EC2::Instance",
+         "Metadata":{
+            "AWS::CloudFormation::Init":{
+               "config":{
+                  "files":{
+                     "/etc/chef/client.rb":{
+                        "content":{
+                           "Fn::Join":[
+                              "\n",
+                              [
+                                 "log_level        :info",
+                                 "log_location     STDOUT",
+                                 "chef_server_url  'http://10.0.0.1:4000'",
+                                 "validation_client_name 'chef-validator'"
+                              ]
+                           ]
+                        },
+                        "mode":"000644",
+                        "owner":"root",
+                        "group":"root"
+                     },
+                     "/etc/chef/base.json":{
+                        "content":{
+                           "run_list":[
+                              "receipe[mysql]",
+                              "role[glassfish]"
+                           ],
+                           "mysql":{
+                              "login":"root",
+                              "password":"dbPassword"
+                           }
+                        },
+                        "mode":"000644",
+                        "owner":"root",
+                        "group":"root"
+                     },
+                     "/etc/chef/validation.pem":{
+                        "source":{
+                           "Fn::Join":[
+                              "",
+                              [
+                                 "http://10.0.0.1/",
+                                 "validation.pem"
+                              ]
+                           ]
+                        }
+                     }
+                  }
+               }
+            }
+         },
+         "Properties":{
+            "ImageId":{
+               "Fn::FindInMap":[
+                  "DistroArch2AMI",
+                  {
+                     "Ref":"LinuxDistribution"
+                  },
+                  {
+                     "Fn::FindInMap":[
+                        "AWSInstanceType2Arch",
+                        {
+                           "Ref":"InstanceType"
+                        },
+                        "Arch"
+                     ]
+                  }
+               ]
+            },
+            "InstanceType":{
+               "Ref":"InstanceType"
+            },
+            "KeyName":{
+               "Ref":"KeyName"
+            },
+            "SecurityGroups":[{
+               "Ref":"WebServerSecurityGroup"
+            }],
+            "UserData":{
+               "Fn::Base64":{
+                  "Fn::Join":[
+                     "\n",
+                     [
+                        "#!/bin/bash -v",
+                        "export http_proxy=http://10.105.15.27:8080",
+                        "export https_proxy=http://10.105.15.27:8080",
+                        "export no_proxy=127.0.0.1,localhost,.amg.net.pl,169.254.169.254",
+                        "mkdir -p /opt/sysusers; useradd -d /opt/sysusers/vca -m -s /bin/bash vca",
+                        "echo \"vca:vca\" | chpasswd",
+                        "echo -e 'vca\\tALL(ALL)\\tNOPASSWD:ALL'>>/etc/sudoers",
+                        "/opt/aws/bin/cfn-init",
+                        "# success"
+                     ]
+                  ]
+               }
+            }
+         }
+      },
+
+
+      "WebServerSecurityGroup" : {
+         "Type" : "AWS::EC2::SecurityGroup",
+         "Properties" : {
+            "GroupDescription" : "Enable HTTP access via port 80 plus SSH access",
+            "SecurityGroupIngress" : [
+               {"IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "CidrIp" : "0.0.0.0/0"},
+               {"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"},
+               {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"}
+            ]
+         }
+      }
+   },
+   "Outputs":{
+      "WebsiteURL-node1":{
+         "Value":{
+            "Fn::Join":[
+               "",
+               [
+                  "ssh ec2-user@",
+                  {
+                     "Fn::GetAtt":[
+                        "CentOS-ChefClient-node1",
+                        "PublicIp"
+                     ]
+                  }
+               ]
+            ]
+         },
+         "Description":"Ssh login command"
+      },
+      "WebsiteURL-node2":{
+         "Value":{
+            "Fn::Join":[
+               "",
+               [
+                  "ssh ec2-user@",
+                  {
+                     "Fn::GetAtt":[
+                        "CentOS-ChefClient-node2",
+                        "PublicIp"
+                     ]
+                  }
+               ]
+            ]
+         },
+         "Description":"Ssh login command"
+      },
+      "Node-1-IPAddress" : {
+         "Value" : { "Ref" : "IPAddress-node1" },
+         "Description":"node 1 public IP"
+      },
+      "Node-3-IPAddress" : {
+         "Value" : { "Ref" : "IPAddress-node3" },
+         "Description":"node 3 public IP"
+      }
+   }
+}
