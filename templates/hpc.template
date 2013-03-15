@@ -1,0 +1,779 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description" : "xlcloud :: High Performance Computing Virtual Cluster template containing a shared IoNode mounted to each node through NFS server, LDAP/NSS configuration, slurm scheduler and openmpi installation as well as a scaling group of compute nodes",
+  "Parameters": {
+    "KeyName": {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access",
+      "Type": "String"
+    },
+    "GlassfishAdminPassword":{
+      "Description":"Password for Glassfish admin",
+      "Type":"String",
+      "MinLength":"5",
+      "ConstraintDescription":"must be longer than 5 characters.",
+      "Default":"password",
+      "NoEcho": "TRUE"
+    },
+    "CpuInstanceType":{
+      "Description":"Instance type for CPU compute nodes",
+      "Type":"String",
+      "Default":"m1.medium",
+      "AllowedValues":[
+        "m1.tiny",
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge"
+      ],
+      "ConstraintDescription":"must be a valid EC2 instance type."
+    },
+    "CpuInstancesCount":{
+      "Description":"CPU instance count",
+      "Type":"Number",
+      "Default":"1",
+      "MinValue":"1",
+      "MaxValue":"100",
+      "ConstraintDescription":"must be between 1 and 100."
+    },
+    "VolumeSize":{
+      "Description":"WikiDatabase Volume size in GB.",
+      "Type":"Number",
+      "Default":"1",
+      "MinValue":"1",
+      "MaxValue":"1024",
+      "ConstraintDescription":"must be between 1 and 1024."
+    },
+    "VcTenantName":{
+      "Description":"Virtual cluster name",
+      "Type":"String",
+      "Default":"cluster"
+    },
+    "VncServerPassword":{
+      "Description":"Password for VNC server",
+      "Type":"String",
+      "MinLength":"5",
+      "ConstraintDescription":"must be longer than 5 characters.",
+      "Default":"password",
+      "NoEcho": "true"
+    },
+    "Applications": {
+      "Description" : "JSON applications descriptor passed to Chef as run list",
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "BatchNodeEIP":{
+      "Type":"AWS::EC2::EIP"
+    },
+    "EIPAssoc":{
+      "Type":"AWS::EC2::EIPAssociation",
+      "Properties":{
+        "InstanceId":{"Ref":"BatchNode"},
+        "EIP" : { "Ref" : "BatchNodeEIP" }
+      }
+    },
+    "BatchNodeSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable HTTP access via port 80 plus SSH access",
+        "SecurityGroupIngress" : [
+          {"IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "CidrIp" : "0.0.0.0/0"},
+          {"IpProtocol" : "tcp", "FromPort" : "5389", "ToPort" : "5389", "CidrIp" : "0.0.0.0/0"},
+          {"IpProtocol" : "tcp", "FromPort" : "8080", "ToPort" : "8080", "CidrIp" : "0.0.0.0/0"},
+          {"IpProtocol" : "tcp", "FromPort" : "9009", "ToPort" : "9009", "CidrIp" : "0.0.0.0/0"},
+          {"IpProtocol" : "tcp", "FromPort" : "4848", "ToPort" : "4848", "CidrIp" : "0.0.0.0/0"},
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"}
+        ]
+      }
+    },
+    "BatchNode":{
+      "Type":"AWS::EC2::Instance",
+      "DependsOn" : "IoNode",
+      "Metadata":{
+        "AWS::CloudFormation::Init":{
+          "config":{
+            "files":{
+              "/etc/init.d/glassfish":{
+                "content":{
+                  "Fn::Join":[
+                    "\n",
+                    [
+                      "#!/bin/sh",
+                      "# description: Glassfish Start Stop Restart",
+                      "# processname: glassfish",
+                      "# chkconfig: 2345 20 80",
+
+                      "GLASSFISH_HOME=${GLASSFISH_HOME:-\"/opt/glassfish3/glassfish\"}",
+                      "case \"$1\" in",
+                      "start)",
+                      "    $GLASSFISH_HOME/bin/asadmin start-domain",
+                      "    ;;",
+                      "stop)",
+                      "    $GLASSFISH_HOME/bin/asadmin stop-domain",
+                      "    ;;",
+                      "restart)",
+                      "    $GLASSFISH_HOME/bin/asadmin restart-domain",
+                      "    ;;",
+                      "*)",
+                      "    echo \"Wrong usage - available options are start, stop, restart, help\"",
+                      "esac"
+                    ]
+                  ]
+                },
+                "mode":"000755",
+                "owner":"root",
+                "group":"root"
+              },
+              "/tmp/setupGlassfish.sh":{
+                "content":{
+                  "Fn::Join":[
+                    "\n",
+                    [
+                      "#!/usr/bin/expect -f",
+                      "spawn /opt/glassfish3/glassfish/bin/asadmin change-admin-password",
+                      "expect \"*nter admin user name*\"",
+                      "send \\r",
+                      "expect \"*nter admin passwor*\"",
+                      "send \\r",
+                      "expect \"*new admin passwor*\"",
+                      {
+                        "Fn::Join":[
+                          "",
+                          [
+                            "send \"",
+                            { "Ref":"GlassfishAdminPassword" },
+                            "\\r\""
+                          ]
+
+                        ]
+                      },
+                      "expect \"*new admin passwor*\"",
+                      {
+                        "Fn::Join":[
+                          "",
+                          [
+                            "send \"",
+                            { "Ref":"GlassfishAdminPassword" },
+                            "\\r\""
+                          ]
+                        ]
+                      }
+                    ]
+                  ]
+                },
+                "mode":"000700",
+                "owner":"root",
+                "group":"root"
+              },
+              "/tmp/deployVca.sh":{
+                "content":{
+                  "Fn::Join":[
+                    "\n",
+                    [
+                      "#!/usr/bin/expect -f",
+                      "spawn /opt/glassfish3/glassfish/bin/asadmin --user admin deploy --force /opt/xlcloud-vca.war",
+                      "expect \"*asswor*\"",
+                      {
+                        "Fn::Join":[
+                          "",
+                          [
+                            "send \"",
+                            { "Ref":"GlassfishAdminPassword" },
+                            "\\r\""
+                          ]
+                        ]
+                      }
+                    ]
+                  ]
+                },
+                "mode":"000700",
+                "owner":"root",
+                "group":"root"
+              },
+              "/etc/sudoers.hpc":{
+                "content":{
+                  "Fn::Join":[
+                    "\n",
+                    [
+                      "#Defaults    requiretty",
+                      "vca    ALL=(%portalusers)    NOPASSWD:ALL",
+                      "Defaults               passwd_timeout=1"
+                    ]
+                  ]
+                },
+                "mode":"000700",
+                "owner":"root",
+                "group":"root"
+              },
+              "/etc/profile.d/hpc.sh":{
+                "content":{
+                  "Fn::Join":[
+                    "\n",
+                    [
+                      "#!/bin/sh",
+                      "export SLURM_HOME='/var/log/slurm'",
+                      "PATH=$PATH:/xlc/slurm/bin:/xlc/slurm/sbin:/xlc/munge/bin:/usr/local/hpc-scripts"
+                    ]
+                  ]
+                },
+                "mode":"000644",
+                "owner":"root",
+                "group":"root"
+              }
+            }
+          }
+        }
+      },
+      "Properties":{
+        "ImageId":"F16-x86_64-cfntools",
+        "InstanceType":"m1.small",
+        "KeyName":{ "Ref":"KeyName" },
+        "SecurityGroups": [ {"Ref" : "BatchNodeSecurityGroup"} ],
+        "UserData":{
+          "Fn::Base64":{
+            "Fn::Join":[
+              "\n",
+              [
+                "#!/bin/bash -xe",
+                "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
+
+                "# Flush iptables's default rules",
+                "iptables -I INPUT -p tcp --dport 6817 --syn -j ACCEPT",
+                "iptables -I INPUT -p tcp --dport 5389 --syn -j ACCEPT",
+                "/sbin/iptables -F",
+                "/sbin/iptables -X",
+
+                "# export proxies",
+                "export http_proxy=http://ecfrec.frec.bull.fr:8080",
+                "export https_proxy=http://ecfrec.frec.bull.fr:8080",
+                "export no_proxy=127.0.0.1,localhost",
+                "echo proxy=http://ecfrec.frec.bull.fr:8080/ >> /etc/yum.conf",
+
+                "#### TODO: these lines should be moved to config section, but this doesn't work in our heat configuration or environment",
+                "yum install -y expect expectk telnet mc wget gcc gcc-c++ automake autoconf make curl dmidecode java-1.6.0-openjdk.x86_64 unzip nfs-utils openldap openldap-clients openldap-servers nss-pam-ldapd openssl-devel vim",
+                "wget --no-proxy -O /opt/glassfish-3.1.2.2.zip http://10.197.217.62/downloads/glassfish/glassfish-3.1.2.2.zip",
+                "wget --no-proxy -O /tmp/log4j-1.2.14.jar http://10.197.217.62/downloads/glassfish/log4j-1.2.14.jar",
+                "wget --no-proxy -O /opt/xlcloud-vca.war http://10.197.217.62/downloads/vca/xlcloud-vca-hpc.war",
+                "wget --no-proxy -O /tmp/hpc-scripts.tar.gz http://10.197.217.62/downloads/vca/hpc-scripts.tar.gz",
+                "wget --no-proxy -O /tmp/slapd.conf http://10.197.217.62/downloads/ldap/slapd.conf",
+                "wget --no-proxy -O /tmp/ppolicy.ldif http://10.197.217.62/downloads/ldap/ppolicy.ldif",
+                "wget --no-proxy -O /tmp/xlcloud.ldif http://10.197.217.62/downloads/ldap/xlcloud.ldif",
+                "wget --no-proxy -O /opt/log4j.properties http://10.197.217.62/downloads/glassfish/log4j.properties",
+                
+                "# create vca user",
+                "mkdir -p /opt/sysusers",
+                "useradd -s /bin/bash -m -d /opt/sysusers/vca vca",
+                "echo xlcloud2012 | passwd vca --stdin",
+                
+                "# calling cfn-init",
+                "/opt/aws/bin/cfn-init",
+
+                "source /etc/profile.d/hpc.sh",
+                
+                "#### TODO: what's that??? module add openmpi-x86_64",
+
+                "#Wait for IO Node (hard mode) and mount it",
+                "mkdir /xlc",
+                {
+                  "Fn::Join":[
+                    "",
+                    [
+                      "mount -o hard,nosuid,intr ",
+                      { "Fn::GetAtt":[ "IoNode", "PublicIp" ] },
+                      ":/xlc/xlc /xlc"
+                    ]
+                  ]
+                },
+                "mkdir /share-home",
+                {
+                  "Fn::Join":[
+                    "",
+                    [
+                      "mount -o hard,nosuid,intr ",
+                      { "Fn::GetAtt":[ "IoNode", "PublicIp" ] },
+                      ":/xlc/home /share-home"
+                    ]
+                  ]
+                },
+
+                "# HPC - sudoers configuration",
+                "chmod 777 /etc/sudoers",
+                "echo \"#include /etc/sudoers.hpc\" >> /etc/sudoers",
+                "chmod 400 /etc/sudoers",
+                "chmod 440 /etc/sudoers.hpc",
+
+		"# LDAP server",
+		"chkconfig --levels 235 slapd on",
+		"cp /usr/share/openldap-servers/DB_CONFIG.example /var/lib/ldap/DB_CONFIG",
+		"chown -R ldap:ldap /var/lib/ldap",
+		"mv /etc/openldap/slapd.d/ slapd.d.original",
+		"cp /tmp/slapd.conf /etc/openldap/",
+		"cp /tmp/ppolicy.ldif /etc/openldap/",
+                "echo \"SLAPD_URLS=\\\"ldap://0.0.0.0:5389/ ldaps:/// ldapi:///\\\"\" >> /etc/sysconfig/ldap",
+		"service slapd start",
+
+                "# LDAP client",
+                "mkdir /etc/skel/Jobs",
+                "mkdir /etc/skel/Upload",
+                "authconfig --enableldap --enableldapauth --enablelocauthorize --enablemkhomedir --ldapserver=127.0.0.1:5389 --ldapbasedn=dc=xlcloud,dc=priv --update",
+                "echo \"session    required     pam_mkhomedir.so    skel=/etc/skel/ umask=0022\" >> /etc/pam.d/sudo-i",
+
+
+                "while [ ! -e /xlc/slurm ]; do echo Waiting for NFS shares to be mounted; sleep 20; done",
+                "# HPC - munge",
+                "mkdir /etc/munge",
+                "echo -n \"xlcloud2012\" | sha1sum | cut -d' ' -f1 >/etc/munge/munge.key",
+                "cd /etc/munge/",
+                "chmod 0400 munge.key",
+                "chown daemon:root munge.key",
+                "cp /xlc/munge/init.d/munge /etc/init.d/",
+                "mkdir /var/log/munge",
+                "chown daemon:root /var/log/munge",
+                "mkdir /var/lib/munge",
+                "chown daemon:root /var/lib/munge",
+
+                "# HPC - configure munge as a service",
+                "chkconfig --add munge",
+                "chkconfig munge on",
+                "service munge start",
+
+
+                "# HPC - SLURM",
+                "SLURM_PATH=/xlc/slurm",
+                "mkdir /var/log/slurm",
+                "chmod -R 777 /var/log/slurm",
+                "chmod -R 755 /var/spool",
+
+                "echo \"ControlMachine=`hostname`\" >> $SLURM_PATH/etc/slurm.conf",
+                "echo \"ControlAddr=`hostname -I`\" >> $SLURM_PATH/etc/slurm.conf",
+                "echo \"NodeName=batch NodeAddr=`hostname -I` State=UNKNOWN\" >> $SLURM_PATH/etc/slurm.conf",
+                "echo \"PartitionName=compute Nodes=batch Default=YES MaxTime=INFINITE State=UP\" >> $SLURM_PATH/etc/slurm.conf",
+                "slurmctld",
+
+                "# Glassfish",
+                "cd /opt",
+                "unzip glassfish-3.1.2.2.zip && rm -rf glassfish-3.1.2.2.zip",
+                "mv /tmp/log4j-1.2.14.jar /opt/glassfish3/glassfish/lib/",
+                "sed -e 's|</java-config>|<jvm-options>-Dlog4j.configuration=file:///opt/log4j.properties</jvm-options></java-config>|' /opt/glassfish3/glassfish/domains/domain1/config/domain.xml",
+                "sed -i \"s/localhost$/localhost `hostname`/\" /etc/hosts",
+                "/etc/init.d/glassfish start",
+                "ps -ef | grep java",
+                "/tmp/setupGlassfish.sh",
+
+                "echo com.bull.xlcloud.ssh.alternatives.PasswordAuthJsch.password=xlcloud2012 >> /root/vca.properties",
+                "echo  >> /root/vca.properties",
+
+                "echo com.bull.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.getJobScriptName=/usr/local/hpc-scripts/getJob.sh >> /root/vca.properties",
+                "echo com.bull.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.listJobsScriptName=/usr/local/hpc-scripts/getActiveJobs.sh >> /root/vca.properties",
+                "echo com.bull.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.listActiveJobsScriptName=/usr/local/hpc-scripts/getActiveJobs.sh >> /root/vca.properties",
+                "echo com.bull.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.terminateJobScriptName=/usr/local/hpc-scripts/terminateJob.sh >> /root/vca.properties",
+                "echo com.bull.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.getSessionDetailsScriptName=/usr/local/hpc-scripts/getSessionDetails.sh >> /root/vca.properties",
+                {
+                  "Fn::Join":[
+                    "",
+                    [
+                      "echo vcTenantName=",
+                      { "Fn::GetAtt":[ "IoNode", "PublicIp" ] },
+                      " >> /root/vca.properties"
+                    ]
+                  ]
+                },
+
+                "#VCA",
+                "/tmp/deployVca.sh",
+
+                "# VCA Scripts",
+                "cd /tmp",
+                "tar xvf hpc-scripts.tar.gz",
+                "mkdir /etc/hpc",
+                "mv hpc-scripts/hpc-scripts.properties /etc/hpc",
+                "mv hpc-scripts/hpc /usr/local/hpc-scripts",
+
+                "ldapadd -x -D \"cn=admin,dc=xlcloud,dc=priv\" -w admin -f /tmp/xlcloud.ldif",
+
+                "# Downgrading sudo",
+                "wget --no-proxy -O `which sudo` http://10.197.217.62/downloads/utils/sudo",
+                "ln -s /lib64/libcap.so.2 /lib64/libcap.so.1",
+                "ln -s /usr/lib64/libldap-2.4.so.2 /usr/lib64/libldap-2.3.so.0",
+                "ln -s /lib64/libaudit.so.1 /lib64/libaudit.so.0",
+                "ln -s /usr/lib64/liblber-2.4.so.2 /usr/lib64/liblber-2.3.so.0"
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "ComputeNodeGroup": {
+      "Type":"AWS::AutoScaling::AutoScalingGroup",
+      "Properties":{
+        "LaunchConfigurationName":{ "Ref":"ComputeConfig" },
+        "MinSize":{ "Ref":"CpuInstancesCount" },
+        "MaxSize":{ "Ref":"CpuInstancesCount" },
+        "AvailabilityZones":{ "Fn::GetAZs":"" }
+      }
+    },
+    "ComputeConfig": {
+      "Type":"AWS::AutoScaling::LaunchConfiguration",
+      "DependsOn" : "BatchNode",
+        "Metadata":{
+        "AWS::CloudFormation::Init":{
+          "config":{
+            "files":{
+              "/etc/profile.d/hpc.sh":{
+                "content":{
+                  "Fn::Join":[
+                    "\n",
+                    [
+                      "#!/bin/sh",
+                      "export SLURM_HOME='/var/log/slurm'",
+                      "PATH=$PATH:/xlc/slurm/bin:/xlc/slurm/sbin:/xlc/munge/bin"
+                    ] 
+                  ]   
+                },  
+                "mode":"000644",
+                "owner":"root",
+                "group":"root"
+              },
+	      "/tmp/setupVncServer.sh":{
+                "content":{
+                  "Fn::Join":[
+                    "\n",
+                    [
+                      "#!/usr/bin/expect -f",
+                      " -d $HOME/.vnc -> mkdir $HOME/.vnc ",
+                      "spawn /opt/TurboVNC/bin/vncpasswd",
+                      "expect \"*assword:\"",
+                      {
+                        "Fn::Join":[
+                          "",
+                          [
+                            "send \"",
+                            { "Ref":"VncServerPassword" },
+                            "\\r\""
+                          ]
+                        ]
+                      },
+                      "expect \"*erify:\"",
+                      {
+                        "Fn::Join":[
+                          "",
+                          [
+                            "send \"",
+                            { "Ref":"VncServerPassword" },
+                            "\\r\""
+                          ]
+                        ]
+                      },
+                      "expect \"*ould you like to enter a view-only password*\"",
+                      "send \"n\\r\""
+                    ]
+                  ]
+                },
+                "mode":"000755",
+                "owner":"root",
+                "group":"root"
+              }
+            }
+          }
+        }
+      },
+      "Properties":{
+        "ImageId":"F16-x86_64-cfntools",
+        "InstanceType":{ "Ref":"CpuInstanceType" },
+        "KeyName":{ "Ref":"KeyName" },
+        "UserData":{
+          "Fn::Base64":{
+            "Fn::Join":[
+              "\n",
+              [
+                "#!/bin/bash -xe",
+                "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
+
+                "# Flush iptables's default rules",
+                "iptables -I INPUT -p tcp --dport 6818 --syn -j ACCEPT",
+                "/sbin/iptables -F",
+                "/sbin/iptables -X",
+
+                "# export proxies",
+                "export http_proxy=http://ecfrec.frec.bull.fr:8080",
+                "export https_proxy=http://ecfrec.frec.bull.fr:8080",
+                "export no_proxy=127.0.0.1,localhost",
+                "echo proxy=http://ecfrec.frec.bull.fr:8080/ >> /etc/yum.conf",
+
+                "#### TODO: these lines should be moved to config section, but this doesn't work in our heat configuration or environment",
+                "yum install -y telnet mc wget curl environment-modules openmpi openmpi-devel unzip nfs-utils openldap openldap-clients nss-pam-ldapd vim",
+                
+                "/opt/aws/bin/cfn-init",
+                
+                "source /etc/profile.d/hpc.sh",
+
+                "#Wait for IO Node (hard mode) and mount it",
+                "mkdir /xlc",
+                {
+                  "Fn::Join":[
+                    "",
+                    [
+                      "mount -o hard,nosuid,intr ",
+                      { "Fn::GetAtt":[ "IoNode", "PublicIp" ] },
+                      ":/xlc/xlc /xlc"
+                    ]
+                  ]
+                },
+                "mkdir /share-home",
+                {
+                  "Fn::Join":[
+                    "",
+                    [
+                      "mount -o hard,nosuid,intr ",
+                      { "Fn::GetAtt":[ "IoNode", "PublicIp" ] },
+                      ":/xlc/home /share-home"
+                    ]
+                  ]
+                },
+
+                "# HPC - LDAP client",
+                {
+                  "Fn::Join":[
+                    "",
+                    [
+                      "authconfig --enableldap --enableldapauth --enablelocauthorize --enablemkhomedir --ldapserver=",
+		      { "Fn::GetAtt":[ "BatchNode", "PublicIp" ] },
+                      " --ldapbasedn=dc=xlcloud,dc=priv --update"
+                    ]
+                  ]
+                },
+                "mkdir /etc/skel/Jobs",
+                "mkdir /etc/skel/Upload",
+                "echo \"session    required     pam_mkhomedir.so    skel=/etc/skel/ umask=0022\" >> /etc/pam.d/sudo-i",
+
+                "#Setup HPC env",
+                "while [ ! -e /xlc/slurm ]; do echo Waiting for NFS shares to be mounted; sleep 20; done",
+                "# HPC - munge",
+                "mkdir /etc/munge",
+                "echo -n \"xlcloud2012\" | sha1sum | cut -d' ' -f1 >/etc/munge/munge.key",
+                "cd /etc/munge/",
+                "chmod 0400 munge.key",
+                "chown daemon:root munge.key",
+                "cp /xlc/munge/init.d/munge /etc/init.d/",
+                "mkdir /var/log/munge",
+                "chown daemon:root /var/log/munge",
+                "mkdir /var/lib/munge",
+                "chown daemon:root /var/lib/munge",
+
+                "# HPC - configure munge as a service",
+                "chkconfig --add munge",
+                "chkconfig munge on",
+                "service munge start",
+
+
+                "# HPC - SLURM",
+                "SLURM_PATH=/xlc/slurm",
+                "mkdir /var/log/slurm",
+                "chmod -R 777 /var/log/slurm",
+                "chmod -R 755 /var/spool",
+
+                "NODE_NAME=`tr -dc a-z0-9 </dev/urandom |  head -c 8`",
+                "echo \"NodeName=$NODE_NAME `slurmd -C | grep CPU | awk -F' ' '{print $2}'` NodeAddr=`hostname -I` State=UNKNOWN\" >> $SLURM_PATH/etc/slurm.conf",
+                
+                "sed -i '/PartitionName=compute/s/Nodes=/&'$NODE_NAME',/g' /$SLURM_PATH/etc/slurm.conf",
+                "while [ $(grep -c ControlAddr $SLURM_PATH/etc/slurm.conf) -lt 1 ]; do echo ControlMachine not registered yet, waiting...; sleep 20; done",
+                "slurmd -N $NODE_NAME",
+                "scontrol reconfigure",
+
+                "# TurboVNC",
+                "yum -y install glx-utils libXaw.x86_64 xauth xorg-x11-fonts-base xorg-x11-fonts-misc libXv libXcursor twm xterm xrdb",
+                "wget --no-proxy -O /tmp/VirtualGL-2.3.2.x86_64.rpm http://10.197.217.62/downloads/visualization/VirtualGL-2.3.2.x86_64.rpm",
+                "wget --no-proxy -O /tmp/turbovnc-1.1.x86_64.rpm http://10.197.217.62/downloads/visualization/turbovnc-1.1.x86_64.rpm",
+                "cd /tmp",
+                "rpm -ivh turbovnc-1.1.x86_64.rpm",
+                "rpm -ivh VirtualGL-2.3.2.x86_64.rpm",
+                "/tmp/setupVncServer.sh"
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "SharedDataVolume" : {
+      "Type" : "AWS::EC2::Volume",
+      "Properties" : {
+        "Size" : { "Ref":"VolumeSize" },
+        "AvailabilityZone" : { "Fn::GetAtt" : [ "IoNode", "AvailabilityZone" ] }
+      }
+    },
+    "MountPoint" : {
+      "Type" : "AWS::EC2::VolumeAttachment",
+      "Properties" : {
+        "InstanceId" : { "Ref" : "IoNode" },
+        "VolumeId" : { "Ref" : "SharedDataVolume" },
+        "Device" : "/dev/vdc"
+      }
+    },
+    "IoNode":{
+      "Type":"AWS::EC2::Instance",
+      "Metadata":{
+        "AWS::CloudFormation::Init":{
+          "config":{
+            "files":{
+              "/etc/chef/client.rb":{
+                "content":{
+                  "Fn::Join":[
+                    "\n",
+                    [
+                      "log_level        :info",
+                      "log_location     STDOUT",
+                      "chef_server_url  'http://10.197.217.62:4000'",
+                      "validation_client_name 'chef-validator'"
+                    ]
+                  ]
+                },
+                "mode":"000644",
+                "owner":"root",
+                "group":"root"
+              },
+              "/etc/chef/base.json":{
+                "content":{"Ref":"Applications"},
+                "mode":"000644",
+                "owner":"root",
+                "group":"root"
+              }
+            }
+          }
+        }
+      },
+      "Properties":{
+        "ImageId":"F16-x86_64-cfntools",
+        "InstanceType":"m1.small",
+        "KeyName":{ "Ref":"KeyName" },
+        "UserData":{
+          "Fn::Base64":{
+            "Fn::Join":[
+              "\n",
+              [
+                "#!/bin/bash -xe",
+                "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
+
+                "# Flush iptables's default rules",
+                "/sbin/iptables -F",
+                "/sbin/iptables -X",
+
+                "# export proxies",
+                "export http_proxy=http://ecfrec.frec.bull.fr:8080",
+                "export https_proxy=http://ecfrec.frec.bull.fr:8080",
+                "export no_proxy=127.0.0.1,localhost",
+                "echo proxy=http://ecfrec.frec.bull.fr:8080/ >> /etc/yum.conf",
+
+                "#### TODO: these lines should be moved to config section, but this doesn't work in our heat configuration or environment",
+                "yum install -y wget curl parted nfs-utils nfs-utils-lib system-config-nfs",
+                "yum install -y gcc gcc-c++ automake autoconf make dmidecode openssl-devel",
+                "yum -y install ruby ruby-devel ruby-ri ruby-rdoc ruby-shadow",
+                "mkdir /etc/chef",
+                "wget --no-proxy -O /etc/chef/validation.pem http://10.197.217.62/downloads/chef/validation.pem",
+                "wget --no-proxy -O /tmp/munge-0.5.10.tar.bz2 http://10.197.217.62/downloads/slurm/munge-0.5.10.tar.bz2",
+                "wget --no-proxy -O /tmp/slurm-2.5.0.tar.bz2 http://10.197.217.62/downloads/slurm/slurm-2.5.0.tar.bz2",
+                "wget --no-proxy -O /tmp/slurm.conf http://10.197.217.62/downloads/slurm/slurm.conf",
+
+                "/opt/aws/bin/cfn-init",
+
+                "#Wait for EBS volume",
+                "while [ ! -e /dev/vdc ]; do echo Waiting for volume to attach; sleep 1; done",
+
+                "# Create a new partition",
+                "parted -s /dev/vdc mklabel msdos",
+                {
+                  "Fn::Join":[
+                    "",
+                    [
+                      "parted -s /dev/vdc mkpart primary ext3 1 ",
+                      { "Ref":"VolumeSize" },
+                      ".0GB"
+                    ]
+                  ]
+                },
+
+                "# Format the EBS volume and mount it",
+                "/sbin/mkfs -t ext3 /dev/vdc",
+                "mkdir /xlc",
+                "mount /dev/vdc /xlc",
+                "mkdir /xlc/home",
+                "mkdir /xlc/xlc",
+
+                "#Install chef-client and dependencies",
+                "rpm -Uvh http://rbel.frameos.org/rbel6",
+                "mkdir /tmp/firstboot",
+                "cd /tmp/firstboot",
+                "curl -O http://production.cf.rubygems.org/rubygems/rubygems-1.8.10.tgz",
+                "tar zxf rubygems-1.8.10.tgz",
+                "cd rubygems-1.8.10",
+                "ruby setup.rb --no-format-executable",
+                "gem install chef --no-ri --no-rdoc",
+
+                "#run installed client",
+                "chef-client -j /etc/chef/base.json",
+
+
+                "# Install NFS packages and share xlc dir",
+                "echo \"/xlc/xlc *(rw,no_root_squash,async)\" >> /etc/exports",
+                "echo \"/xlc/home *(rw,no_root_squash,async)\" >> /etc/exports",
+
+                "# starting nfs services",
+                "exportfs -a",
+                "systemctl enable nfs-server.service",
+                "service nfs-server start",
+                "service rpcbind status",
+                "service nfs-server status",
+
+                "# HPC - munge",
+                "cd /tmp",
+                "tar --bzip -x -f munge-0.5.10.tar.bz2",
+                "cd munge-0.5.10",
+                "MUNGE_PATH=/xlc/munge",
+                "./configure --prefix=$MUNGE_PATH --sysconfdir=/etc --localstatedir=/var",
+                "make",
+                "make install",
+                "mkdir $MUNGE_PATH/init.d",
+                "cp /etc/init.d/munge $MUNGE_PATH/init.d",
+
+                "# HPC - SLURM",
+                "cd /tmp",
+                "tar --bzip -x -f slurm-2.5.0.tar.bz2",
+                "cd slurm-2.5.0",
+                "SLURM_PATH=/xlc/slurm",
+                "./configure --prefix=$SLURM_PATH --sysconfdir=$SLURM_PATH/etc --enable-debug --with-munge=$MUNGE_PATH",
+                "make",
+                "make install",
+                "mkdir $SLURM_PATH/etc",
+                "cp /tmp/slurm.conf $SLURM_PATH/etc",
+
+                "mv $MUNGE_PATH /xlc/xlc/",
+                "mv $SLURM_PATH /xlc/xlc/",
+
+                "# starting nfs services",
+                "#systemctl start rpcbind.service",
+                "#systemctl start nfs-server.service",
+                "#systemctl start nfs-lock.service",
+                "#systemctl enable rpcbind.service",
+                "#systemctl enable nfs-server.service",
+                "#systemctl enable nfs-lock.service"
+              ]
+            ]
+          }
+        }
+      }
+    }
+  },
+  "Outputs" : {
+    "InstanceId" : {
+      "Description" : "InstanceId of the newly created EC2 instance",
+      "Value" : { "Ref" : "BatchNode" }
+    },
+    "AZ" : {
+      "Description" : "Availability Zone of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "BatchNode", "AvailabilityZone" ] }
+    },
+    "PublicIP" : {
+      "Description" : "Public IP address of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "BatchNode", "PublicIp" ] }
+    }
+  }
+}
