@@ -220,15 +220,6 @@
                         "gcc-c++":[
 
                         ],
-                        "automake":[
-
-                        ],
-                        "autoconf":[
-
-                        ],
-                        "make":[
-
-                        ],
                         "dmidecode":[
 
                         ]
