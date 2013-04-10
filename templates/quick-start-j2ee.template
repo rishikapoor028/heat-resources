@@ -1,6 +1,6 @@
 {
     "AWSTemplateFormatVersion":"2010-09-09",
-    "Description":"xlcloud :: used for batch node contextualization testing only",
+    "Description":"Cluster with Apache Tomcat as a middleware. It starts applications from the Runlist using Chef-Solo.",
     "Parameters":{
         "KeyName":{
             "Description":"Name of an existing EC2 KeyPair to enable SSH access",
@@ -10,15 +10,57 @@
             "Description":"Virtual cluster name",
             "Type":"String",
             "Default":"cluster"
+        },
+        "RunList": {
+          "Description" : "Collection of recipes to execute",
+          "Type": "String"
+        },
+        "CookbooksUrl": {
+          "Description" : "Url of the application cookbooks archive",
+          "Type": "String"
         }
     },
     "Resources":{
+        "NodeSecurityGroup":{
+            "Type":"AWS::EC2::SecurityGroup",
+            "Properties":{
+                "GroupDescription":"Enable HTTP access via port 80 plus SSH access",
+                "SecurityGroupIngress":[
+                   {
+                       "IpProtocol":"icmp",
+                       "FromPort":"-1",
+                       "ToPort":"-1",
+                       "CidrIp":"0.0.0.0/0"
+                   },
+                   {
+                       "IpProtocol":"tcp",
+                       "FromPort":"80",
+                       "ToPort":"80",
+                       "CidrIp":"0.0.0.0/0"
+                   },
+                   {
+                       "IpProtocol":"tcp",
+                       "FromPort":"22",
+                       "ToPort":"22",
+                       "CidrIp":"0.0.0.0/0"
+                   }
+                ]
+            }
+        },
         "BatchNode":{
             "Type":"AWS::EC2::Instance",
             "Metadata":{
                 "AWS::CloudFormation::Init":{
                     "config":{
                         "files":{
+                            "/etc/chef/applications-runlist.json":{
+                                "content": {
+                                  "Ref" : "RunList"
+                                },
+                                "mode":"000644",
+                                "owner":"root",
+                                "group":"root"
+                            },
                             "/etc/chef/middleware-runlist.json":{
                                 "content":{
                                     "Fn::Join":[
@@ -41,7 +83,10 @@
                                             "cookbook_path    '/var/chef/cookbooks'",
                                             "log_level        :info",
                                             "log_location     STDOUT",
-                                            "ssl_verify_mode  :verify_none"
+                                            "ssl_verify_mode  :verify_none",
+                                            "http_proxy 'http://10.197.217.62:3128'",
+                                            "https_proxy 'http://10.197.217.62:3128'",
+                                            "no_proxy '127.0.0.1,localhost,10.197.217.70'"
                                         ]
                                     ]
                                 },
@@ -77,6 +122,7 @@
                 "KeyName":{
                     "Ref":"KeyName"
                 },
+                "SecurityGroups":[{"Ref":"NodeSecurityGroup"}],
                 "UserData":{
                     "Fn::Base64":{
                         "Fn::Join":[
@@ -87,20 +133,32 @@
                                 "# Flush iptables's default rules",
                                 "/sbin/iptables -F",
                                 "/sbin/iptables -X",
+                                
+                                "# adding technical user (FOR DEMO PURPOSE ONLY!)",
+                                "useradd instance-admin",
+                                "echo 'instance-admin' | passwd --stdin instance-admin",
+                                
                                 "# export proxies",
                                 "export http_proxy=http://ecfrec.frec.bull.fr:8080",
                                 "export https_proxy=http://ecfrec.frec.bull.fr:8080",
                                 "export no_proxy=127.0.0.1,localhost,10.197.217.70",
                                 "echo proxy=http://ecfrec.frec.bull.fr:8080/ >> /etc/yum.conf",
+                                
                                 "# installing some tools",
                                 "yum -y install telnet mc wget",
                                 "yum -y install expect expectk",
+                                
                                 "# create vca user",
                                 "mkdir -p /opt/sysusers",
                                 "useradd -s /bin/bash -m -d /opt/sysusers/vca vca",
                                 "echo xlcloud2012 | passwd vca --stdin",
+                                
                                 "# calling cfn-init",
                                 "/opt/aws/bin/cfn-init",
+                                
+                                "# adding technical user to sudoers (FOR DEMO PURPOSE ONLY!)",
+                                "echo 'instance-admin ALL=(ALL) ALL' >> /etc/sudoers",
+                                
                                 "#Install chef-client and dependencies",
                                 "rpm -Uvh http://rbel.frameos.org/rbel6",
                                 "yum -y install ruby ruby-devel ruby-ri ruby-rdoc ruby-shadow gcc gcc-c++ automake autoconf make curl dmidecode",
@@ -109,15 +167,20 @@
                                 "curl -O http://production.cf.rubygems.org/rubygems/rubygems-1.8.10.tgz",
                                 "tar zxf rubygems-1.8.10.tgz",
                                 "cd rubygems-1.8.10",
-                                "ruby setup.rb --no-format-executable",
+                                "ruby setup.rb --no-format-executable --no-rdoc --no-ri",
                                 "gem install chef --no-ri --no-rdoc",
+                                
                                 "#Download cookbooks:",
                                 "mkdir -p /var/chef/cookbooks",
                                 "cd /var/chef/",
                                 "curl -O http://10.197.217.70/middleware/tomcat.tar.gz",
                                 "tar -xzvf tomcat.tar.gz",
-                                "#run installed client",
-                                "chef-solo -j /etc/chef/middleware-runlist.json -c /etc/chef/solo.rb"
+                                
+                                "#run middleware",
+                                "chef-solo -j /etc/chef/middleware-runlist.json -c /etc/chef/solo.rb",
+                                
+                                "#Execute application runlist",
+                                { "Fn::Join" : [ " ", [ "chef-solo -j /etc/chef/applications-runlist.json -c /etc/chef/solo.rb -r", { "Ref": "CookbooksUrl" } ] ] }
                             ]
                         ]
                     }
