@@ -1,0 +1,395 @@
+{
+   "AWSTemplateFormatVersion":"2010-09-09",
+   "Description":"CentOS based instance template",
+   "Parameters":{
+      "KeyName":{
+         "Description":"Name of an existing EC2 KeyPair to enable SSH access",
+         "Type":"String"
+      },
+      "InstanceType":{
+         "Description":"Instance typee",
+         "Type":"String",
+         "Default":"m1.small",
+         "AllowedValues":[
+            "m1.tiny",
+            "m1.small",
+            "m1.medium",
+            "m1.large",
+            "m1.xlarge"
+         ],
+         "ConstraintDescription":"must be a valid EC2 instance type."
+      },
+      "ChefServer":{
+         "Description":"URL of Chef Server",
+         "Type":"String",
+         "Default":"10.197.217.62:4040"
+      },
+      "HttpProxy":{
+         "Description":"HTTP Proxy (cache)",
+         "Type":"String",
+         "Default":"10.197.217.62:3128"
+      },
+      "LinuxDistribution":{
+         "Default":"CENTOS-6.3",
+         "Description":"Distribution of choice",
+         "Type":"String",
+         "AllowedValues":[
+            "F16",
+            "F17",
+            "U10",
+            "RHEL-6.1",
+            "RHEL-6.2",
+            "RHEL-6.3",
+            "CENTOS-6.3"
+         ]
+      }
+   },
+   "Mappings":{
+      "AWSInstanceType2Arch":{
+         "t1.micro":{
+            "Arch":"32"
+         },
+         "m1.small":{
+            "Arch":"64"
+         },
+         "m1.large":{
+            "Arch":"64"
+         },
+         "m1.xlarge":{
+            "Arch":"64"
+         },
+         "m2.xlarge":{
+            "Arch":"64"
+         },
+         "m2.2xlarge":{
+            "Arch":"64"
+         },
+         "m2.4xlarge":{
+            "Arch":"64"
+         },
+         "c1.medium":{
+            "Arch":"32"
+         },
+         "c1.xlarge":{
+            "Arch":"64"
+         },
+         "cc1.4xlarge":{
+            "Arch":"64"
+         }
+      },
+      "DistroArch2AMI":{
+         "F16":{
+            "32":"F16-i386-cfntools",
+            "64":"F16-x86_64-cfntools"
+         },
+         "F17":{
+            "32":"F17-i386-cfntools",
+            "64":"F17-x86_64-cfntools"
+         },
+         "U10":{
+            "32":"U10-i386-cfntools",
+            "64":"U10-x86_64-cfntools"
+         },
+         "RHEL-6.1":{
+            "32":"rhel61-i386-cfntools",
+            "64":"rhel61-x86_64-cfntools"
+         },
+         "RHEL-6.2":{
+            "32":"rhel62-i386-cfntools",
+            "64":"rhel62-x86_64-cfntools"
+         },
+         "RHEL-6.3":{
+            "32":"rhel63-i386-cfntools",
+            "64":"rhel63-x86_64-cfntools"
+         },
+         "CENTOS-6.3":{
+            "32":"Centos63-i386-cfntools",
+            "64":"CentOS63-x86_64-cfntools"
+         }
+      }
+   },
+   "Resources":{
+      "IPAddress":{
+         "Type":"AWS::EC2::EIP"
+      },
+      "IPAssoc":{
+         "Type":"AWS::EC2::EIPAssociation",
+         "Properties":{
+            "InstanceId":{
+               "Ref":"XServerNode"
+            },
+            "EIP":{
+               "Ref":"IPAddress"
+            }
+         }
+      },
+      "XServerNodeSecurityGroup":{
+         "Type":"AWS::EC2::SecurityGroup",
+         "Properties":{
+            "GroupDescription":"Enable HTTP access via port 80 plus SSH access",
+            "SecurityGroupIngress":[
+               {
+                  "IpProtocol":"icmp",
+                  "FromPort":"-1",
+                  "ToPort":"-1",
+                  "CidrIp":"0.0.0.0/0"
+               },
+               {
+                  "IpProtocol":"tcp",
+                  "FromPort":"80",
+                  "ToPort":"80",
+                  "CidrIp":"0.0.0.0/0"
+               },
+               {
+                  "IpProtocol":"tcp",
+                  "FromPort":"22",
+                  "ToPort":"22",
+                  "CidrIp":"0.0.0.0/0"
+               },
+               {
+                  "IpProtocol":"tcp",
+                  "FromPort":"5114",
+                  "ToPort":"5114",
+                  "CidrIp":"0.0.0.0/0"
+               },
+               {
+                  "IpProtocol":"tcp",
+                  "FromPort":"6112",
+                  "ToPort":"6117",
+                  "CidrIp":"0.0.0.0/0"
+               },
+               {
+                  "IpProtocol":"tcp",
+                  "FromPort":"7114",
+                  "ToPort":"7114",
+                  "CidrIp":"0.0.0.0/0"
+               }
+            ]
+         }
+      },
+      "XServerNode":{
+         "Type":"AWS::EC2::Instance",
+         "SecurityGroups":[
+            {
+               "Ref":"XServerNodeSecurityGroup"
+            }
+         ],
+         "ImageId":"CentOS63-x86_64-XSer",
+         "InstanceType":"m1.small",
+         "KeyName":{
+            "Ref":"KeyName"
+         },
+         "Metadata":{
+            "AWS::CloudFormation::Init":{
+               "config":{
+                  "packages":{
+                     "yum":{
+                        "wget":[
+
+                        ],
+                        "unzip":[
+
+                        ],
+                        "make":[
+
+                        ],
+                        "autoconf":[
+
+                        ],
+                        "automake":[
+
+                        ],
+                        "ruby":[
+
+                        ],
+                        "ruby-devel":[
+
+                        ],
+                        "ruby-ri":[
+
+                        ],
+                        "ruby-rdoc":[
+
+                        ],
+                        "ruby-shadow":[
+
+                        ],
+                        "gcc":[
+
+                        ],
+                        "gcc-c++":[
+
+                        ],
+                        "dmidecode":[
+
+                        ]
+                     }
+                  },
+                  "files":{
+                     "/etc/chef/validation.pem":{
+                        "source":"http://10.197.217.62/downloads/validation.pem",
+                        "mode":"000644",
+                        "owner":"root",
+                        "group":"root"
+                     },
+                     "/etc/chef/client.rb":{
+                        "content":{
+                           "Fn::Join":[
+                              "\n",
+                              [
+                                 "log_level        :info",
+                                 "log_location     STDOUT",
+                                 "chef_server_url  'http://10.197.217.62:4000'",
+                                 "validation_client_name 'chef-validator'"
+                              ]
+                           ]
+                        },
+                        "mode":"000644",
+                        "owner":"root",
+                        "group":"root"
+                     },
+                     "/etc/chef/roles.json":{
+                        "content":{
+                           "run_list":[
+
+                           ]
+                        },
+                        "mode":"000644",
+                        "owner":"root",
+                        "group":"root"
+                     },
+                     "/opt/rubygems-1.8.10.tgz":{
+                        "source":"http://10.197.217.62/downloads/rubygems-1.8.10.tgz",
+                        "mode":"000644",
+                        "owner":"root",
+                        "group":"root"
+                     }
+                  }
+               }
+            }
+         },
+         "Properties":{
+            "ImageId":{
+               "Fn::FindInMap":[
+                  "DistroArch2AMI",
+                  {
+                     "Ref":"LinuxDistribution"
+                  },
+                  {
+                     "Fn::FindInMap":[
+                        "AWSInstanceType2Arch",
+                        {
+                           "Ref":"InstanceType"
+                        },
+                        "Arch"
+                     ]
+                  }
+               ]
+            },
+            "InstanceType":{
+               "Ref":"InstanceType"
+            },
+            "KeyName":{
+               "Ref":"KeyName"
+            },
+            "UserData":{
+               "Fn::Base64":{
+                  "Fn::Join":[
+                     "",
+                     [
+                        "#!/bin/bash -v\n",
+                        "# Helper function\n",
+                        "function error_exit\n",
+                        "{\n",
+                        "  exit 1\n",
+                        "}\n",
+			"#Switch the runlevel ...\n",
+                        "# Flush iptables's default rules\n",
+                        "/sbin/iptables -F\n",
+                        "/sbin/iptables -X\n",
+                        "# prepare for packages install\n",
+                        "export http_proxy=",
+                        {
+                           "Ref":"HttpProxy"
+                        },
+                        "\n",
+                        "export https_proxy=",
+                        {
+                           "Ref":"HttpProxy"
+                        },
+                        "\n",
+                        "sed --in-place --e s/129.183.4.8:8080/",
+                        {
+                           "Ref":"HttpProxy"
+                        },
+                        "/ /etc/yum.conf\n",
+                        "export no_proxy=127.0.0.1,localhost,.ecfrec.xlcloud.org,169.254.169.254,10.197.217.62\n",
+                        "yum update -y\n",
+                        "yum upgrade -y\n",
+                        "wget -O /etc/yum.repos.d/aegisco.repo http://rpm.aegisco.com/aegisco/el5/aegisco.repo\n",
+                        "/opt/aws/bin/cfn-init -s ",
+                        {
+                           "Ref":"AWS::StackName"
+                        },
+                        " -r XServerNode ",
+                        " --region ",
+                        {
+                           "Ref":"AWS::Region"
+                        },
+                        " || error_exit 'Failed to run cfn-init for XServerNode'\n",
+			"#Install X Window System\n",
+                        "yum groupinstall 'X Window System'\n",
+			"#Install XORG additional stuff...\n",
+                        "yum install -y xorg-x11-drv-fbdev xorg-x11-apps xorg-x11-twm mesa* libmng gdm SDL telnet\n",
+			"#Install RR\n",
+			"mkdir -p /tmp/RR\n",
+			"cd /tmp/RR\n",
+			"wget http://157.159.160.238:8080/magellan/installRR2.sh\n",
+			"chmod u+x installRR2.sh\n",
+			"./installRR2.sh\n",	
+			"#Done installing RR\n",
+                        "#install rubygems\n",
+                        "if [ ! -e /opt/rubygems-1.8.10 ];\n",
+                        "then\n",
+                        "cd /opt\n",
+                        "tar zxf rubygems-1.8.10.tgz; cd rubygems-1.8.10\n",
+                        "ruby setup.rb --no-format-executable\n",
+                        "gem install chef --no-ri --no-rdoc\n",
+                        "fi\n",
+                        "chef-client -j /etc/chef/roles.json > /tmp/initialize_client.log 2>&1",
+                        " || error_exit 'Failed to initialize host via chef client' \n"
+                     ]
+                  ]
+               }
+            }
+         }
+      }
+   },
+   "Outputs":{
+      "InstanceId":{
+         "Description":"InstanceId of the newly created EC2 instance",
+         "Value":{
+            "Ref":"XServerNode"
+         }
+      },
+      "AZ":{
+         "Description":"Availability Zone of the newly created EC2 instance",
+         "Value":{
+            "Fn::GetAtt":[
+               "XServerNode",
+               "AvailabilityZone"
+            ]
+         }
+      },
+      "PublicIP":{
+         "Description":"Public IP address of the newly created EC2 instance",
+         "Value":{
+            "Fn::GetAtt":[
+               "XServerNode",
+               "PublicIp"
+            ]
+         }
+      }
+   }
+}
+

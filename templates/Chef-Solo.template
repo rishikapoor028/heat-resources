@@ -1,0 +1,163 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Virtual cluster template that starts applications from the RunList basing on generated cookbooks.tar.gz and Chef-Solo",
+  "Parameters" : {
+    "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type" : "String"
+    },
+    "LinuxDistribution": {
+      "Default": "F16",
+      "Description" : "Distribution of choice",
+      "Type": "String",
+      "AllowedValues" : [ "F16" ]
+    },
+    "RunList": {
+      "Description" : "Collection of recipes to execute",
+      "Type": "String"
+    },
+    "CookbooksUrl": {
+      "Description" : "Url of the application cookbooks archive",
+      "Type": "String"
+    }
+  },
+  "Resources" : {
+    "NodeIPAddress" : {
+      "Type" : "AWS::EC2::EIP"
+    },
+    "NodeIPAssoc" : {
+      "Type" : "AWS::EC2::EIPAssociation",
+      "Properties" : {
+        "InstanceId" : { "Ref" : "Node" },
+        "EIP" : { "Ref" : "NodeIPAddress" }
+      }
+    },
+    "NodeSecurityGroup":{
+      "Type":"AWS::EC2::SecurityGroup",
+      "Properties":{
+        "GroupDescription":"Enable HTTP access via port 80 plus SSH access",
+	"SecurityGroupIngress":[
+	{
+	    "IpProtocol":"icmp",
+	    "FromPort":"-1",
+	    "ToPort":"-1",
+	    "CidrIp":"0.0.0.0/0"
+	},
+	{
+	    "IpProtocol":"tcp",
+	    "FromPort":"80",
+	    "ToPort":"80",
+	    "CidrIp":"0.0.0.0/0"
+	},
+	{
+	    "IpProtocol":"tcp",
+	    "FromPort":"22",
+	    "ToPort":"22",
+	    "CidrIp":"0.0.0.0/0"
+	  }
+        ]
+      }
+    },
+    "Node": {
+      "Type": "AWS::EC2::Instance",
+      "Metadata" : {
+        "AWS::CloudFormation::Init" : {
+          "config" : {
+                 "files":{
+                    "/etc/chef/applications-runlist.json":{
+                        "content": {
+                          "Ref" : "RunList"
+                        },
+                        "mode":"000644",
+                        "owner":"root",
+                        "group":"root"
+                    },
+                    "/etc/chef/solo.rb":{
+                        "content":{
+                            "Fn::Join":[
+                                "\n",
+                                [
+                                    "file_cache_path  '/tmp/chef-solo'",
+                                    "cookbook_path    '/var/chef-solo/cookbooks'",
+                                    "log_level        :info",
+                                    "log_location     STDOUT",
+                                    "ssl_verify_mode  :verify_none",
+                                    "http_proxy 'http://10.197.217.62:3128'",
+                                    "https_proxy 'http://10.197.217.62:3128'",
+                                    "no_proxy '127.0.0.1,localhost,10.197.217.70'"
+                                ]
+                            ]
+                        },
+                        "mode":"000644",
+                        "owner":"root",
+                        "group":"root"
+                    },
+                    "/etc/sudoers.hpc":{
+                        "content":{
+                            "Fn::Join":[
+                                "\n",
+                                [
+                                    "#Allow using sudo from non-terminal connections",
+                                    "#Defaults    requiretty",
+                                    "# Needed on all batch hosts and portal machine",
+                                    "vca    ALL=(%portalusers)    NOPASSWD:ALL",
+                                    "# Override built-in defaults",
+                                    "Defaults               passwd_timeout=1"
+                                ]
+                            ]
+                        },
+                        "mode":"000700",
+                        "owner":"root",
+                        "group":"root"
+                    }
+                }
+            }
+        }
+      },
+      "Properties": {
+        "ImageId"        : "F16-x86_64-cfntools-from-heat",
+        "InstanceType"   : "m1.small",
+        "KeyName"        : { "Ref" : "KeyName" },
+        "SecurityGroups":[{"Ref":"NodeSecurityGroup"}],
+        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["\n", [
+          "#!/bin/bash -xe",
+          "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
+
+          "# Flush iptables's default rules",
+          "/sbin/iptables -F",
+          "/sbin/iptables -X",
+
+          "# export proxies",
+          "export http_proxy=http://10.197.217.62:3128",
+          "export https_proxy=http://10.197.217.62:3128",
+          "export no_proxy=127.0.0.1,localhost,10.197.217.70",
+          "echo proxy=http://10.197.217.62:3128/ >> /etc/yum.conf",
+
+          "# calling cfn-init",
+          "/opt/aws/bin/cfn-init",
+
+          "#Install chef-solo and dependencies",
+          "rpm -Uvh http://rbel.frameos.org/rbel6",
+          "yum -y install ruby ruby-devel ruby-shadow gcc gcc-c++ automake autoconf make curl dmidecode",
+          "mkdir /tmp/firstboot",
+          "cd /tmp/firstboot",
+          "curl -O http://production.cf.rubygems.org/rubygems/rubygems-1.8.10.tgz",
+          "tar zxf rubygems-1.8.10.tgz",
+          "cd rubygems-1.8.10",
+          "ruby setup.rb --no-format-executable --no-rdoc --no-ri",
+          "gem install chef --no-ri --no-rdoc",
+          
+          "#Execute application runlist",
+          { "Fn::Join" : [ " ", [ "chef-solo -j /etc/chef/applications-runlist.json -c /etc/chef/solo.rb -r", { "Ref": "CookbooksUrl" } ] ] }
+        ]]}}
+      }
+    }
+  },
+  "Outputs" : {
+    "NodeIP" : {
+      "Value" : { "Ref" : "NodeIPAddress" },
+      "Description" : "Public (elastic) IP associated with cluster node"
+    }
+  }
+}
+
