@@ -2,21 +2,16 @@
     "AWSTemplateFormatVersion":"2010-09-09",
     "Description":"Cluster with Apache Tomcat as a middleware. It starts applications from the Runlist using Chef-Solo.",
     "Parameters":{
-        "KeyName":{
-            "Description":"Name of an existing EC2 KeyPair to enable SSH access",
-            "Type":"String"
-        },
-        "VcTenantName":{
-            "Description":"Virtual cluster name",
-            "Type":"String",
-            "Default":"cluster"
-        },
         "RunList": {
           "Description" : "Collection of recipes to execute",
+          "Default": "xxxx",
+          "NoEcho": "TRUE",
           "Type": "String"
         },
         "CookbooksUrl": {
           "Description" : "Url of the application cookbooks archive",
+          "Default": "xxxx",
+          "NoEcho": "TRUE",
           "Type": "String"
         }
     },
@@ -125,9 +120,6 @@
             "Properties":{
                 "ImageId":"F16-x86_64-cfntools-from-heat",
                 "InstanceType":"m1.small",
-                "KeyName":{
-                    "Ref":"KeyName"
-                },
                 "SecurityGroups":[{"Ref":"NodeSecurityGroup"}],
                 "UserData":{
                     "Fn::Base64":{
@@ -153,11 +145,6 @@
                                 "# installing some tools",
                                 "yum -y install telnet mc wget",
                                 "yum -y install expect expectk",
-                                
-                                "# create vca user",
-                                "mkdir -p /opt/sysusers",
-                                "useradd -s /bin/bash -m -d /opt/sysusers/vca vca",
-                                "echo xlcloud2012 | passwd vca --stdin",
                                 
                                 "# calling cfn-init",
                                 "/opt/aws/bin/cfn-init",
