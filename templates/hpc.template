@@ -360,14 +360,14 @@
                 "ps -ef | grep java",
                 "/tmp/setupGlassfish.sh",
 
-                "echo com.bull.xlcloud.ssh.alternatives.PasswordAuthJsch.password=xlcloud2012 >> /root/vca.properties",
+                "echo org.xlcloud.ssh.alternatives.PasswordAuthJsch.password=xlcloud2012 >> /root/vca.properties",
                 "echo  >> /root/vca.properties",
 
-                "echo com.bull.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.getJobScriptName=/usr/local/hpc-scripts/getJob.sh >> /root/vca.properties",
-                "echo com.bull.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.listJobsScriptName=/usr/local/hpc-scripts/getActiveJobs.sh >> /root/vca.properties",
-                "echo com.bull.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.listActiveJobsScriptName=/usr/local/hpc-scripts/getActiveJobs.sh >> /root/vca.properties",
-                "echo com.bull.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.terminateJobScriptName=/usr/local/hpc-scripts/terminateJob.sh >> /root/vca.properties",
-                "echo com.bull.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.getSessionDetailsScriptName=/usr/local/hpc-scripts/getSessionDetails.sh >> /root/vca.properties",
+                "echo org.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.getJobScriptName=/usr/local/hpc-scripts/getJob.sh >> /root/vca.properties",
+                "echo org.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.listJobsScriptName=/usr/local/hpc-scripts/getActiveJobs.sh >> /root/vca.properties",
+                "echo org.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.listActiveJobsScriptName=/usr/local/hpc-scripts/getActiveJobs.sh >> /root/vca.properties",
+                "echo org.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.terminateJobScriptName=/usr/local/hpc-scripts/terminateJob.sh >> /root/vca.properties",
+                "echo org.xlcloud.vca.ext.hpc.service.ssh.ShellScriptJobManager.getSessionDetailsScriptName=/usr/local/hpc-scripts/getSessionDetails.sh >> /root/vca.properties",
                 {
                   "Fn::Join":[
                     "",
