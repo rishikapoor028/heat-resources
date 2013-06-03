@@ -3,15 +3,15 @@
     "Description":"Cluster with Apache Tomcat as a middleware. It starts applications from the Runlist using Chef-Solo.",
     "Parameters":{
         "RunList": {
-          "Description" : "Collection of recipes to execute",
-          "Default": "xxxx",
-          "NoEcho": "TRUE",
+          "Default": "{\"run_list\":[]}",
+          "Description": "Collection of recipes to execute: This value will be overwritten when the stack is started",
+          "NoEcho": "FALSE",
           "Type": "String"
         },
         "CookbooksUrl": {
-          "Description" : "Url of the application cookbooks archive",
-          "Default": "xxxx",
-          "NoEcho": "TRUE",
+          "Default": "http://internal.cookbooks.uri.base/vc_id/cookbooks.tar.gz",
+          "Description": "Url of the application cookbooks archive: This value will be overwritten when the stack is started",
+          "NoEcho": "FALSE",
           "Type": "String"
         }
     },
@@ -179,6 +179,14 @@
                     }
                 }
             }
+        },
+        "node_eip": {"Type": "AWS::EC2::EIP"},
+        "node_eip_assoc": {
+          "Type": "AWS::EC2::EIPAssociation",
+          "Properties": {
+            "EIP": {"Ref": "node_eip"},
+            "InstanceId": {"Ref": "BatchNode"}
+          }
         }
     },
     "Outputs":{
@@ -197,14 +205,20 @@
                 ]
             }
         },
-        "PublicIP":{
-            "Description":"Public IP address of the newly created EC2 instance",
+        "PrivateIP":{
+            "Description":"Private IP address of the newly created EC2 instance",
             "Value":{
                 "Fn::GetAtt":[
                     "BatchNode",
                     "PublicIp"
                 ]
             }
+        },
+        "applications-uri": {
+          "Description": "URL to Apache Tomcat where applications are being deployed",
+          "Value": {"Fn::Join": ["",
+            ["http://", {"Ref": "node_eip"}, ":8080"]
+          ]}
         }
     }
 }
