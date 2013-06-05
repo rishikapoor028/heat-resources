@@ -118,7 +118,7 @@
                 }
             },
             "Properties":{
-                "ImageId":"F17-x86_64-cfntools",
+                "ImageId":"F18-x86_64",
                 "InstanceType":"m1.small",
                 "SecurityGroups":[{"Ref":"NodeSecurityGroup"}],
                 "UserData":{
