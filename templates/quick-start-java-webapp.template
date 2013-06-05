@@ -118,7 +118,7 @@
                 }
             },
             "Properties":{
-                "ImageId":"F16-x86_64-cfntools-from-heat",
+                "ImageId":"F17-x86_64-cfntools",
                 "InstanceType":"m1.small",
                 "SecurityGroups":[{"Ref":"NodeSecurityGroup"}],
                 "UserData":{
