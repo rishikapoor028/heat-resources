@@ -1,0 +1,123 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "java 3-tier java web application stack blueprint",
+  "Parameters": {
+    "xlcloud:defaultKeyName": {
+      "Type": "String"
+    },
+    "xlcloud:defaultInstanceType": {
+      "Type": "String"
+    },
+    "xlcloud:defaultImageId": {
+      "Type": "String"
+    },
+    "xlcloud:DbNode:min": {
+      "Type": "String",
+      "AllowedPattern": "[0-9]+",
+      "ConstraintDescription": "invalid value"
+    },
+    "xlcloud:DbNode:max": {
+      "Type": "String",
+      "AllowedPattern": "[0-9]+",
+      "ConstraintDescription": "invalid value"
+    },
+    "xlcloud:runlists/setup": {
+      "Type": "String"
+    },
+    "xlcloud:cookbooks": {
+      "Type": "String"
+    }
+  },
+  "Resources" : {
+    "DbNode":{
+      "Type":"AWS::AutoScaling::LaunchConfiguration",
+      "Metadata":{
+        "AWS::CloudFormation::Init":{
+          "config":{
+            "files":{
+              "/etc/chef/setup-runlist.json":{
+                "content": {"Ref": "xlcloud:runlists/setup"},
+                "mode":"000644",
+                "owner":"root",
+                "group":"root"
+              },
+              "/etc/chef/solo.rb":{
+                "content":{
+                  "Fn::Join":[ "\n", [
+                    "file_cache_path  '/tmp/chef'",
+                    "cookbook_path    '/var/chef/cookbooks'",
+                    "log_level        :info",
+                    "log_location     STDOUT",
+                    "ssl_verify_mode  :verify_none",
+                    "http_proxy 'http://10.197.217.62:3128'",
+                    "https_proxy 'http://10.197.217.62:3128'",
+                    "no_proxy '127.0.0.1,localhost,10.197.217.70'"
+                  ]]
+                },
+                "mode":"000644",
+                "owner":"root",
+                "group":"root"
+              }
+            }
+          }
+        }
+      },
+      "Properties":{
+        "ImageId":{"Ref": "xlcloud:defaultImageId"},
+        "InstanceType":{"Ref": "xlcloud:defaultInstanceType"},
+        "UserData":{
+          "Fn::Base64":{
+            "Fn::Join":[ "\n", [
+              "#!/bin/bash -vx",
+              "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
+              "# Flush iptables's default rules",
+              "/sbin/iptables -F",
+              "/sbin/iptables -X",
+
+              "# export proxies",
+              "export http_proxy=http://ecfrec.frec.bull.fr:8080",
+              "export https_proxy=http://ecfrec.frec.bull.fr:8080",
+              "export no_proxy=127.0.0.1,localhost,10.197.217.70",
+              "echo proxy=http://ecfrec.frec.bull.fr:8080/ >> /etc/yum.conf",
+
+              "# installing some tools",
+              "yum -y install telnet mc wget",
+              "yum -y install expect expectk",
+
+              "# calling cfn-init",
+              "/opt/aws/bin/cfn-init",
+
+              "#Install chef-client and dependencies",
+              "rpm -Uvh http://rbel.frameos.org/rbel6",
+              "yum -y install ruby ruby-devel ruby-ri ruby-rdoc ruby-shadow gcc gcc-c++ automake autoconf make curl dmidecode",
+              "mkdir /tmp/firstboot",
+              "cd /tmp/firstboot",
+              "curl -O http://production.cf.rubygems.org/rubygems/rubygems-1.8.10.tgz",
+              "tar zxf rubygems-1.8.10.tgz",
+              "cd rubygems-1.8.10",
+              "ruby setup.rb --no-format-executable --no-rdoc --no-ri",
+              "gem install chef --no-ri --no-rdoc",
+
+              "#Download cookbooks:",
+              "mkdir -p /var/chef/cookbooks",
+              "cd /var/chef/",
+              "############ TODO: download them!!!############",
+
+              "#run middleware",
+              "chef-solo -j /etc/chef/setup-runlist.json -c /etc/chef/solo.rb"
+            ]]
+          }
+        }
+      }
+    },
+    "DbNodeScaling": {
+      "Type" : "AWS::AutoScaling::AutoScalingGroup",
+      "Properties" : {
+        "AvailabilityZones" : { "Fn::GetAZs" : "" },
+        "LaunchConfigurationName" : { "Ref" : "DbNode" },
+        "MinSize" : { "Ref" : "xlcloud:DbNode:min" },
+        "MaxSize" : { "Ref" : "xlcloud:DbNode:max" }
+      }
+    }
+  }
+}

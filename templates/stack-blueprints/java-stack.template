@@ -1,0 +1,73 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "java 3-tier java web application stack blueprint",
+  "Parameters": {
+    "xlcloud:defaultKeyName": {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access",
+      "Type": "String"
+    },
+    "xlcloud:defaultInstanceType": {
+      "Description" : "Default instance type (flavor) for instances in this stack",
+      "Type": "String",
+      "Default":"m1.tiny",
+      "AllowedValues":[
+        "m1.tiny",
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge"
+      ],
+      "ConstraintDescription":"must be a valid XLcloud instance type."
+    },
+    "xlcloud:defaultImageId": {
+      "Description" : "Default image name for instances in this stack",
+      "Type": "String",
+      "Default":"F18-x86_64",
+      "AllowedValues":[
+        "F17-x86_64",
+        "F18-x86_64"
+      ],
+      "ConstraintDescription":"must be a valid XLcloud image name."
+    },
+    "xlcloud:db/templateURL": {
+      "Type": "String",
+      "Default": "http://10.197.217.60/db.template"
+    },
+    "xlcloud:app_servers/templateURL": {
+      "Type": "String",
+      "Default": "http://10.197.217.60/app-servers.template"
+    }
+  },
+  "Resources" : {
+    "app_servers" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Properties" : {
+        "TemplateURL" : {"Ref": "xlcloud:app_servers/templateURL"},
+        "Parameters" : {
+          "xlcloud:defaultInstanceType" : {"Ref":"xlcloud:defaultInstanceType"},
+          "xlcloud:defaultKeyName" : {"Ref":"xlcloud:defaultKeyName"},
+          "xlcloud:defaultImageId" : {"Ref":"xlcloud:defaultImageId"},
+          "xlcloud:TomcatNode:max" : "3",
+          "xlcloud:TomcatNode:min" : "3",
+          "xlcloud:runlists/setup" : "{ \"run_list\": [ \"recipe[tomcat]\"] }",
+          "xlcloud:cookbooks" : "https://github.com/opscode-cookbooks/tomcat.git"
+        }
+      }
+    },
+    "db" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Properties" : {
+        "TemplateURL" : {"Ref": "xlcloud:db/templateURL"},
+        "Parameters" : {
+          "xlcloud:defaultInstanceType" : {"Ref":"xlcloud:defaultInstanceType"},
+          "xlcloud:defaultKeyName" : {"Ref":"xlcloud:defaultKeyName"},
+          "xlcloud:defaultImageId" : {"Ref":"xlcloud:defaultImageId"},
+          "xlcloud:DbNode:max" : "1",
+          "xlcloud:DbNode:min" : "1",
+          "xlcloud:runlists/setup" : "{ \"run_list\": [ \"recipe[mysql]\"] }",
+          "xlcloud:cookbooks" : "https://github.com/opscode-cookbooks/mysql.git"
+        }
+      }
+    }
+  }
+}
