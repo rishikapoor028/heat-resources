@@ -23,10 +23,11 @@
     },
     "xlcloud:runlists/setup": {
       "Type": "String",
-      "Default" : "{ \"run_list\": [ \"recipe[tomcat]\"] }"
+      "Default": "{ \"run_list\": [ \"recipe[mysql]\"] }"
     },
     "xlcloud:cookbooks": {
-      "Type": "String"
+      "Type": "String",
+      "Default": "https://github.com/opscode-cookbooks/mysql.git"
     }
   },
   "Resources" : {

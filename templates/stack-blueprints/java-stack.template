@@ -48,8 +48,7 @@
           "xlcloud:defaultKeyName" : {"Ref":"xlcloud:defaultKeyName"},
           "xlcloud:defaultImageId" : {"Ref":"xlcloud:defaultImageId"},
           "xlcloud:TomcatNode:max" : "3",
-          "xlcloud:TomcatNode:min" : "3",
-          "xlcloud:cookbooks" : "https://github.com/opscode-cookbooks/tomcat.git"
+          "xlcloud:TomcatNode:min" : "3"
         }
       }
     },
@@ -62,9 +61,7 @@
           "xlcloud:defaultKeyName" : {"Ref":"xlcloud:defaultKeyName"},
           "xlcloud:defaultImageId" : {"Ref":"xlcloud:defaultImageId"},
           "xlcloud:DbNode:max" : "1",
-          "xlcloud:DbNode:min" : "1",
-          "xlcloud:runlists/setup" : "{ \"run_list\": [ \"recipe[mysql]\"] }",
-          "xlcloud:cookbooks" : "https://github.com/opscode-cookbooks/mysql.git"
+          "xlcloud:DbNode:min" : "1"
         }
       }
     }

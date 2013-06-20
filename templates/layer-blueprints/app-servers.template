@@ -22,10 +22,12 @@
       "ConstraintDescription": "invalid value"
     },
     "xlcloud:runlists/setup": {
-      "Type": "String"
+      "Type": "String",
+      "Default": "{ \"run_list\": [ \"recipe[tomcat]\"] }",
     },
     "xlcloud:cookbooks": {
-      "Type": "String"
+      "Type": "String",
+      "Default": "https://github.com/opscode-cookbooks/tomcat.git"
     }
   },
   "Resources" : {
