@@ -49,7 +49,6 @@
           "xlcloud:defaultImageId" : {"Ref":"xlcloud:defaultImageId"},
           "xlcloud:TomcatNode:max" : "3",
           "xlcloud:TomcatNode:min" : "3",
-          "xlcloud:runlists/setup" : "{ \"run_list\": [ \"recipe[tomcat]\"] }",
           "xlcloud:cookbooks" : "https://github.com/opscode-cookbooks/tomcat.git"
         }
       }
