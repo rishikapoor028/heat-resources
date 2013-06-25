@@ -23,7 +23,23 @@
     },
     "xlcloud:runlists/setup": {
       "Type": "String",
-      "Default": "{ \"run_list\": [ \"recipe[tomcat]\"] }",
+      "Default": "{ \"run_list\": [ \"recipe[tomcat::install]\"] }",
+    },
+    "xlcloud:runlists/configure": {
+      "Type": "String",
+      "Default": "{ \"run_list\": [] }",
+    },
+    "xlcloud:runlists/deploy": {
+      "Type": "String",
+      "Default": "{ \"run_list\": [\"recipe[java_webapp::deploy]\"] }",
+    },
+    "xlcloud:runlists/undeploy": {
+      "Type": "String",
+      "Default": "{ \"run_list\": [\"recipe[java_webapp::undeploy]\"] }",
+    },
+    "xlcloud:runlists/shutdown": {
+      "Type": "String",
+      "Default": "{ \"run_list\": [ \"recipe[tomcat::uninstall]\"] }",
     },
     "xlcloud:cookbooks": {
       "Type": "String",

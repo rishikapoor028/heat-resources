@@ -23,7 +23,23 @@
     },
     "xlcloud:runlists/setup": {
       "Type": "String",
-      "Default": "{ \"run_list\": [ \"recipe[mysql]\"] }"
+      "Default": "{ \"run_list\": [ \"recipe[mysql::install]\"] }",
+    },
+    "xlcloud:runlists/configure": {
+      "Type": "String",
+      "Default": "{ \"run_list\": [] }",
+    },
+    "xlcloud:runlists/deploy": {
+      "Type": "String",
+      "Default": "{ \"run_list\": [\"recipe[java_webapp::define_db_schema]\"] }",
+    },
+    "xlcloud:runlists/undeploy": {
+      "Type": "String",
+      "Default": "{ \"run_list\": [\"recipe[java_webapp::undefine_db_schema]\"] }",
+    },
+    "xlcloud:runlists/shutdown": {
+      "Type": "String",
+      "Default": "{ \"run_list\": [ \"recipe[mysql::uninstall]\"] }",
     },
     "xlcloud:cookbooks": {
       "Type": "String",
