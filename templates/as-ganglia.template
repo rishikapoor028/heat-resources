@@ -1,0 +1,547 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09", 
+  "Outputs": {
+    "NodeIP": {
+      "Description": "Ganglia deployment",
+      "Value": {
+        "Ref": "NodeIPAddress"
+      }
+    }
+  }, 
+  "Parameters": {
+    "MonitorPort": {
+      "Default": "8649", 
+      "Type": "String", 
+      "Description": "TCP port of monitoring traffic data"
+    }, 
+    "LinuxDistribution": {
+      "Default": "precise64", 
+      "Type": "String", 
+      "Description": "Distribution of choice", 
+      "AllowedValues": [
+        "precise64", 
+        "precise32", 
+        "raring", 
+        "CentOS63-x86_64-cfntools"
+      ]
+    }, 
+    "RunList": {
+      "Default": "ganglia", 
+      "Type": "String", 
+      "Description": "Collection of recipes to execute"
+    }, 
+    "ServerDebianPassword": {
+      "Type": "String", 
+      "NoEcho": "TRUE", 
+      "Description": "Password for debian-sys-maint user"
+    }, 
+    "KeyName": {
+      "Type": "String", 
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances"
+    }, 
+    "ServerRootPassword": {
+      "Type": "String", 
+      "NoEcho": "TRUE", 
+      "Description": "Root password for mysql server"
+    }, 
+    "CookbooksUrl": {
+      "Type": "String", 
+      "Description": "Url of the application cookbooks archive"
+    }, 
+    "ServerReplPassword": {
+      "Type": "String", 
+      "NoEcho": "TRUE", 
+      "Description": "Password for mysql replication user"
+    }
+  }, 
+  "Description": "demonstrate deployment of Ganglia in a Virtual Cluster", 
+  "Resources": {
+    "Layer1": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup", 
+      "Properties": {
+        "MinSize": "1", 
+        "MaxSize": "3", 
+        "AvailabilityZones": {
+          "Fn::GetAZs": ""
+        }, 
+        "LaunchConfigurationName": {
+          "Ref": "Layer1Config"
+        }
+      }
+    }, 
+    "NodeIPAddress": {
+      "Type": "AWS::EC2::EIP"
+    }, 
+    "CfnUser": {
+      "Type": "AWS::IAM::User"
+    }, 
+    "MEMAlarmHigh": {
+      "Type": "AWS::CloudWatch::Alarm", 
+      "Properties": {
+        "EvaluationPeriods": "1", 
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName", 
+            "Value": {
+              "Ref": "Layer1"
+            }
+          }
+        ], 
+        "AlarmActions": [
+          {
+            "Ref": "L1ScaleUpPolicy"
+          }
+        ], 
+        "AlarmDescription": "Scale-up if MEM > 50% for 1 minute", 
+        "Namespace": "system/linux", 
+        "Period": "60", 
+        "ComparisonOperator": "GreaterThanThreshold", 
+        "Statistic": "Average", 
+        "Threshold": "50", 
+        "MetricName": "MemoryUtilization"
+      }
+    }, 
+    "MEMAlarmLow": {
+      "Type": "AWS::CloudWatch::Alarm", 
+      "Properties": {
+        "EvaluationPeriods": "1", 
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName", 
+            "Value": {
+              "Ref": "Layer1"
+            }
+          }
+        ], 
+        "AlarmActions": [
+          {
+            "Ref": "L1ScaleDownPolicy"
+          }
+        ], 
+        "AlarmDescription": "Scale-dow if MEM < 16% for 1 minute", 
+        "Namespace": "system/linux", 
+        "Period": "60", 
+        "ComparisonOperator": "LessThanThreshold", 
+        "Statistic": "Average", 
+        "Threshold": "15", 
+        "MetricName": "MemoryUtilization"
+      }
+    }, 
+    "Layer1Keys": {
+      "Type": "AWS::IAM::AccessKey", 
+      "Properties": {
+        "UserName": {
+          "Ref": "CfnUser"
+        }
+      }
+    }, 
+    "NodeSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup", 
+      "Properties": {
+        "SecurityGroupIngress": [
+          {
+            "ToPort": "-1", 
+            "IpProtocol": "icmp", 
+            "FromPort": "-1", 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": {
+              "Ref": "MonitorPort"
+            }, 
+            "IpProtocol": "tcp", 
+            "FromPort": {
+              "Ref": "MonitorPort"
+            }, 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": "80", 
+            "IpProtocol": "tcp", 
+            "FromPort": "80", 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": "22", 
+            "IpProtocol": "tcp", 
+            "FromPort": "22", 
+            "CidrIp": "0.0.0.0/0"
+          }
+        ], 
+        "GroupDescription": "Enable HTTP access via port 80 plus SSH access"
+      }
+    }, 
+    "MonitorNode": {
+      "Type": "AWS::EC2::Instance", 
+      "Properties": {
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "\n", 
+              [
+                "#!/bin/bash -v", 
+                "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1", 
+                "# Flush iptables's default rules", 
+                "/sbin/iptables -F", 
+                "/sbin/iptables -X", 
+                "export MY_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/local-ipv4/)", 
+                "export MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)", 
+                "cat /etc/hosts && echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts && cat /etc/hosts", 
+                "#cat /etc/hosts && echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts && cat /etc/hosts", 
+                "export MY_HTTP_PROXY=http://10.197.217.62:3128", 
+                "cat << EOF >> /etc/profile.d/http_proxy.sh", 
+                "export http_proxy=$MY_HTTP_PROXY", 
+                "export https_proxy=$MY_HTTP_PROXY", 
+                "export no_proxy=127.0.0.1,localhost,169.254.169.254,$MY_IPV4", 
+                "EOF", 
+                "# export proxies", 
+                "source /etc/profile.d/http_proxy.sh", 
+                "echo 'Acquire::http::Proxy \"http://10.197.217.62:3128\";' >> /etc/apt/apt.conf", 
+                "locale-gen fr_FR.UTF-8", 
+                "apt-get update", 
+                "#### apt-get -y install git", 
+                "apt-get -y remove python-boto", 
+                "apt-get -y install python-psutil python-pip", 
+                "pip install ''boto==2.5.2'' heat-cfntools", 
+                "cfn-create-aws-symlinks -s /usr/local/bin/", 
+                "# calling cfn-init", 
+                "/opt/aws/bin/cfn-init", 
+                "apt-get -y install  ruby ruby1.8-dev build-essential wget libruby1.8 rubygems\n", 
+                "gem update --no-rdoc --no-ri\n", 
+                "gem install ohai chef --no-rdoc --no-ri\n", 
+                "#Install chef-solo and dependencies", 
+                "#apt-get -y install ruby ruby1.8-dev build-essential wget libruby1.8 rubygems", 
+                "#### DEBIAN_FRONTEND='noninteractive' apt-get -y install chef", 
+                "export CHEF_DIR=/etc/chef && cd $CHEF_DIR && http_proxy= wget http://10.197.217.62/downloads/cookbooks/ganglia.tgz", 
+                "tar xzvf ganglia.tgz && rm ganglia.tgz", 
+                "", 
+                "#Execute application runlist", 
+                {
+                  "Fn::Join": [
+                    " ", 
+                    [
+                      "#chef-solo -j /etc/chef/full-applications-runlist.json -c /etc/chef/solo.rb -r", 
+                      {
+                        "Ref": "CookbooksUrl"
+                      }
+                    ]
+                  ]
+                }
+              ]
+            ]
+          }
+        }, 
+        "KeyName": {
+          "Ref": "KeyName"
+        }, 
+        "SecurityGroups": [
+          {
+            "Ref": "NodeSecurityGroup"
+          }
+        ], 
+        "InstanceType": "m2.large", 
+        "ImageId": "precise64"
+      }, 
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "config": {
+            "files": {
+              "/root/.chef/knife.rb": {
+                "content": {
+                  "Fn::Join": [
+                    "\n", 
+                    [
+                      "cookbook_path [ '/etc/chef/cookbooks' ]", 
+                      "ssl_verify_mode  :verify_none", 
+                      "http_proxy 'http://10.197.217.62:3128'", 
+                      "https_proxy 'http://10.197.217.62:3128'"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000644"
+              }, 
+              "/etc/chef/node.json": {
+                "content": {
+                  "Fn::Join": [
+                    "\n", 
+                    [
+                      "{", 
+                      "\"run_list\" : [ \"recipe[stack-ganglia::gmetad]\", \"recipe[stack-ganglia::gmetad]\" ]", 
+                      "}"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000644"
+              }, 
+              "/etc/chef/solo.rb": {
+                "content": {
+                  "Fn::Join": [
+                    "\n", 
+                    [
+                      "file_cache_path  '/etc/chef'", 
+                      "cookbook_path    '/etc/chef/cookbooks'", 
+                      "json_attribs '/etc/chef/node.json'", 
+                      "log_level        :info", 
+                      "log_location     STDOUT", 
+                      "ssl_verify_mode  :verify_none", 
+                      "http_proxy 'http://10.197.217.62:3128'", 
+                      "https_proxy 'http://10.197.217.62:3128'", 
+                      "no_proxy '127.0.0.1,localhost'"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000644"
+              }, 
+              "/tmp/heat_test.txt": {
+                "content": {
+                  "Fn::Join": [
+                    "", 
+                    [
+                      "runlist: ", 
+                      {
+                        "Ref": "RunList"
+                      }, 
+                      "\n", 
+                      "memalarmhight :", 
+                      {
+                        "Ref": "MEMAlarmHigh"
+                      }, 
+                      "\n", 
+                      "aws::stackname : ", 
+                      {
+                        "Ref": "AWS::StackName"
+                      }, 
+                      "\n", 
+                      "aws::stackid: ", 
+                      {
+                        "Ref": "AWS::StackId"
+                      }, 
+                      "\n", 
+                      "instance:AvailabilityZone :", 
+                      {
+                        "Fn::GetAtt": [
+                          "Layer1", 
+                          "AvailabilityZone"
+                        ]
+                      }, 
+                      "\n", 
+                      "AS:InstanceList:", 
+                      {
+                        "Fn::GetAtt": [
+                          "Layer1", 
+                          "InstanceList"
+                        ]
+                      }, 
+                      "\n", 
+                      "----end\n", 
+                      "\n"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000644"
+              }
+            }
+          }
+        }
+      }
+    }, 
+    "Layer1Config": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration", 
+      "Properties": {
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "", 
+              [
+                "#!/bin/bash -v\n\n", 
+                "export MY_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/local-ipv4/)\n", 
+                "export MY_HTTP_PROXY=http://10.197.217.62:3128\n", 
+                "export MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)", 
+                "cat /etc/hosts && echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts && cat /etc/hosts", 
+                "#cat /etc/hosts && echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts && cat /etc/hosts", 
+                "cat << EOF >> /etc/profile.d/http_proxy.sh\n", 
+                "export http_proxy=$MY_HTTP_PROXY\n", 
+                "export https_proxy=$MY_HTTP_PROXY\n", 
+                "export no_proxy=127.0.0.1,localhost,169.254.169.254,$MY_IPV4\n", 
+                "EOF\n", 
+                "# export proxies\n", 
+                "source /etc/profile.d/http_proxy.sh\n", 
+                "echo 'Acquire::http::Proxy \"http://10.197.217.62:3128\";' >> /etc/apt/apt.conf\n", 
+                "locale-gen fr_FR.UTF-8\n", 
+                "apt-get update\n", 
+                "#### apt-get -y install git\n", 
+                "apt-get -y remove python-boto\n", 
+                "apt-get -y install python-psutil python-pip\n", 
+                "apt-get -y ruby ruby1.8-dev build-essential wget libruby1.8 rubygems\n", 
+                "gem update --no-rdoc --no-ri\n", 
+                "gem install ohai chef --no-rdoc --no-ri\n", 
+                "pip install ''boto==2.5.2'' heat-cfntools\n", 
+                "cfn-create-aws-symlinks -s /usr/local/bin/\n", 
+                "/opt/aws/bin/cfn-init -s ", 
+                {
+                  "Ref": "AWS::StackName"
+                }, 
+                " -r Layer1Config", 
+                " --region ", 
+                {
+                  "Ref": "AWS::Region"
+                }, 
+                "\n", 
+                "export CHEF_DIR=/etc/chef && cd $CHEF_DIR && http_proxy= wget http://10.197.217.62/downloads/cookbooks/ganglia.tgz \n", 
+                "tar xzvf ganglia.tgz && rm ganglia.tgz\n", 
+                "crontab /tmp/stats-crontab.txt\n"
+              ]
+            ]
+          }
+        }, 
+        "KeyName": {
+          "Ref": "KeyName"
+        }, 
+        "InstanceType": "m2.large", 
+        "ImageId": "precise64"
+      }, 
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "config": {
+            "files": {
+              "/root/.chef/knife.rb": {
+                "content": {
+                  "Fn::Join": [
+                    "\n", 
+                    [
+                      "cookbook_path [ '/etc/chef/cookbooks' ]", 
+                      "ssl_verify_mode  :verify_none", 
+                      "http_proxy 'http://10.197.217.62:3128'", 
+                      "https_proxy 'http://10.197.217.62:3128'"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000644"
+              }, 
+              "/etc/chef/node.json": {
+                "content": {
+                  "Fn::Join": [
+                    "\n", 
+                    [
+                      "{", 
+                      "\"run_list\" : [ \"recipe[stack-ganglia]\" ]", 
+                      "}"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000644"
+              }, 
+              "/tmp/stats-crontab.txt": {
+                "content": {
+                  "Fn::Join": [
+                    "", 
+                    [
+                      "MAIL=\"\"\n", 
+                      "\n", 
+                      "* * * * * /opt/aws/bin/cfn-push-stats --watch ", 
+                      {
+                        "Ref": "MEMAlarmHigh"
+                      }, 
+                      " --mem-util\n", 
+                      "* * * * * /opt/aws/bin/cfn-push-stats --watch ", 
+                      {
+                        "Ref": "MEMAlarmLow"
+                      }, 
+                      " --mem-util\n"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000600"
+              }, 
+              "/tmp/monitorNode.info": {
+                "content": {
+                  "Fn::Join": [
+                    "", 
+                    [
+                      " foo"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000400"
+              }, 
+              "/etc/cfn/cfn-credentials": {
+                "content": {
+                  "Fn::Join": [
+                    "", 
+                    [
+                      "AWSAccessKeyId=", 
+                      {
+                        "Ref": "Layer1Keys"
+                      }, 
+                      "\n", 
+                      "AWSSecretKey=", 
+                      {
+                        "Fn::GetAtt": [
+                          "Layer1Keys", 
+                          "SecretAccessKey"
+                        ]
+                      }, 
+                      "\n"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000400"
+              }
+            }
+          }
+        }
+      }
+    }, 
+    "L1ScaleUpPolicy": {
+      "Type": "AWS::AutoScaling::ScalingPolicy", 
+      "Properties": {
+        "ScalingAdjustment": "1", 
+        "AutoScalingGroupName": {
+          "Ref": "Layer1"
+        }, 
+        "Cooldown": "60", 
+        "AdjustmentType": "ChangeInCapacity"
+      }
+    }, 
+    "L1ScaleDownPolicy": {
+      "Type": "AWS::AutoScaling::ScalingPolicy", 
+      "Properties": {
+        "ScalingAdjustment": "-1", 
+        "AutoScalingGroupName": {
+          "Ref": "Layer1"
+        }, 
+        "Cooldown": "60", 
+        "AdjustmentType": "ChangeInCapacity"
+      }
+    }, 
+    "NodeIPAssoc": {
+      "Type": "AWS::EC2::EIPAssociation", 
+      "Properties": {
+        "InstanceId": {
+          "Ref": "MonitorNode"
+        }, 
+        "EIP": {
+          "Ref": "NodeIPAddress"
+        }
+      }
+    }
+  }
+}
