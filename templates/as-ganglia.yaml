@@ -1,0 +1,356 @@
+HeatTemplateFormatVersion: '2012-12-12'
+Outputs:
+  NodeIP:
+    Description: Ganglia deployment
+    Value: {Ref: NodeIPAddress}
+Parameters:
+  MonitorPort: {Default: '8649', Type: String, Description: TCP port of monitoring traffic data}
+  LinuxDistribution:
+    Default: precise64
+    Type: String
+    Description: Distribution of choice
+    AllowedValues: [precise64, precise32, raring, CentOS63-x86_64-cfntools]
+  RunList: {Default: ganglia, Type: String,
+    Description: Collection of recipes to execute}
+  KeyName: {Type: String, Description: Name
+      of an existing EC2 KeyPair to enable SSH access to the instances}
+  CookbooksUrl: {Type: String, Description: Url
+      of the application cookbooks archive}
+Description: demonstrate deployment of Ganglia in a Virtual Cluster
+Resources:
+  Layer1:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MinSize: '2'
+      MaxSize: '3'
+      AvailabilityZones: {'Fn::GetAZs': ''}
+      LaunchConfigurationName: {Ref: Layer1Config}
+  NodeIPAddress: {Type: 'AWS::EC2::EIP'}
+  CfnUser: {Type: 'AWS::IAM::User'}
+  MEMAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: '1'
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: {Ref: Layer1}
+      AlarmActions:
+      - {Ref: L1ScaleUpPolicy}
+      AlarmDescription: Scale-up if MEM > 50% for 1 minute
+      Namespace: system/linux
+      Period: '60'
+      ComparisonOperator: GreaterThanThreshold
+      Statistic: Average
+      Threshold: '50'
+      MetricName: MemoryUtilization
+  MEMAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: '1'
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: {Ref: Layer1}
+      AlarmActions:
+      - {Ref: L1ScaleDownPolicy}
+      AlarmDescription: Scale-dow if MEM < 16% for 1 minute
+      Namespace: system/linux
+      Period: '60'
+      ComparisonOperator: LessThanThreshold
+      Statistic: Average
+      Threshold: '15'
+      MetricName: MemoryUtilization
+  Layer1Keys:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: {Ref: CfnUser}
+  NodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      SecurityGroupIngress:
+      - {ToPort: '-1', IpProtocol: icmp, FromPort: '-1',
+        CidrIp: 0.0.0.0/0}
+      - ToPort: {Ref: MonitorPort}
+        IpProtocol: tcp
+        FromPort: {Ref: MonitorPort}
+        CidrIp: 0.0.0.0/0
+      - {ToPort: '80', IpProtocol: tcp, FromPort: '80',
+        CidrIp: 0.0.0.0/0}
+      - {ToPort: '22', IpProtocol: tcp, FromPort: '22',
+        CidrIp: 0.0.0.0/0}
+      GroupDescription: Enable HTTP access via port 80 plus SSH access
+  MonitorNode:
+    Type: AWS::EC2::Instance
+    Properties:
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - '
+
+            '
+          - - '#!/bin/bash -v'
+            - exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console)
+              2>&1
+            - /sbin/iptables -F
+            - /sbin/iptables -X
+            - export MY_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/local-ipv4/)
+            - export MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+            - export MY_HOSTNAME=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/hostname)
+            - cat /etc/hosts && echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts && cat /etc/hosts
+            - export MY_HTTP_PROXY=http://10.197.217.62:3128
+            - cat << EOF >> /etc/profile.d/http_proxy.sh
+            - export http_proxy=$MY_HTTP_PROXY
+            - export https_proxy=$MY_HTTP_PROXY
+            - export no_proxy=127.0.0.1,localhost,169.254.169.254,$MY_IPV4
+            - EOF
+            - #### export proxies
+            - source /etc/profile.d/http_proxy.sh
+            - echo 'Acquire::http::Proxy "http://10.197.217.62:3128";' >> /etc/apt/apt.conf
+            - locale-gen fr_FR.UTF-8
+            - apt-get update
+            - #### apt-get -y install git
+            - apt-get -y remove python-boto
+            - apt-get -y install python-psutil python-pip cloud-init
+            - pip install ''boto==2.5.2'' heat-cfntools
+            - cfn-create-aws-symlinks -s /usr/local/bin/
+            - /opt/aws/bin/cfn-init
+            - apt-get -y install ruby ruby1.8-dev build-essential wget libruby1.8
+              rubygems
+            - gem update --no-rdoc --no-ri
+            - gem install ohai chef --no-rdoc --no-ri
+            - #Install chef-solo and dependencies
+            - #### DEBIAN_FRONTEND='noninteractive' apt-get -y install chef
+            - export CHEF_DIR=/etc/chef && cd $CHEF_DIR && http_proxy= wget http://10.197.217.62/downloads/cookbooks/ganglia.tgz
+            - tar xzvf ganglia.tgz && rm ganglia.tgz
+            - ''
+            - '#Execute application runlist'
+            - Fn::Join:
+              - ' '
+              - - '#chef-solo -j /etc/chef/full-applications-runlist.json -c /etc/chef/solo.rb
+                  -r'
+                - {Ref: CookbooksUrl}
+      KeyName: {Ref: KeyName}
+      SecurityGroups:
+      - {Ref: NodeSecurityGroup}
+      InstanceType: m2.large
+      ImageId: precise64
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /root/.chef/knife.rb:
+              content:
+                Fn::Join:
+                - '
+
+                  '
+                - ['cookbook_path [ ''/etc/chef/cookbooks'' ]', 'ssl_verify_mode  :verify_none',
+                  'http_proxy ''http://10.197.217.62:3128''', 'https_proxy ''http://10.197.217.62:3128''']
+              owner: root
+              group: root
+              mode: '000644'
+            /etc/chef/node.json:
+              content:
+                Fn::Join:
+                - '
+
+                  '
+                - ['{', '"run_list" : [ "recipe[stack-ganglia::gmetad]", "recipe[stack-ganglia::gmetad]"
+                    ]', '}']
+              owner: root
+              group: root
+              mode: '000644'
+            /etc/chef/solo.rb:
+              content:
+                Fn::Join:
+                - '
+
+                  '
+                - [file_cache_path  '/etc/chef', cookbook_path    '/etc/chef/cookbooks',
+                  json_attribs '/etc/chef/node.json', 'log_level        :info', log_location     STDOUT,
+                  'ssl_verify_mode  :verify_none', 'http_proxy ''http://10.197.217.62:3128''',
+                  'https_proxy ''http://10.197.217.62:3128''', 'no_proxy ''127.0.0.1,localhost''']
+              owner: root
+              group: root
+              mode: '000644'
+            /tmp/heat_test.txt:
+              content:
+                Fn::Join:
+                - ''
+                - - 'runlist: '
+                  - {Ref: RunList}
+                  - '
+
+                    '
+                  - 'memalarmhight :'
+                  - {Ref: MEMAlarmHigh}
+                  - '
+
+                    '
+                  - 'aws::stackname : '
+                  - {Ref: 'AWS::StackName'}
+                  - '
+
+                    '
+                  - 'aws::stackid: '
+                  - {Ref: 'AWS::StackId'}
+                  - '
+
+                    '
+                  - 'AS:InstanceList:'
+                  - Fn::GetAtt: [Layer1, InstanceList]
+                  - '
+
+                    '
+                  - '----end
+
+                    '
+                  - '
+
+                    '
+              owner: root
+              group: root
+              mode: '000644'
+  Layer1Config:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - |-
+                #!/bin/bash -v
+                export MY_HTTP_PROXY=http://10.197.217.62:3128
+                export MY_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/local-ipv4/)
+                export MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+                export MY_HOSTNAME=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/hostname)
+                cat /etc/hosts && echo $MY_IPV4 $MY_HOSTNAME >> /etc/hosts && cat etc/hosts
+                cat << EOF >> /etc/profile.d/http_proxy.sh
+                export http_proxy=$MY_HTTP_PROXY
+                export https_proxy=$MY_HTTP_PROXY
+                export no_proxy=127.0.0.1,localhost,169.254.169.254,$MY_IPV4
+                EOF
+
+                # env
+                source /etc/profile.d/http_proxy.sh
+                echo 'Acquire::http::Proxy "http://10.197.217.62:3128";' >> /etc/apt/apt.conf
+                locale-gen fr_FR.UTF-8
+                apt-get update
+                #### apt-get -y install git
+                apt-get -y remove python-boto
+                apt-get -y install python-psutil python-pip cloud-init
+                pip install 'boto==2.5.2' heat-cfntools
+                ## Chef
+                apt-get -y install ruby ruby1.8-dev build-essential libruby1.8 rubygems
+                gem update --no-rdoc --no-ri
+                gem install ohai chef --no-rdoc --no-ri
+                cfn-create-aws-symlinks -s /usr/local/bin/
+                # CFN
+                /opt/aws/bin/cfn-init -s
+            - {Ref: 'AWS::StackName'}
+            - ' -r Layer1Config --region '
+            - {Ref: 'AWS::Region'}
+            - '
+            '
+            - |-
+                export CHEF_DIR=/etc/chef 
+                cd $CHEF_DIR 
+                http_proxy= wget http://10.197.217.62/downloads/cookbooks/ganglia.tgz && tar xzvf ganglia.tgz && rm ganglia.tgz
+                #crontab /tmp/stats-crontab.txt
+
+            
+      KeyName: {Ref: KeyName}
+      InstanceType: m2.large
+      ImageId: precise64
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /root/.chef/knife.rb:
+              content:
+                Fn::Join:
+                - '
+
+                  '
+                - ['cookbook_path [ ''/etc/chef/cookbooks'' ]', 'ssl_verify_mode  :verify_none',
+                  'http_proxy ''http://10.197.217.62:3128''', 'https_proxy ''http://10.197.217.62:3128''']
+              owner: root
+              group: root
+              mode: '000644'
+            /etc/chef/node.json:
+              content:
+                Fn::Join:
+                - '
+
+                  '
+                - ['{', '"run_list" : [ "recipe[stack-ganglia]" ]', '}']
+              owner: root
+              group: root
+              mode: '000644'
+            /tmp/stats-crontab.txt:
+              content:
+                Fn::Join:
+                - ''
+                - - 'MAIL=""
+
+                    '
+                  - '
+
+                    '
+                  - '* * * * * /opt/aws/bin/cfn-push-stats --watch '
+                  - {Ref: MEMAlarmHigh}
+                  - ' --mem-util
+
+                    '
+                  - '* * * * * /opt/aws/bin/cfn-push-stats --watch '
+                  - {Ref: MEMAlarmLow}
+                  - ' --mem-util
+
+                    '
+              owner: root
+              group: root
+              mode: '000600'
+            /tmp/monitorNode.info:
+              content:
+                Fn::Join:
+                - ''
+                - [' foo']
+              owner: root
+              group: root
+              mode: '000400'
+            /etc/cfn/cfn-credentials:
+              content:
+                Fn::Join:
+                - ''
+                - - AWSAccessKeyId=
+                  - {Ref: Layer1Keys}
+                  - '
+
+                    '
+                  - AWSSecretKey=
+                  - Fn::GetAtt: [Layer1Keys, SecretAccessKey]
+                  - '
+
+                    '
+              owner: root
+              group: root
+              mode: '000400'
+  L1ScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      ScalingAdjustment: '1'
+      AutoScalingGroupName: {Ref: Layer1}
+      Cooldown: '60'
+      AdjustmentType: ChangeInCapacity
+  L1ScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      ScalingAdjustment: '-1'
+      AutoScalingGroupName: {Ref: Layer1}
+      Cooldown: '60'
+      AdjustmentType: ChangeInCapacity
+  NodeIPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: {Ref: MonitorNode}
+      EIP: {Ref: NodeIPAddress}
+
