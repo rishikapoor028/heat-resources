@@ -6,10 +6,10 @@ Outputs:
 Parameters:
   MonitorPort: {Default: '8649', Type: String, Description: TCP port of monitoring traffic data}
   LinuxDistribution:
-    Default: precise64
+    Default: quantal64
     Type: String
     Description: Distribution of choice
-    AllowedValues: [precise64, precise32, raring, CentOS63-x86_64-cfntools]
+    AllowedValues: [precise64, precise32, quantal64, raring, CentOS63-x86_64-cfntools]
   RunList: {Default: ganglia, Type: String,
     Description: Collection of recipes to execute}
   KeyName: {Type: String, Description: Name
@@ -21,7 +21,7 @@ Resources:
   Layer1:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      MinSize: '2'
+      MinSize: '1'
       MaxSize: '3'
       AvailabilityZones: {'Fn::GetAZs': ''}
       LaunchConfigurationName: {Ref: Layer1Config}
@@ -63,6 +63,15 @@ Resources:
     Type: AWS::IAM::AccessKey
     Properties:
       UserName: {Ref: CfnUser}
+  LayerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      SecurityGroupIngress:
+      - {ToPort: '8649', IpProtocol: tcp, FromPort: '8649',
+        CidrIp: 0.0.0.0/0}
+      - {ToPort: '22', IpProtocol: tcp, FromPort: '22',
+        CidrIp: 0.0.0.0/0}
+      GroupDescription: Enable SSh and Ganglia traffic
   NodeSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -76,6 +85,11 @@ Resources:
       - {ToPort: '80', IpProtocol: tcp, FromPort: '80',
         CidrIp: 0.0.0.0/0}
       - {ToPort: '22', IpProtocol: tcp, FromPort: '22',
+        CidrIp: 0.0.0.0/0}
+        # all gmond of cluster send data here
+      - {ToPort: '8649', IpProtocol: tcp, FromPort: '8649',
+        CidrIp: 0.0.0.0/0}
+      - {ToPort: '8649', IpProtocol: udp, FromPort: '8649',
         CidrIp: 0.0.0.0/0}
       GroupDescription: Enable HTTP access via port 80 plus SSH access
   MonitorNode:
@@ -113,26 +127,20 @@ Resources:
             - pip install ''boto==2.5.2'' heat-cfntools
             - cfn-create-aws-symlinks -s /usr/local/bin/
             - /opt/aws/bin/cfn-init
-            - apt-get -y install ruby ruby1.8-dev build-essential wget libruby1.8
-              rubygems
+            - apt-get -y install ruby ruby1.8-dev build-essential wget libruby1.8 rubygems
+            - # Install chef-solo and dependencies
             - gem update --no-rdoc --no-ri
-            - gem install ohai chef --no-rdoc --no-ri
-            - #Install chef-solo and dependencies
-            - #### DEBIAN_FRONTEND='noninteractive' apt-get -y install chef
+            - # gem install ohai chef --no-rdoc --no-ri
+            - DEBIAN_FRONTEND='noninteractive' apt-get -y install chef
             - export CHEF_DIR=/etc/chef && cd $CHEF_DIR && http_proxy= wget http://10.197.217.62/downloads/cookbooks/ganglia.tgz
             - tar xzvf ganglia.tgz && rm ganglia.tgz
-            - ''
             - '#Execute application runlist'
-            - Fn::Join:
-              - ' '
-              - - '#chef-solo -j /etc/chef/full-applications-runlist.json -c /etc/chef/solo.rb
-                  -r'
-                - {Ref: CookbooksUrl}
+            - chef-solo -l debug -j /etc/chef/node.json -c /etc/chef/solo.rb
       KeyName: {Ref: KeyName}
       SecurityGroups:
       - {Ref: NodeSecurityGroup}
       InstanceType: m2.large
-      ImageId: precise64
+      ImageId: quantal64
     Metadata:
       AWS::CloudFormation::Init:
         config:
@@ -151,11 +159,14 @@ Resources:
             /etc/chef/node.json:
               content:
                 Fn::Join:
-                - '
-
-                  '
-                - ['{', '"run_list" : [ "recipe[stack-ganglia::gmetad]", "recipe[stack-ganglia::gmetad]"
-                    ]', '}']
+                - ''
+                - - |-
+                      {
+                       "ganglia" : { "central_monit" : true,
+                                     "cluster" : {"collector_host" : "127.0.0.1"}                  
+                                   },
+                       "run_list" : [ "recipe[ganglia]", "recipe[ganglia::web]" ]
+                       }
               owner: root
               group: root
               mode: '000644'
@@ -197,7 +208,7 @@ Resources:
 
                     '
                   - 'AS:InstanceList:'
-                  - Fn::GetAtt: [Layer1, InstanceList]
+#                  - Fn::GetAtt: [Layer1, InstanceList]
                   - '
 
                     '
@@ -239,28 +250,30 @@ Resources:
                 apt-get -y remove python-boto
                 apt-get -y install python-psutil python-pip cloud-init
                 pip install 'boto==2.5.2' heat-cfntools
-                ## Chef
-                apt-get -y install ruby ruby1.8-dev build-essential libruby1.8 rubygems
-                gem update --no-rdoc --no-ri
-                gem install ohai chef --no-rdoc --no-ri
                 cfn-create-aws-symlinks -s /usr/local/bin/
                 # CFN
                 /opt/aws/bin/cfn-init -s
             - {Ref: 'AWS::StackName'}
             - ' -r Layer1Config --region '
             - {Ref: 'AWS::Region'}
-            - '
-            '
             - |-
+
+                ## Chef
                 export CHEF_DIR=/etc/chef 
+                apt-get -y install ruby ruby1.8-dev build-essential libruby1.8 rubygems
+                gem update --no-rdoc --no-ri
+                DEBIAN_FRONTEND='noninteractive' apt-get -y install chef
+                #gem install ohai chef --no-rdoc --no-ri
                 cd $CHEF_DIR 
                 http_proxy= wget http://10.197.217.62/downloads/cookbooks/ganglia.tgz && tar xzvf ganglia.tgz && rm ganglia.tgz
+                #chef-solo -l debug -j /etc/chef/node.json -c /etc/chef/solo.rb
                 #crontab /tmp/stats-crontab.txt
-
             
       KeyName: {Ref: KeyName}
       InstanceType: m2.large
-      ImageId: precise64
+      ImageId: quantal64
+      SecurityGroups:
+      - {Ref: LayerSecurityGroup}
     Metadata:
       AWS::CloudFormation::Init:
         config:
@@ -276,16 +289,33 @@ Resources:
               owner: root
               group: root
               mode: '000644'
-            /etc/chef/node.json:
+            /etc/chef/solo.rb:
               content:
                 Fn::Join:
                 - '
 
                   '
-                - ['{', '"run_list" : [ "recipe[stack-ganglia]" ]', '}']
+                - [file_cache_path  '/etc/chef', cookbook_path    '/etc/chef/cookbooks',
+                  json_attribs '/etc/chef/node.json', 'log_level        :info', log_location     STDOUT,
+                  'ssl_verify_mode  :verify_none', 'http_proxy ''http://10.197.217.62:3128''',
+                  'https_proxy ''http://10.197.217.62:3128''', 'no_proxy ''127.0.0.1,localhost''']
               owner: root
               group: root
               mode: '000644'
+            /etc/chef/node.json:
+              content:
+                Fn::Join:
+                - ''
+                - - |-
+                      {
+                       "ganglia" : { "central_monit" : false,
+                                     "cluster" : {"collector_host" : "
+                  - Fn::GetAtt : [MonitorNode, PrivateIp] 
+                  - |- 
+                      "}
+                       },
+                       "run_list" : [ "recipe[ganglia]", "recipe[ganglia::python_rr]" ]
+                       }
             /tmp/stats-crontab.txt:
               content:
                 Fn::Join:
@@ -309,14 +339,6 @@ Resources:
               owner: root
               group: root
               mode: '000600'
-            /tmp/monitorNode.info:
-              content:
-                Fn::Join:
-                - ''
-                - [' foo']
-              owner: root
-              group: root
-              mode: '000400'
             /etc/cfn/cfn-credentials:
               content:
                 Fn::Join:
