@@ -8,16 +8,6 @@
     }
   },
   "Resources" : {
-    "NodeIPAddress" : {
-      "Type" : "AWS::EC2::EIP"
-    },
-    "NodeIPAssoc" : {
-      "Type" : "AWS::EC2::EIPAssociation",
-      "Properties" : {
-        "InstanceId" : { "Ref" : "Node" },
-        "EIP" : { "Ref" : "NodeIPAddress" }
-      }
-    },
     "Node": {
       "Type": "AWS::EC2::Instance",
       "Metadata" : {
@@ -47,8 +37,8 @@
                     "\n",
                     [
                       "{",
-                      "  \"run_list\": [ \"recipe[jdk_ark]\", \"recipe[glassfish_ark]\" ], ",
-                      "  \"glassfish_ark\" : {",
+                      "  \"run_list\": [ \"recipe[jdk_ark]\", \"recipe[glassfish_ark]\", \"recipe[xsa]\"], ",
+                      "  \"xsa\" : {",
                       "    \"application_war_url\" : \"http://10.197.217.70/xsa-utils/xlcloud-xsa.war\" ",
                       "  }, ",
                       "  \"jdk_ark\" : {",
@@ -71,7 +61,7 @@
                 "command" : "curl -L https://www.opscode.com/chef/install.sh | bash"
               },
               "2-setup-runlist" : {
-                "command" : "chef-solo -j /etc/chef/runlists/setup.json"
+               "command" : "chef-solo -j /etc/chef/runlists/setup.json > /var/log/chef.log"
               }
             },
             "sources" : {
@@ -84,6 +74,9 @@
         "ImageId"        : "F18-x86_64",
         "InstanceType"   : "m1.small",
         "KeyName"        : { "Ref" : "KeyName" },
+        "SecurityGroups": [
+              {"Ref": "SshSecurityGroup"}
+        ],
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["\n", [
           "#!/bin/bash -xe",
           "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
@@ -95,7 +88,7 @@
           "# export proxies",
           "echo 'export http_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
           "echo 'export https_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
-          "echo 'export no_proxy=127.0.0.1,localhost' >> /etc/bashrc",
+          "echo 'export no_proxy=127.0.0.1,localhost,10.197.217.70' >> /etc/bashrc",
           "echo proxy=http://10.197.217.62:3128/ >> /etc/yum.conf",
           "source /root/.bashrc",
 
@@ -105,7 +98,20 @@
           "/opt/aws/bin/cfn-init"
         ]]}}
       }
-    }
+    },
+    "SshSecurityGroup" : {
+          "Type" : "AWS::EC2::SecurityGroup",
+          "Properties" : {
+               "GroupDescription" : "Allow ssh connection to host",
+               "SecurityGroupIngress" : [{
+                   "IpProtocol" : "tcp",
+                    "FromPort" : "22",
+                    "ToPort" : "22",
+                    "CidrIp" : "0.0.0.0/0"
+                }],
+               "SecurityGroupEgress" : []
+          }
+      }     
   },
   "Outputs" : {
     "NodeIP" : {
