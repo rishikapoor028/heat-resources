@@ -1,6 +1,6 @@
 {
    "AWSTemplateFormatVersion":"2010-09-09",
-   "Description":"CentOS based instance template",
+   "Description":"Remote Rendering Node template",
    "Parameters":{
       "KeyName":{
          "Description":"Name of an existing KeyPair to enable SSH access to the instances",
