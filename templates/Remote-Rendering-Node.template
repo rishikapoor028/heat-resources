@@ -1,0 +1,265 @@
+{
+   "AWSTemplateFormatVersion":"2010-09-09",
+   "Description":"CentOS based instance template",
+   "Parameters":{
+      "KeyName":{
+         "Description":"Name of an existing KeyPair to enable SSH access to the instances",
+         "Default":"xlcloud-key",
+         "Type":"String"
+      },
+      "RenderingNodeLinuxDistribution":{
+         "Description":"Linux distribution for remote rendering node (LXC raw image)",
+         "Default":"raring-lxc-gpu-tsp",
+         "Type":"String"
+      },
+      "RenderingNodeInstanceType":{
+         "Description":"Rendering Instance Type",
+         "Type":"String",
+         "Default":"cg1.large",
+         "AllowedValues":[
+            "cg1.large",
+            "cg1.xlarge"
+         ],
+         "ConstraintDescription":"must be a valid instance type."
+      },
+      "HttpProxy":{
+         "Description":"Address of the HTTP/HTTPS proxy (leave empty if no proxy)",
+         "Type":"String",
+         "Default":"http://10.197.217.62:3128/"
+      }
+   },
+   "Mappings":{
+      "Float2DNAT":{
+         "10.197.217.181":{
+            "DNAT":"129.184.11.116"
+         },
+         "10.197.217.182":{
+            "DNAT":"129.184.11.117"
+         },
+         "10.197.217.183":{
+            "DNAT":"129.184.11.118"
+         },
+         "10.197.217.184":{
+            "DNAT":"129.184.11.119"
+         },
+         "10.197.217.185":{
+            "DNAT":"129.184.11.120"
+         },
+         "10.197.217.187":{
+            "DNAT":"129.184.11.122"
+         },
+         "10.197.217.188":{
+            "DNAT":"129.184.11.123"
+         },
+         "10.197.217.189":{
+            "DNAT":"129.184.11.124"
+         },
+         "10.197.217.190":{
+            "DNAT":"129.184.11.125"
+         },
+         "10.197.217.191":{
+            "DNAT":"129.184.11.126"
+         }
+      }
+   },
+   "Resources":{
+      "RenderingNodeIPAddress":{
+         "Type":"AWS::EC2::EIP"
+      },
+      "IPAssoc":{
+         "Type":"AWS::EC2::EIPAssociation",
+         "Properties":{
+            "InstanceId":{
+               "Ref":"RenderingNode"
+            },
+            "EIP":{
+               "Ref":"RenderingNodeIPAddress"
+            }
+         }
+      },
+      "RenderingNodeSecurityGroup":{
+         "Type":"AWS::EC2::SecurityGroup",
+         "Properties":{
+            "GroupDescription":"Enable remote rendering node access plus SSH access",
+            "SecurityGroupIngress":[
+               {
+                  "IpProtocol":"icmp",
+                  "FromPort":"-1",
+                  "ToPort":"-1",
+                  "CidrIp":"0.0.0.0/0"
+               },
+               {
+                  "IpProtocol":"tcp",
+                  "FromPort":"22",
+                  "ToPort":"22",
+                  "CidrIp":"0.0.0.0/0"
+               },
+               {
+                  "IpProtocol":"tcp",
+                  "FromPort":"5114",
+                  "ToPort":"5114",
+                  "CidrIp":"0.0.0.0/0"
+               },
+               {
+                  "IpProtocol":"tcp",
+                  "FromPort":"5900",
+                  "ToPort":"7200",
+                  "CidrIp":"0.0.0.0/0"
+               }
+            ]
+         }
+      },
+      "RenderingNode":{
+         "Type":"AWS::EC2::Instance",
+         "SecurityGroups":[
+            {
+               "Ref":"RenderingNodeSecurityGroup"
+            }
+         ],
+         "ImageId":{
+            "Ref":"RenderingNodeLinuxDistribution"
+         },
+         "InstanceType":{
+            "Ref":"RenderingNodeInstanceType"
+         },
+         "KeyName":{
+            "Ref":"KeyName"
+         },
+         "Metadata":{
+            "AWS::CloudFormation::Init":{
+               "config":{
+
+               }
+            }
+         },
+         "Properties":{
+            "InstanceType":{
+               "Ref":"RenderingNodeInstanceType"
+            },
+            "ImageId":{
+               "Ref":"RenderingNodeLinuxDistribution"
+            },
+            "KeyName":{
+               "Ref":"KeyName"
+            },
+            "SecurityGroups":[
+               {
+                  "Ref":"RenderingNodeSecurityGroup"
+               }
+            ],
+            "UserData":{
+               "Fn::Base64":{
+                  "Fn::Join":[
+                     "",
+                     [
+                        "#!/bin/bash",
+                        "",
+                        "#exec > > (tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
+                        "\n",
+                        "/usr/sbin/usermod -s /bin/bash ec2-user",
+                        "\n",
+                        "# Flush iptables's default rules",
+                        "\n",
+                        "/sbin/iptables -F",
+                        "\n",
+                        "/sbin/iptables -X",
+                        "\n",
+                        "# Setup proxy settings",
+                        "\n",
+                        "cat << EOF >> /etc/profile.d/http_proxy.sh",
+                        "\n",
+                        "export http_proxy=",
+                        {
+                           "Ref":"HttpProxy"
+                        },
+                        "\n",
+                        "export https_proxy=",
+                        {
+                           "Ref":"HttpProxy"
+                        },
+                        "\n",
+                        "export no_proxy=169.254.169.254",
+                        "\n",
+                        "EOF\n",
+                        "source /etc/profile.d/http_proxy.sh\n",
+                        "apt-get update\n",
+                        "apt-get -y install python-argparse python-psutil python-pip\n",
+                        "apt-get -y remove python-boto\n",
+                        "pip install ''boto==2.5.2'' heat-cfntools\n",
+                        "cfn-create-aws-symlinks -s /usr/local/bin/\n",
+                        "# Helper function\n",
+                        "function error_exit\n",
+                        "{\n",
+                        "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
+                        {
+                           "Ref":"RenderingNodeWaitHandle"
+                        },
+                        "'\n",
+                        "  exit 1\n",
+                        "}\n",
+                        "/opt/aws/bin/cfn-init -s ",
+                        {
+                           "Ref":"AWS::StackName"
+                        },
+                        " -r RenderingNode",
+                        " --region ",
+                        {
+                           "Ref":"AWS::Region"
+                        },
+                        " || error_exit 'Failed to run cfn-init'\n",
+                        "#su - tsp -c \"gconftool-2 -s /apps/gnome-screensaver/idle_activation_enabled --type=bool false\"\n",
+                        "#su - tsp -c \"gconftool-2 -s /apps/gnome-power-manager/ac_sleep_display --type=int 0\"\n",
+                        "#su - tsp -c \"gconftool-2 -s /apps/gnome-power-manager/timeout/sleep_display_ac --type=int 0\"\n",
+                        "#echo \"127.0.1.1 $HOSTNAME\" >> /etc/hosts\n",
+                        "#X vt2 &\n",
+                        "#su - tsp -c \"cd /home/tsp/rr/rr2/rrBull/apps && ./startRR.sh\"\n",
+                        "# All is well so signal success\n",
+                        "/opt/aws/bin/cfn-signal -e 0 -r \"Rendering Node setup complete\" '",
+                        {
+                           "Ref":"eRenderingNodeWaitHandle"
+                        },
+                        "'\n"
+                     ]
+                  ]
+               }
+            }
+         }
+      },
+      "RenderingNodelWaitHandle":{
+         "Type":"AWS::CloudFormation::WaitConditionHandle"
+      },
+      "RenderingNodeWaitCondition":{
+         "Type":"AWS::CloudFormation::WaitCondition",
+         "DependsOn":"RenderingNode",
+         "Properties":{
+            "Handle":{
+               "Ref":"RenderingNodeWaitHandle"
+            },
+            "Timeout":"600"
+         }
+      }
+   },
+   "Outputs":{
+      "InstanceId":{
+         "Description":"InstanceId of the newly created Nova instance",
+         "Value":{
+            "Ref":"RenderingNode"
+         }
+      },
+      "PublicIP":{
+         "Description":"NATed public IP address of the newly created Nova instance",
+         "Value":{
+            "Fn::FindInMap":[
+               "Float2DNAT",
+               {
+                  "Fn::GetAtt":[
+                     "RenderingNode",
+                     "PublicIp"
+                  ]
+               },
+               "DNAT"
+            ]
+         }
+      }
+   }
+}
