@@ -207,16 +207,16 @@
                            "Ref":"AWS::Region"
                         },
                         " || error_exit 'Failed to run cfn-init'\n",
-                        "#su - tsp -c \"gconftool-2 -s /apps/gnome-screensaver/idle_activation_enabled --type=bool false\"\n",
-                        "#su - tsp -c \"gconftool-2 -s /apps/gnome-power-manager/ac_sleep_display --type=int 0\"\n",
-                        "#su - tsp -c \"gconftool-2 -s /apps/gnome-power-manager/timeout/sleep_display_ac --type=int 0\"\n",
-                        "#echo \"127.0.1.1 $HOSTNAME\" >> /etc/hosts\n",
-                        "#X vt2 &\n",
-                        "#su - tsp -c \"cd /home/tsp/rr/rr2/rrBull/apps && ./startRR.sh\"\n",
+                        "su - tsp -c \"gconftool-2 -s /apps/gnome-screensaver/idle_activation_enabled --type=bool false\" || error_exit 'Failed to run gconftool'\n",
+                        "su - tsp -c \"gconftool-2 -s /apps/gnome-power-manager/ac_sleep_display --type=int 0\" || error_exit 'Failed to run gconftool'\n",
+                        "su - tsp -c \"gconftool-2 -s /apps/gnome-power-manager/timeout/sleep_display_ac --type=int 0\" || error_exit 'Failed to run gconftool'\n",
+                        "echo \"127.0.1.1 $HOSTNAME\" >> /etc/hosts\n",
+                        "X vt2 & || error_exit 'Failed to run X11 server'\n",
+                        "su - tsp -c \"cd /home/tsp/rr/rr2/rrBull/apps && ./startRR.sh\" || error_exit 'Failed to start remote rendering process'\n",
                         "# All is well so signal success\n",
                         "/opt/aws/bin/cfn-signal -e 0 -r \"Rendering Node setup complete\" '",
                         {
-                           "Ref":"eRenderingNodeWaitHandle"
+                           "Ref":"RenderingNodeWaitHandle"
                         },
                         "'\n"
                      ]
