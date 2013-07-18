@@ -28,14 +28,6 @@
         "F18-x86_64"
       ],
       "ConstraintDescription":"must be a valid XLcloud image name."
-    },
-    "xlcloud:db/templateURL": {
-      "Type": "String",
-      "Default": "http://10.197.217.60/db.template"
-    },
-    "xlcloud:app_servers/templateURL": {
-      "Type": "String",
-      "Default": "http://10.197.217.60/app-servers.template"
     }
   },
   "Resources" : {
@@ -44,11 +36,6 @@
       "Properties" : {
         "TemplateURL" : {"Ref": "xlcloud:app_servers/templateURL"},
         "Parameters" : {
-          "xlcloud:defaultInstanceType" : {"Ref":"xlcloud:defaultInstanceType"},
-          "xlcloud:defaultKeyName" : {"Ref":"xlcloud:defaultKeyName"},
-          "xlcloud:defaultImageId" : {"Ref":"xlcloud:defaultImageId"},
-          "xlcloud:TomcatNode:max" : "3",
-          "xlcloud:TomcatNode:min" : "3"
         }
       }
     },
@@ -57,11 +44,6 @@
       "Properties" : {
         "TemplateURL" : {"Ref": "xlcloud:db/templateURL"},
         "Parameters" : {
-          "xlcloud:defaultInstanceType" : {"Ref":"xlcloud:defaultInstanceType"},
-          "xlcloud:defaultKeyName" : {"Ref":"xlcloud:defaultKeyName"},
-          "xlcloud:defaultImageId" : {"Ref":"xlcloud:defaultImageId"},
-          "xlcloud:DbNode:max" : "1",
-          "xlcloud:DbNode:min" : "1"
         }
       }
     }
