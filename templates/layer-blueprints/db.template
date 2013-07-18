@@ -13,11 +13,13 @@
     },
     "xlcloud:DbNode:min": {
       "Type": "String",
+      "Default" : "3",
       "AllowedPattern": "[0-9]+",
       "ConstraintDescription": "invalid value"
     },
     "xlcloud:DbNode:max": {
       "Type": "String",
+      "Default" : "3",
       "AllowedPattern": "[0-9]+",
       "ConstraintDescription": "invalid value"
     },
