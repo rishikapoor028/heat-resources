@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
-  "Description" : "java 3-tier java web application stack blueprint",
+  "Description" : "java 3-tier - java web application template",
   "Parameters": {
     "xlcloud:defaultKeyName": {
       "Description" : "Name of an existing EC2 KeyPair to enable SSH access",
