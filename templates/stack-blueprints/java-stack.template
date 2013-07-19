@@ -31,7 +31,7 @@
     }
   },
   "Resources" : {
-    "app_servers" : {
+    "App Servers Layer" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Properties" : {
         "TemplateURL" : {"Ref": "xlcloud:app_servers/templateURL"},
@@ -39,7 +39,7 @@
         }
       }
     },
-    "db" : {
+    "DB Layer" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Properties" : {
         "TemplateURL" : {"Ref": "xlcloud:db/templateURL"},
