@@ -57,10 +57,10 @@
               }
             },
             "commands" : {
-              "a-chef-installation" : {
+              "1-chef-installation" : {
                 "command" : "curl -L https://www.opscode.com/chef/install.sh | bash"
               },
-              "b-setup-runlist" : {
+              "2-setup-runlist" : {
                "command" : "chef-solo -j /etc/chef/runlists/setup.json > /var/log/chef.log"
               }
             },
