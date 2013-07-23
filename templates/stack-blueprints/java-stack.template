@@ -9,8 +9,9 @@
     "xlcloud:defaultInstanceType": {
       "Description" : "Default instance type (flavor) for instances in this stack",
       "Type": "String",
-      "Default":"m1.small",
+      "Default":"m1.tiny",
       "AllowedValues":[
+        "m1.tiny",
         "m1.small",
         "m1.medium",
         "m1.large",

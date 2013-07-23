@@ -112,12 +112,6 @@
                "SecurityGroupEgress" : []
           }
     }
-  },
-  "Outputs" : {
-    "NodeIP" : {
-      "Value" : { "Ref" : "NodeIPAddress" },
-      "Description" : "Public (elastic) IP associated with cluster node"
-    }
   }
 }
 

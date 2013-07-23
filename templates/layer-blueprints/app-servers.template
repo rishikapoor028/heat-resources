@@ -16,13 +16,13 @@
     },
     "xlcloud:TomcatNode:min": {
       "Type": "String",
-      "Default": "2",
+      "Default": "1",
       "AllowedPattern": "[0-9]+",
       "ConstraintDescription": "invalid value"
     },
     "xlcloud:TomcatNode:max": {
       "Type": "String",
-      "Default" : "2",
+      "Default" : "1",
       "AllowedPattern": "[0-9]+",
       "ConstraintDescription": "invalid value"
     },
@@ -48,7 +48,7 @@
     },
     "xlcloud:cookbooks": {
       "Type": "String",
-      "Default" : " "
+      "Default" : "PENDING"
     }
   },
   "Resources" : {
