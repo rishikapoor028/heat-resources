@@ -3,12 +3,15 @@
   "Description" : "java 3-tier application layer template",
   "Parameters": {
     "xlcloud:defaultKeyName": {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access",
       "Type": "String"
     },
     "xlcloud:defaultInstanceType": {
+      "Description" : "Default instance type (flavor) for instances in this stack",
       "Type": "String"
     },
     "xlcloud:defaultImageId": {
+      "Description" : "Default image name for instances in this stack",
       "Type": "String"
     },
     "xlcloud:TomcatNode:min": {
@@ -25,27 +28,27 @@
     },
     "xlcloud:runlists/setup": {
       "Type": "String",
-      "Default": "{ \"run_list\": [ \"recipe[tomcat::install]\"] }",
+      "Default": "{ \"run_list\": [ \"recipe[tomcat::install]\"] }"
     },
     "xlcloud:runlists/configure": {
       "Type": "String",
-      "Default": "{ \"run_list\": [] }",
+      "Default": "{ \"run_list\": [] }"
     },
     "xlcloud:runlists/deploy": {
       "Type": "String",
-      "Default": "{ \"run_list\": [\"recipe[java_webapp::deploy]\"] }",
+      "Default": "{ \"run_list\": [\"recipe[java_webapp::deploy]\"] }"
     },
     "xlcloud:runlists/undeploy": {
       "Type": "String",
-      "Default": "{ \"run_list\": [\"recipe[java_webapp::undeploy]\"] }",
+      "Default": "{ \"run_list\": [\"recipe[java_webapp::undeploy]\"] }"
     },
     "xlcloud:runlists/shutdown": {
       "Type": "String",
-      "Default": "{ \"run_list\": [ \"recipe[tomcat::uninstall]\"] }",
+      "Default": "{ \"run_list\": [ \"recipe[tomcat::uninstall]\"] }"
     },
     "xlcloud:cookbooks": {
       "Type": "String",
-      "Default": "https://github.com/opscode-cookbooks/tomcat.git"
+      "Default": ""
     }
   },
   "Resources" : {
@@ -54,29 +57,30 @@
       "Properties":{
         "ImageId":{"Ref": "xlcloud:defaultImageId"},
         "InstanceType":{"Ref": "xlcloud:defaultInstanceType"},
+        "KeyName" : { "Ref" : "xlcloud:defaultKeyName" },
         "SecurityGroups": [
               {"Ref": "SshSecurityGroup"}
         ],
-        "UserData":{
-          "Fn::Base64":{
-            "Fn::Join":[ "\n", [
-              "#!/bin/bash -vx",
-              "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
-              "# Flush iptables's default rules",
-              "/sbin/iptables -F",
-              "/sbin/iptables -X",
+        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["\n", [
+          "#!/bin/bash -xe",
+          "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
 
-              "# export proxies",
-              "export http_proxy=http://ecfrec.frec.bull.fr:8080",
-              "export https_proxy=http://ecfrec.frec.bull.fr:8080",
-              "export no_proxy=127.0.0.1,localhost,10.197.217.70",
-              "echo proxy=http://ecfrec.frec.bull.fr:8080/ >> /etc/yum.conf",
+          "# Flush iptables's default rules",
+          "/sbin/iptables -F",
+          "/sbin/iptables -X",
 
-              "# calling cfn-init",
-              "/opt/aws/bin/cfn-init"
-            ]]
-          }
-        }
+          "# export proxies",
+          "echo 'export http_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
+          "echo 'export https_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
+          "echo 'export no_proxy=127.0.0.1,localhost,10.197.217.70' >> /etc/bashrc",
+          "echo proxy=http://10.197.217.62:3128/ >> /etc/yum.conf",
+          "source /root/.bashrc",
+
+          "echo \"127.0.0.1 $(cat /etc/hostname)\" >> /etc/hosts",
+
+          "# calling cfn-init",
+          "/opt/aws/bin/cfn-init"
+        ]]}}
       }
     },
     "TomcatNodeScaling": {
