@@ -9,9 +9,8 @@
     "xlcloud:defaultInstanceType": {
       "Description" : "Default instance type (flavor) for instances in this stack",
       "Type": "String",
-      "Default":"m1.tiny",
+      "Default":"m1.small",
       "AllowedValues":[
-        "m1.tiny",
         "m1.small",
         "m1.medium",
         "m1.large",
@@ -47,7 +46,7 @@
         }
       }
     },
-    "Node": {
+    "XsaNode": {
       "Type": "AWS::EC2::Instance",
       "Metadata" : {
         "AWS::CloudFormation::Init" : {
@@ -114,7 +113,7 @@
         "InstanceType"   : { "Ref" : "xlcloud:defaultInstanceType" },
         "KeyName"        : { "Ref" : "xlcloud:defaultKeyName" },
         "SecurityGroups": [
-              {"Ref": "SshSecurityGroup"}
+              {"Ref": "XsaSecurityGroup"}
         ],
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["\n", [
           "#!/bin/bash -xe",
@@ -138,14 +137,21 @@
         ]]}}
       }
     },
-    "SshSecurityGroup" : {
+    "XsaSecurityGroup" : {
           "Type" : "AWS::EC2::SecurityGroup",
           "Properties" : {
-               "GroupDescription" : "Allow ssh connection to host",
-               "SecurityGroupIngress" : [{
+               "GroupDescription" : "Allow ssh and http connection to host",
+               "SecurityGroupIngress" : [
+               {
                    "IpProtocol" : "tcp",
                     "FromPort" : "22",
                     "ToPort" : "22",
+                    "CidrIp" : "0.0.0.0/0"
+                },
+                {
+                   "IpProtocol" : "tcp",
+                    "FromPort" : "8080",
+                    "ToPort" : "8080",
                     "CidrIp" : "0.0.0.0/0"
                 }],
                "SecurityGroupEgress" : []
