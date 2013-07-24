@@ -126,10 +126,11 @@
           "# export proxies",
           "echo 'export http_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
           "echo 'export https_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
-          "echo 'export no_proxy=127.0.0.1,localhost,10.197.217.70' >> /etc/bashrc",
+          "echo 'export no_proxy=127.0.0.1,localhost,10.197.217.70,169.254.169.254' >> /etc/bashrc",
           "echo proxy=http://10.197.217.62:3128/ >> /etc/yum.conf",
           "source /root/.bashrc",
 
+          "curl -s http://169.254.169.254/latest/meta-data/local-ipv4 | sed 's/\\./-/g' > /etc/hostname",
           "echo \"127.0.0.1 $(cat /etc/hostname)\" >> /etc/hosts",
 
           "# calling cfn-init",
