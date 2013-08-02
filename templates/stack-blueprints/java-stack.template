@@ -161,9 +161,9 @@
     }
   },
   "Outputs" : {
-    "XSAPublicIP" : {
-      "Description" : "Public IP address of the Xsa Instance",
-      "Value" : { "Fn::GetAtt" : [ "XsaNode", "PublicIp" ] }
+    "XsaURL" : {
+      "Description" : "URL of the Xsa Instance",
+      "Value" : { "Fn::Join" : [ "",  [ { "Fn::GetAtt" : [ "XsaNode", "PublicIp" ] }, ":8080/xsa" ] ] }
     }
   }
   
