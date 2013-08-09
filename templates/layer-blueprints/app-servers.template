@@ -8,11 +8,24 @@
     },
     "xlcloud:defaultInstanceType": {
       "Description" : "Default instance type (flavor) for instances in this stack",
-      "Type": "String"
+      "Type": "String",
+      "AllowedValues":[
+        "m1.tiny",
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge"
+      ],
+      "ConstraintDescription":"must be a valid XLcloud instance type."
     },
     "xlcloud:defaultImageId": {
       "Description" : "Default image name for instances in this stack",
-      "Type": "String"
+      "Type": "String",
+      "AllowedValues":[
+        "F17-x86_64",
+        "F18-x86_64"
+      ],
+      "ConstraintDescription":"must be a valid XLcloud image name."
     },
     "xlcloud:TomcatNode:min": {
       "Type": "String",
