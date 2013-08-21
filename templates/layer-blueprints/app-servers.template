@@ -41,38 +41,43 @@
     },
     "xlcloud:runlists/setup_default": {
       "Type": "String",
-      "Default": "{ \"run_list\": [ ] }"
+      "Default": "[]"
     },
     "xlcloud:runlists/setup_custom": {
-      "Type": "String"
+      "Type": "String",
+      "Default": "[]"
     },
     "xlcloud:runlists/configure_default": {
       "Type": "String",
-      "Default": "{ \"run_list\": [ ] }"
+      "Default": "[]"
     },
     "xlcloud:runlists/configure_custom": {
-      "Type": "String"
+      "Type": "String",
+      "Default": "[]"
     },
     "xlcloud:runlists/deploy_default": {
       "Type": "String",
-      "Default": "{ \"run_list\": [ ] }"
+      "Default": "[]"
     },
     "xlcloud:runlists/deploy_custom": {
-      "Type": "String"
+      "Type": "String",
+      "Default": "[]"
     },
     "xlcloud:runlists/undeploy_default": {
       "Type": "String",
-      "Default": "{ \"run_list\": [ ] }"
+      "Default": "[]"
     },
     "xlcloud:runlists/undeploy_custom": {
-      "Type": "String"
+      "Type": "String",
+      "Default": "[]"
     },
     "xlcloud:runlists/shutdown_default": {
       "Type": "String",
-      "Default": "{ \"run_list\": [ ] }"
+      "Default": "[]"
     },
     "xlcloud:runlists/shutdown_custom": {
-      "Type": "String"
+      "Type": "String",
+      "Default": "[]"
     },
     "xlcloud:cookbookRepositories": {
       "Type": "String",
