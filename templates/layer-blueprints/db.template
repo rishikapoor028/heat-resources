@@ -158,7 +158,8 @@
             "packages" : {
               "yum" : {
                 "wget" : [],
-                "tar" : []
+                "tar" : [],
+                "git" : []
               }
             },
             "commands" : {
@@ -168,13 +169,13 @@
               "2-clone-repos": {
                 "command" : "mkdir -p /var/chef/cookbooks/ && cd `mktemp -d` && for uri in $(cat /etc/chef/cookbooks.list | tr \" \" \"\\n\"); do git clone $uri; done && find . -name \"metadata.rb\" -exec sh -c 'cp -Rp \"${0%/*}\" /var/chef/cookbooks/' {} \\;"
               },
-              "4-chef-installation" : {
+              "3-chef-installation" : {
                 "command" : "curl -L https://www.opscode.com/chef/install.sh | bash"
               },
-              "5-compile-phases" : {
+              "4-compile-phases" : {
                 "command" : "/etc/chef/runlists/compile.py /etc/chef/runlists/phases.json"
               },
-              "6-setup-runlist" : {
+              "5-setup-runlist" : {
                "command" : "chef-solo -j /etc/chef/runlists/setup.json > /var/log/chef.log"
               }
             }
