@@ -80,8 +80,7 @@
       "Default": ""
     },
     "xlcloud:cookbookRepositories": {
-      "Type": "String",
-      "Default" : "PENDING"
+      "Type": "String"
     }
   },
   "Resources" : {
@@ -163,13 +162,19 @@
               }
             },
             "commands" : {
-              "1-chef-installation" : {
+              "1-git-proxy" : {
+                "command" : "git config --global --add http.proxy http://10.197.217.62:3128"
+              },
+              "2-clone-repos": {
+                "command" : "mkdir -p /var/chef/cookbooks/ && cd `mktemp -d` && for uri in $(cat /etc/chef/cookbooks.list | tr \" \" \"\\n\"); do git clone $uri; done && find . -name \"metadata.rb\" -exec sh -c 'cp -Rp \"${0%/*}\" /var/chef/cookbooks/' {} \\;"
+              },
+              "4-chef-installation" : {
                 "command" : "curl -L https://www.opscode.com/chef/install.sh | bash"
               },
-              "2-compile-phases" : {
+              "5-compile-phases" : {
                 "command" : "/etc/chef/runlists/compile.py /etc/chef/runlists/phases.json"
               },
-              "3-setup-runlist" : {
+              "6-setup-runlist" : {
                "command" : "chef-solo -j /etc/chef/runlists/setup.json > /var/log/chef.log"
               }
             }
