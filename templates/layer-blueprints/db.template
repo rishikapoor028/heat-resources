@@ -135,7 +135,7 @@
                  ]]}
               },
               "/etc/chef/runlists/compile.py": {
-                "content": { "Fn::Join" : [ "", [
+                "content": { "Fn::Join" : [ "\n", [
                   "#!/usr/bin/python",
                   "import json",
                   "import sys",
@@ -152,7 +152,8 @@
                   "    runlist_file = open(RUNLISTS_PATH + phase_name + '.json', 'w')",
                   "    runlist_file.write(json.dumps({'run_list': recipes}))",
                   "    runlist_file.close()"
-                ]]}
+                ]]},
+                "mode" : "000755"
                }
             },
             "packages" : {
