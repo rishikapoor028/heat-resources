@@ -153,6 +153,7 @@
                   "    runlist_file.write(json.dumps({'run_list': recipes}))",
                   "    runlist_file.close()"
                 ]]}
+               }
             },
             "packages" : {
               "yum" : {
