@@ -108,21 +108,51 @@
                   ]
                 }
               },
-              "/etc/chef/runlists/setup.json" : {
-                "content" : { "Ref" : "xlcloud:runlists/setup" }
+              "/etc/chef/runlists/phases.json" : {
+                 "content" : { "Fn::Join" : [ "", [
+                   "{",
+                   "  \"setup\": {",
+                   "    \"default\": [", {"Ref" : "xlcloud:runlists/setup_default"}, "],",
+                   "    \"custom\": [", {"Ref" : "xlcloud:runlists/setup_custom"}, "]",
+                   "  },",
+                   "  \"configure\": {",
+                   "    \"default\": [", {"Ref" : "xlcloud:runlists/configure_default"}, "],",
+                   "    \"custom\": [", {"Ref" : "xlcloud:runlists/configure_custom"}, "]",
+                   "  },",
+                   "  \"deploy\": {",
+                   "    \"default\": [", {"Ref" : "xlcloud:runlists/deploy_default"}, "],",
+                   "    \"custom\": [", {"Ref" : "xlcloud:runlists/deploy_custom"}, "]",
+                   "  },",
+                   "  \"undeploy\": {",
+                   "    \"default\": [", {"Ref" : "xlcloud:runlists/undeploy_default"}, "],",
+                   "    \"custom\": [", {"Ref" : "xlcloud:runlists/undeploy_custom"}, "]",
+                   "  },",
+                   "  \"shutdown\": {",
+                   "    \"default\": [", {"Ref" : "xlcloud:runlists/shutdown_default"}, "],",
+                   "    \"custom\": [", {"Ref" : "xlcloud:runlists/shutdown_custom"}, "]",
+                   "  }",
+                   "}"
+                 ]]}
               },
-              "/etc/chef/runlists/configure.json" : {
-                "content" : { "Ref" : "xlcloud:runlists/configure" }
-              },
-              "/etc/chef/runlists/deploy.json" : {
-                "content" : { "Ref" : "xlcloud:runlists/deploy" }
-              },
-              "/etc/chef/runlists/undeploy.json" : {
-                "content" : { "Ref" : "xlcloud:runlists/undeploy" }
-              },
-              "/etc/chef/runlists/shutdown.json" : {
-                "content" : { "Ref" : "xlcloud:runlists/shutdown" }
-              }
+              "/etc/chef/runlists/compile.py": {
+                "content": { "Fn::Join" : [ "", [
+                  "#!/usr/bin/python",
+                  "import json",
+                  "import sys",
+                  "RUNLISTS_PATH='/etc/chef/runlists/'",
+                  "phases_file = open(sys.argv[1])",
+                  "phases = json.loads(phases_file.read())",
+                  "def parse_phase(phase):",
+                  "    phase_recipes = []",
+                  "    for recipes_array in phase.itervalues():",
+                  "        phase_recipes.extend(recipes_array)",
+                  "    return phase_recipes",
+                  "for phase_name, phase in phases.iteritems():",
+                  "    recipes = parse_phase(phase)",
+                  "    runlist_file = open(RUNLISTS_PATH + phase_name + '.json', 'w')",
+                  "    runlist_file.write(json.dumps({'run_list': recipes}))",
+                  "    runlist_file.close()"
+                ]]}
             },
             "packages" : {
               "yum" : {
@@ -134,7 +164,10 @@
               "1-chef-installation" : {
                 "command" : "curl -L https://www.opscode.com/chef/install.sh | bash"
               },
-              "2-setup-runlist" : {
+              "2-compile-phases" : {
+                "command" : "/etc/chef/runlists/compile.py /etc/chef/runlists/phases.json"
+              },
+              "3-setup-runlist" : {
                "command" : "chef-solo -j /etc/chef/runlists/setup.json > /var/log/chef.log"
               }
             }
