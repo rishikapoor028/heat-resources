@@ -126,7 +126,7 @@
          ]]}
       },
       "/etc/chef/cookbooks.list" : {
-        "content" : { "Ref" : "xlcloud:cookbooks" }
+        "content" : { "Ref" : "xlcloud:cookbookRepositories" }
       }
     },
     "packages" : {
