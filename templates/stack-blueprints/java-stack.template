@@ -1,12 +1,12 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
-  "Description" : "java 3-tier - java web application template",
+  "Description" : "Basic example of XLcloud stack template",
   "Parameters": {
     "xlcloud:defaultKeyName": {
       "Description" : "Name of an existing EC2 KeyPair to enable SSH access",
       "Type": "String"
     },
-    "xlcloud:defaultInstanceType": {
+   "xlcloud:defaultInstanceType": {
       "Description" : "Default instance type (flavor) for instances in this stack",
       "Type": "String",
       "Default":"m1.tiny",
@@ -28,10 +28,20 @@
         "F18-x86_64"
       ],
       "ConstraintDescription":"must be a valid XLcloud image name."
+    },
+    "xlcloud:defaultNetworkUuid": {
+      "Description" : "Project's network identifier",
+      "Type": "String",
+      "ConstraintDescription":"project doesn't have network defined in XLcloud"
+    },
+    "xlcloud:defaultSubnetUuid": {
+      "Description" : "Project's default subnet identifier",
+      "Type": "String",
+      "ConstraintDescription":"project doesn't have default subnet defined in XLcloud"
     }
   },
   "Resources" : {
-    "App Servers Layer" : {
+   "App Servers Layer" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Properties" : {
         "TemplateURL" : "",
@@ -53,89 +63,55 @@
         "AWS::CloudFormation::Init" : {
           "config" : {
             "files" : {
-              "/etc/chef/solo.rb" : {
-                "content":{
-                  "Fn::Join":[
-                      "\n",
-                      [
-                          "file_cache_path  '/tmp/chef'",
-                          "cookbook_path    '/var/chef/cookbooks'",
-                          "log_level        :info",
-                          "log_location     STDOUT",
-                          "ssl_verify_mode  :verify_none",
-                          "http_proxy 'http://10.197.217.62:3128'",
-                          "https_proxy 'http://10.197.217.62:3128'",
-                          "no_proxy '127.0.0.1,localhost,10.197.217.70'"
-                      ]
-                  ]
-                }
-              },
-              "/etc/chef/runlists/setup.json" : {
-                "content" : {
-                  "Fn::Join" : [
-                    "\n",
-                    [
-                      "{",
-                      "  \"run_list\": [ \"recipe[jdk_ark]\", \"recipe[glassfish_ark]\", \"recipe[xsa]\"], ",
-                      "  \"xsa\" : {",
-                      "    \"application_war_url\" : \"http://10.197.217.70/xsa-utils/xlcloud-xsa.war\" ",
-                      "  }, ",
-                      "  \"jdk_ark\" : {",
-                      "    \"archive_url\" : \"http://10.197.217.70/xsa-utils/jdk-7u25-linux-x64.tar.gz\" ",
-                      "  }", 
-                      "}"
-                    ]
-                  ]
-                }
-              }
+            "/etc/chef/cookbooks.list" : {
+              "content" : "http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git https://github.com/opscode-cookbooks/ark.git"
+             }
             },
             "packages" : {
               "yum" : {
                 "wget" : [],
-                "tar" : []
+                "tar" : [],
+                "git" : []
               }
             },
             "commands" : {
-              "1-chef-installation" : {
-                "command" : "curl -L https://www.opscode.com/chef/install.sh | bash"
+              "1-git-proxy" : {
+                "command" : "git config --global --add http.proxy http://10.197.217.62:3128"
               },
-              "2-setup-runlist" : {
-               "command" : "chef-solo -j /etc/chef/runlists/setup.json > /var/log/chef.log"
+              "2-install-XSA": {
+                "command" : "curl http://10.197.217.70/xsa-utils/xsa.sh | bash"
               }
-            },
-            "sources" : {
-              "/var/chef/cookbooks" : "10.197.217.70/xsa-utils/cookbooks.tar.gz"
             }
           }
         }
       },
       "Properties": {
-        "ImageId"        : { "Ref" : "xlcloud:defaultImageId" },
+        "ImageId"        : "F18-x86_64",
         "InstanceType"   : "m1.small",
         "KeyName"        : { "Ref" : "xlcloud:defaultKeyName" },
-        "SecurityGroups": [
-              {"Ref": "XsaSecurityGroup"}
-        ],
-        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["\n", [
-          "#!/bin/bash -xe",
-          "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
-
-          "# Flush iptables's default rules",
-          "/sbin/iptables -F",
-          "/sbin/iptables -X",
-
-          "# export proxies",
-          "echo 'export http_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
-          "echo 'export https_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
-          "echo 'export no_proxy=127.0.0.1,localhost,10.197.217.70,169.254.169.254' >> /etc/bashrc",
-          "echo proxy=http://10.197.217.62:3128/ >> /etc/yum.conf",
-          "source /root/.bashrc",
-          
-          "curl -s http://169.254.169.254/latest/meta-data/local-ipv4 | sed 's/\\./-/g' > /etc/hostname",
-          "echo \"127.0.0.1 $(cat /etc/hostname)\" >> /etc/hosts",
-
-          "# calling cfn-init",
-          "/opt/aws/bin/cfn-init"
+        "SecurityGroups": [ {"Ref": "XsaSecurityGroup"} ],
+        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+          "#!/bin/bash -xe\n",
+          "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n",
+ 
+          "# Flush iptables's default rules\n",
+          "/sbin/iptables -F\n",
+          "/sbin/iptables -X\n",
+ 
+          "# export proxies\n",
+          "echo 'export http_proxy=http://10.197.217.62:3128' >> /etc/bashrc\n",
+          "echo 'export https_proxy=http://10.197.217.62:3128' >> /etc/bashrc\n",
+          "echo 'export no_proxy=127.0.0.1,localhost,10.197.217.70,169.254.169.254' >> /etc/bashrc\n",
+          "echo proxy=http://10.197.217.62:3128/ >> /etc/yum.conf\n",
+          "source /root/.bashrc\n",
+ 
+          "# Heat's random hostname is too long and causes chef to crush. This simple fix helps solving the issue.\n",         
+          "curl -s http://169.254.169.254/latest/meta-data/local-ipv4 | sed 's/\\./-/g' > /etc/hostname\n",
+          "echo -e \"10.197.217.70 iam.toolcloud.bull \n \" >> /etc/hosts",
+          "echo \"127.0.0.1 $(cat /etc/hostname)\" >> /etc/hosts\n",
+ 
+          "# calling cfn-init\n",
+          "/opt/aws/bin/cfn-init\n"
         ]]}}
       }
     },
@@ -144,27 +120,17 @@
           "Properties" : {
                "GroupDescription" : "Allow ssh and http connection to host",
                "SecurityGroupIngress" : [
-               {
-                   "IpProtocol" : "tcp",
-                    "FromPort" : "22",
-                    "ToPort" : "22",
-                    "CidrIp" : "0.0.0.0/0"
-                },
-                {
-                   "IpProtocol" : "tcp",
-                    "FromPort" : "8080",
-                    "ToPort" : "8080",
-                    "CidrIp" : "0.0.0.0/0"
-                }],
+                   { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0" },
+                   { "IpProtocol" : "tcp", "FromPort" : "8080", "ToPort" : "8080", "CidrIp" : "0.0.0.0/0" }
+               ],
                "SecurityGroupEgress" : []
           }
     }
   },
   "Outputs" : {
     "XsaURL" : {
-      "Description" : "URL of the Xsa Instance",
+      "Description" : "XSA endpoint",
       "Value" : { "Fn::Join" : [ "",  [ { "Fn::GetAtt" : [ "XsaNode", "PublicIp" ] }, ":8080/xsa" ] ] }
     }
   }
-  
 }

@@ -84,133 +84,88 @@
     }
   },
   "Resources" : {
-    "DbNode":{
-      "Type":"AWS::AutoScaling::LaunchConfiguration",
-      "Metadata" : {
-        "AWS::CloudFormation::Init" : {
-          "config" : {
-            "files" : {
-              "/etc/chef/solo.rb" : {
-                "content":{
-                  "Fn::Join":[
-                      "\n",
-                      [
-                          "file_cache_path  '/tmp/chef'",
-                          "cookbook_path    '/var/chef/cookbooks'",
-                          "log_level        :info",
-                          "log_location     STDOUT",
-                          "ssl_verify_mode  :verify_none",
-                          "http_proxy 'http://10.197.217.62:3128'",
-                          "https_proxy 'http://10.197.217.62:3128'",
-                          "no_proxy '127.0.0.1,localhost,10.197.217.70'"
-                      ]
-                  ]
-                }
-              },
-              "/etc/chef/runlists/phases.json" : {
-                 "content" : { "Fn::Join" : [ "", [
-                   "{",
-                   "  \"setup\": {",
-                   "    \"default\": [", {"Ref" : "xlcloud:runlists/setup_default"}, "],",
-                   "    \"custom\": [", {"Ref" : "xlcloud:runlists/setup_custom"}, "]",
-                   "  },",
-                   "  \"configure\": {",
-                   "    \"default\": [", {"Ref" : "xlcloud:runlists/configure_default"}, "],",
-                   "    \"custom\": [", {"Ref" : "xlcloud:runlists/configure_custom"}, "]",
-                   "  },",
-                   "  \"deploy\": {",
-                   "    \"default\": [", {"Ref" : "xlcloud:runlists/deploy_default"}, "],",
-                   "    \"custom\": [", {"Ref" : "xlcloud:runlists/deploy_custom"}, "]",
-                   "  },",
-                   "  \"undeploy\": {",
-                   "    \"default\": [", {"Ref" : "xlcloud:runlists/undeploy_default"}, "],",
-                   "    \"custom\": [", {"Ref" : "xlcloud:runlists/undeploy_custom"}, "]",
-                   "  },",
-                   "  \"shutdown\": {",
-                   "    \"default\": [", {"Ref" : "xlcloud:runlists/shutdown_default"}, "],",
-                   "    \"custom\": [", {"Ref" : "xlcloud:runlists/shutdown_custom"}, "]",
-                   "  }",
-                   "}"
-                 ]]}
-              },
-              "/etc/chef/runlists/compile.py": {
-                "content": { "Fn::Join" : [ "\n", [
-                  "#!/usr/bin/python",
-                  "import json",
-                  "import sys",
-                  "RUNLISTS_PATH='/etc/chef/runlists/'",
-                  "phases_file = open(sys.argv[1])",
-                  "phases = json.loads(phases_file.read())",
-                  "def parse_phase(phase):",
-                  "    phase_recipes = []",
-                  "    for recipes_array in phase.itervalues():",
-                  "        phase_recipes.extend(recipes_array)",
-                  "    return phase_recipes",
-                  "for phase_name, phase in phases.iteritems():",
-                  "    recipes = parse_phase(phase)",
-                  "    runlist_file = open(RUNLISTS_PATH + phase_name + '.json', 'w')",
-                  "    runlist_file.write(json.dumps({'run_list': recipes}))",
-                  "    runlist_file.close()"
-                ]]},
-                "mode" : "000755"
-               }
-            },
-            "packages" : {
-              "yum" : {
-                "wget" : [],
-                "tar" : []
-              }
-            },
-            "commands" : {
-              "1-git-proxy" : {
-                "command" : "git config --global --add http.proxy http://10.197.217.62:3128"
-              },
-              "2-clone-repos": {
-                "command" : "mkdir -p /var/chef/cookbooks/ && cd `mktemp -d` && for uri in $(cat /etc/chef/cookbooks.list | tr \" \" \"\\n\"); do git clone $uri; done && find . -name \"metadata.rb\" -exec sh -c 'cp -Rp \"${0%/*}\" /var/chef/cookbooks/' {} \\;"
-              },
-              "4-chef-installation" : {
-                "command" : "curl -L https://www.opscode.com/chef/install.sh | bash"
-              },
-              "5-compile-phases" : {
-                "command" : "/etc/chef/runlists/compile.py /etc/chef/runlists/phases.json"
-              },
-              "6-setup-runlist" : {
-               "command" : "chef-solo -j /etc/chef/runlists/setup.json > /var/log/chef.log"
-              }
-            }
-          }
-        }
-      },
-      "Properties":{
-        "ImageId":{"Ref": "xlcloud:defaultImageId"},
-        "InstanceType":{"Ref": "xlcloud:defaultInstanceType"},
-        "KeyName" : { "Ref" : "xlcloud:defaultKeyName" },
-        "SecurityGroups": [
-              {"Ref": "DefaultSecurityGroup"}
-        ],
-        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["\n", [
-          "#!/bin/bash -xe",
-          "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
+    "DbNode": {
+	  "Type":"AWS::AutoScaling::LaunchConfiguration",
+	  "Metadata" : {
+	    "AWS::CloudFormation::Init" : {
+	      "config" : {
+		"files" : {
+		  "/etc/chef/runlists/phases.json" : {
+		     "content" : { "Fn::Join" : [ "", [
+		       "{",
+		       "  \"setup\": {",
+		       "    \"default\": [", {"Ref" : "xlcloud:runlists/setup_default"}, "],",
+		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/setup_custom"}, "]",
+		       "  },",
+		       "  \"configure\": {",
+		       "    \"default\": [", {"Ref" : "xlcloud:runlists/configure_default"}, "],",
+		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/configure_custom"}, "]",
+		       "  },",
+		       "  \"deploy\": {",
+		       "    \"default\": [", {"Ref" : "xlcloud:runlists/deploy_default"}, "],",
+		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/deploy_custom"}, "]",
+		       "  },",
+		       "  \"undeploy\": {",
+		       "    \"default\": [", {"Ref" : "xlcloud:runlists/undeploy_default"}, "],",
+		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/undeploy_custom"}, "]",
+		       "  },",
+		       "  \"shutdown\": {",
+		       "    \"default\": [", {"Ref" : "xlcloud:runlists/shutdown_default"}, "],",
+		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/shutdown_custom"}, "]",
+		       "  }",
+		       "}"
+		     ]]}
+		  },
+		  "/etc/chef/cookbooks.list" : {
+		    "content" : { "Ref" : "xlcloud:cookbooks" }
+		  }
+		},
+		"packages" : {
+		  "yum" : {
+		    "wget" : [],
+		    "tar" : [],
+		    "git" : []
+		  }
+		},
+		"commands" : {
+		  "1-git-proxy" : {
+		    "command" : "git config --global --add http.proxy http://10.197.217.62:3128"
+		  },
+		  "2-install-XIA": {
+		    "command" : "curl http://10.197.217.70/xsa-utils/xia.sh | bash"
+		  }
+		}
+	      }
+	    }
+	  },
+	  "Properties":{
+	    "ImageId":{"Ref": "xlcloud:defaultImageId"},
+	    "InstanceType":{"Ref": "xlcloud:defaultInstanceType"},
+	    "KeyName" : { "Ref" : "xlcloud:defaultKeyName" },
+	    "SecurityGroups": [  {"Ref": "DefaultSecurityGroup"} ],
+	    "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["\n", [
+	      "#!/bin/bash -xe",
+	      "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
 
-          "# Flush iptables's default rules",
-          "/sbin/iptables -F",
-          "/sbin/iptables -X",
+	      "# Flush iptables's default rules",
+	      "/sbin/iptables -F",
+	      "/sbin/iptables -X",
 
-          "# export proxies",
-          "echo 'export http_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
-          "echo 'export https_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
-          "echo 'export no_proxy=127.0.0.1,localhost,10.197.217.70,169.254.169.254' >> /etc/bashrc",
-          "echo proxy=http://10.197.217.62:3128/ >> /etc/yum.conf",
-          "source /root/.bashrc",
+	      "# export proxies",
+	      "echo 'export http_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
+	      "echo 'export https_proxy=http://10.197.217.62:3128' >> /etc/bashrc",
+	      "echo 'export no_proxy=127.0.0.1,localhost,10.197.217.70,169.254.169.254' >> /etc/bashrc",
+	      "echo proxy=http://10.197.217.62:3128/ >> /etc/yum.conf",
+	      "source /root/.bashrc",
 
-          "curl -s http://169.254.169.254/latest/meta-data/local-ipv4 | sed 's/\\./-/g' > /etc/hostname",
-          "echo \"127.0.0.1 $(cat /etc/hostname)\" >> /etc/hosts",
+	      "curl -s http://169.254.169.254/latest/meta-data/local-ipv4 | sed 's/\\./-/g' > /etc/hostname",
+	      "echo \"127.0.0.1 $(cat /etc/hostname)\" >> /etc/hosts",
 
-          "# calling cfn-init",
-          "/opt/aws/bin/cfn-init"
-        ]]}}
-      }
-    },
+	      "# calling cfn-init",
+	      "/opt/aws/bin/cfn-init"
+	    ]]}}
+	  }
+	},
     "DbNode_defaultScaling": {
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
       "Properties" : {
@@ -220,16 +175,24 @@
         "MaxSize" : { "Ref" : "xlcloud:DbNode:max" }
       }
     },
-    "DefaultSecurityGroup" : { 
+    "DefaultSecurityGroup" : {
         "Type" : "AWS::EC2::SecurityGroup",
-        "Properties" : { 
-             "GroupDescription" : "Allow ssh connection to host",
-             "SecurityGroupIngress" : [{
+        "Properties" : {
+             "GroupDescription" : "Allow ssh connection to host and allow XSA to communicate with XIA",
+             "SecurityGroupIngress" : [
+               {
                  "IpProtocol" : "tcp",
-                  "FromPort" : "22",
-                  "ToPort" : "22",
-                  "CidrIp" : "0.0.0.0/0"
-              }], 
+                 "FromPort" : "22",
+                 "ToPort" : "22",
+                 "CidrIp" : "0.0.0.0/0"
+               },
+               {
+                 "IpProtocol" : "udp",
+                 "FromPort" : "38181",
+                 "ToPort" : "38181",
+                 "CidrIp" : "0.0.0.0/0"
+               }
+             ],
              "SecurityGroupEgress" : []
         }
     }
