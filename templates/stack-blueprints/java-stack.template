@@ -32,11 +32,13 @@
     "xlcloud:defaultNetworkUuid": {
       "Description" : "Project's network identifier",
       "Type": "String",
+      "Default" : "PENDING",
       "ConstraintDescription":"project doesn't have network defined in XLcloud"
     },
     "xlcloud:defaultSubnetUuid": {
       "Description" : "Project's default subnet identifier",
       "Type": "String",
+      "Default" : "PENDING",
       "ConstraintDescription":"project doesn't have default subnet defined in XLcloud"
     }
   },
