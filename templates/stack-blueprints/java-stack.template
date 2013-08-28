@@ -81,7 +81,7 @@
                 "command" : "git config --global --add http.proxy http://10.197.217.62:3128"
               },
               "2-install-XSA": {
-                "command" : "curl http://10.197.217.70/xsa-utils/xsa.sh | bash"
+                "command" : "http://gitorious.ow2.org/xlcloud/vca/blobs/raw/master/scripts/xsa-install.sh | bash"
               }
             }
           }

@@ -99,52 +99,52 @@
 	  "Metadata" : {
 	    "AWS::CloudFormation::Init" : {
 	      "config" : {
-		"files" : {
-		  "/etc/chef/runlists/phases.json" : {
-		     "content" : { "Fn::Join" : [ "", [
-		       "{",
-		       "  \"setup\": {",
-		       "    \"default\": [", {"Ref" : "xlcloud:runlists/setup_default"}, "],",
-		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/setup_custom"}, "]",
-		       "  },",
-		       "  \"configure\": {",
-		       "    \"default\": [", {"Ref" : "xlcloud:runlists/configure_default"}, "],",
-		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/configure_custom"}, "]",
-		       "  },",
-		       "  \"deploy\": {",
-		       "    \"default\": [", {"Ref" : "xlcloud:runlists/deploy_default"}, "],",
-		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/deploy_custom"}, "]",
-		       "  },",
-		       "  \"undeploy\": {",
-		       "    \"default\": [", {"Ref" : "xlcloud:runlists/undeploy_default"}, "],",
-		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/undeploy_custom"}, "]",
-		       "  },",
-		       "  \"shutdown\": {",
-		       "    \"default\": [", {"Ref" : "xlcloud:runlists/shutdown_default"}, "],",
-		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/shutdown_custom"}, "]",
-		       "  }",
-		       "}"
-		     ]]}
-		  },
-		  "/etc/chef/cookbooks.list" : {
-		    "content" : { "Ref" : "xlcloud:cookbookRepositories" }
-		  }
-		},
-		"packages" : {
-		  "yum" : {
-		    "wget" : [],
-		    "tar" : [],
-		    "git" : []
-		  }
-		},
-		"commands" : {
-		  "1-git-proxy" : {
-		    "command" : "git config --global --add http.proxy http://10.197.217.62:3128"
-		  },
-		  "2-install-XIA": {
-		    "command" : "curl http://10.197.217.70/xsa-utils/xia.sh | bash"
-		  }
-		}
+      		"files" : {
+      		  "/etc/chef/runlists/phases.json" : {
+      		     "content" : { "Fn::Join" : [ "", [
+      		       "{",
+      		       "  \"setup\": {",
+      		       "    \"default\": [", {"Ref" : "xlcloud:runlists/setup_default"}, "],",
+      		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/setup_custom"}, "]",
+      		       "  },",
+      		       "  \"configure\": {",
+      		       "    \"default\": [", {"Ref" : "xlcloud:runlists/configure_default"}, "],",
+      		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/configure_custom"}, "]",
+      		       "  },",
+      		       "  \"deploy\": {",
+      		       "    \"default\": [", {"Ref" : "xlcloud:runlists/deploy_default"}, "],",
+      		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/deploy_custom"}, "]",
+      		       "  },",
+      		       "  \"undeploy\": {",
+      		       "    \"default\": [", {"Ref" : "xlcloud:runlists/undeploy_default"}, "],",
+      		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/undeploy_custom"}, "]",
+      		       "  },",
+      		       "  \"shutdown\": {",
+      		       "    \"default\": [", {"Ref" : "xlcloud:runlists/shutdown_default"}, "],",
+      		       "    \"custom\": [", {"Ref" : "xlcloud:runlists/shutdown_custom"}, "]",
+      		       "  }",
+      		       "}"
+      		     ]]}
+      		  },
+      		  "/etc/chef/cookbooks.list" : {
+      		    "content" : { "Ref" : "xlcloud:cookbookRepositories" }
+      		  }
+      		},
+      		"packages" : {
+      		  "yum" : {
+      		    "wget" : [],
+      		    "tar" : [],
+      		    "git" : []
+      		  }
+      		},
+      		"commands" : {
+      		  "1-git-proxy" : {
+      		    "command" : "git config --global --add http.proxy http://10.197.217.62:3128"
+      		  },
+      		  "2-install-XIA": {
+      		    "command" : "http://gitorious.ow2.org/xlcloud/vca/blobs/raw/master/scripts/xia-install.sh | bash"
+      		  }
+      		}
 	      }
 	    }
 	  },
