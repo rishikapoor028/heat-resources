@@ -142,7 +142,7 @@
       		    "command" : "git config --global --add http.proxy http://10.197.217.62:3128"
       		  },
       		  "2-install-XIA": {
-      		    "command" : "curl http://gitorious.ow2.org/xlcloud/vca/blobs/raw/master/scripts/xia-install.sh | bash"
+      		    "command" : "curl http://gitorious.ow2.org/xlcloud/vca/blobs/raw/master/scripts/xia-install.sh | bash -e"
       		  }
       		}
 	      }
