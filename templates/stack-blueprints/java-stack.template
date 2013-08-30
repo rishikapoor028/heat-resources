@@ -66,7 +66,7 @@
           "config" : {
             "files" : {
             "/etc/chef/cookbooks.list" : {
-              "content" : "http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git https://github.com/opscode-cookbooks/ark.git"
+              "content" : "http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git http://github.com/opscode-cookbooks/ark.git"
              }
             },
             "packages" : {
