@@ -40,7 +40,7 @@
     },
     "xlcloud:runlists/setup_default": {
       "Description" : "Default recipes for setup phase",
-      "Default" : "\"recipe[glassfish_ark]\"",
+      "Default" : "8",
       "Type": "String"
     },
     "xlcloud:runlists/setup_custom": {
