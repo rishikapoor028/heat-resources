@@ -6,7 +6,7 @@
       "Description" : "Name of an existing EC2 KeyPair to enable SSH access",
       "Type": "String"
     },
-   "xlcloud:defaultInstanceType": {
+    "xlcloud:defaultInstanceType": {
       "Description" : "Default instance type (flavor) for instances in this stack",
       "Type": "String",
       "Default":"m1.tiny",
@@ -43,7 +43,15 @@
     }
   },
   "Resources" : {
-   "App Servers Layer" : {
+    "XSA Layer" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Properties" : {
+        "TemplateURL" : "",
+        "Parameters" : {
+        }
+      }
+    },
+    "App Servers Layer" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Properties" : {
         "TemplateURL" : "",
@@ -58,75 +66,6 @@
         "Parameters" : {
         }
       }
-    },
-    "XsaNode": {
-      "Type": "AWS::EC2::Instance",
-      "Metadata" : {
-        "AWS::CloudFormation::Init" : {
-          "config" : {
-            "files" : {
-            "/etc/chef/cookbooks.list" : {
-              "content" : "http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git http://github.com/opscode-cookbooks/ark.git"
-             }
-            },
-            "packages" : {
-              "yum" : {
-                "wget" : [],
-                "tar" : [],
-                "git" : []
-              }
-            },
-            "commands" : {
-              "1-git-proxy" : {
-                "command" : "git config --global --add http.proxy http://10.197.217.62:3128"
-              },
-              "2-install-XSA": {
-                "command" : "curl http://gitorious.ow2.org/xlcloud/vca/blobs/raw/master/scripts/xsa-install.sh | bash -e"
-              }
-            }
-          }
-        }
-      },
-      "Properties": {
-        "ImageId"        : "F18-x86_64",
-        "InstanceType"   : "m1.small",
-        "KeyName"        : { "Ref" : "xlcloud:defaultKeyName" },
-        "SecurityGroups": [ {"Ref": "XsaSecurityGroup"} ],
-        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
-          "#!/bin/bash -xe\n",
-          "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n",
- 
-          "# Flush iptables's default rules\n",
-          "/sbin/iptables -F\n",
-          "/sbin/iptables -X\n",
- 
-          "# export proxies\n",
-          "echo 'export http_proxy=http://10.197.217.62:3128' >> /etc/bashrc\n",
-          "echo 'export https_proxy=http://10.197.217.62:3128' >> /etc/bashrc\n",
-          "echo 'export no_proxy=127.0.0.1,localhost,10.197.217.70,169.254.169.254' >> /etc/bashrc\n",
-          "echo proxy=http://10.197.217.62:3128/ >> /etc/yum.conf\n",
-          "source /root/.bashrc\n",
- 
-          "# Heat's random hostname is too long and causes chef to crush. This simple fix helps solving the issue.\n",         
-          "curl -s http://169.254.169.254/latest/meta-data/local-ipv4 | sed 's/\\./-/g' > /etc/hostname\n",
-          "echo -e \"10.197.217.70 iam.toolcloud.bull \n \" >> /etc/hosts",
-          "echo \"127.0.0.1 $(cat /etc/hostname)\" >> /etc/hosts\n",
- 
-          "# calling cfn-init\n",
-          "/opt/aws/bin/cfn-init\n"
-        ]]}}
-      }
-    },
-    "XsaSecurityGroup" : {
-          "Type" : "AWS::EC2::SecurityGroup",
-          "Properties" : {
-               "GroupDescription" : "Allow ssh and http connection to host",
-               "SecurityGroupIngress" : [
-                   { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0" },
-                   { "IpProtocol" : "tcp", "FromPort" : "8080", "ToPort" : "8080", "CidrIp" : "0.0.0.0/0" }
-               ],
-               "SecurityGroupEgress" : []
-          }
     }
   },
   "Outputs" : {
