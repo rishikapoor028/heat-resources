@@ -67,11 +67,5 @@
         }
       }
     }
-  },
-  "Outputs" : {
-    "XsaURL" : {
-      "Description" : "XSA endpoint",
-      "Value" : { "Fn::Join" : [ "",  [ { "Fn::GetAtt" : [ "XsaNode", "PublicIp" ] }, ":8080/xsa" ] ] }
-    }
   }
 }
