@@ -166,8 +166,8 @@
     "ElasticIpAssociation" : {
       "Type" : "AWS::EC2::EIPAssociation",
       "Properties" : {
-        "EIP" : "ElasticIp",
-        "InstanceId" : "XsaNode"
+        "EIP" : { "Ref" : "ElasticIp" },
+        "InstanceId" : { "Ref" : "XsaNode" }
       }
     }
   }
