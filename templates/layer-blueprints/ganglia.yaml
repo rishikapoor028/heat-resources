@@ -1,0 +1,238 @@
+# heat stack-create -f ganglia.yaml ganglia.T1 -P 'xlcloud:defaultKeyName=swannDev1'
+HeatTemplateFormatVersion: '2012-12-12'
+Outputs:
+  MonitorIP:
+    Description: Ganglia deployment
+    #Value: {Ref: NodeIPAddress}
+    Value:  {'Fn::GetAtt': ['MonitorNode', 'PrivateIp']}
+Parameters:
+  MonitorPort: {Default: '8649', Type: String, Description: TCP port of monitoring traffic data}
+  #RunList: {Default: ganglia, Type: String,
+  #  Description: Collection of recipes to execute}
+  NodeCountMinimum:
+    Description: Minimum numb
+    Type: String
+    Default: '1'
+    AllowedPattern: '[0-9]*'
+  NodeCountMaximum:
+    Description: Maximum number of nodes to scale up to
+    Type: String
+    Default: '4'
+    AllowedPattern: '[0-9]*'
+
+## XLCLOUD default Params
+ # xlcloud:defaultSubnetUuid: 
+ #   Type: String
+ #   ConstraintDescription: project doesn't have default subnet defined in XLcloud
+ #   Description: Project's default subnet identifier
+ #   Default: PENDING
+ # xlcloud:defaultNetworkUuid: 
+ #   Type: String
+ #   ConstraintDescription: project doesn't have network defined in XLcloud
+ #   Description: Project's network identifier
+ #   Default: PENDING
+  xlcloud:defaultImageId: 
+    Type: String
+    ConstraintDescription: must be a valid XLcloud image name.
+    AllowedValues: 
+    - F17-x86_64
+    - F18-x86_64
+    - F19-x86_64-chef-solo
+    - quantal-server-cloudimg-amd64
+    Description: Default image name for instances in this stack
+    Default: quantal-server-cloudimg-amd64
+  xlcloud:defaultInstanceType: 
+    Type: String
+    ConstraintDescription: must be a valid XLcloud instance type.
+    AllowedValues: 
+    - m1.tiny
+    - m1.small
+    - m1.medium
+    - m1.large
+    - m1.xlarge
+    Description: Default instance type (flavor) for instances in this stack
+    Default: m1.tiny
+  xlcloud:defaultKeyName: 
+    Type: String
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+
+Resources:
+  MonitorSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      SecurityGroupIngress:
+      - {ToPort: '-1', IpProtocol: icmp, FromPort: '-1', CidrIp: 0.0.0.0/0}
+      - {ToPort: '80', IpProtocol: tcp, FromPort: '80', CidrIp: 0.0.0.0/0}
+      - {ToPort: '443', IpProtocol: tcp, FromPort: '443', CidrIp: 0.0.0.0/0}
+      - {ToPort: '22', IpProtocol: tcp, FromPort: '22', CidrIp: 0.0.0.0/0}
+        # all gmond of cluster send data here
+      - {ToPort: {Ref: MonitorPort}, IpProtocol: tcp, FromPort: {Ref: MonitorPort}, CidrIp: 0.0.0.0/0}
+      - {ToPort: {Ref: MonitorPort}, IpProtocol: udp, FromPort: {Ref: MonitorPort}, CidrIp: 0.0.0.0/0}
+      GroupDescription: "Firewall rules : SSH, HTTP(s) and Ganglia"
+  MonitorNode:
+    Type: AWS::EC2::Instance
+    Properties:
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - |-
+                #!/bin/bash -v
+                exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+                /sbin/iptables -F
+                /sbin/iptables -X
+                export MY_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/local-ipv4/)
+                export MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+                export MY_HOSTNAME=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/hostname)
+                cat /etc/hosts && echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts && cat /etc/hosts
+                export MY_HTTP_PROXY=http://10.197.217.62:3128
+                cat << EOF >> /etc/profile.d/http_proxy.sh
+                export http_proxy=$MY_HTTP_PROXY
+                export https_proxy=$MY_HTTP_PROXY
+                export no_proxy=127.0.0.1,localhost,169.254.169.254,$MY_IPV4
+                EOF
+                #### export proxies
+                source /etc/profile.d/http_proxy.sh
+                echo 'Acquire::http::Proxy "http://10.197.217.62:3128";' >> /etc/apt/apt.conf
+                locale-gen fr_FR.UTF-8
+                apt-get update
+                #### apt-get -y install git
+                apt-get -y remove python-boto
+                apt-get -y install python-psutil python-pip cloud-init
+                pip install 'boto==2.5.2' heat-cfntools
+                cfn-create-aws-symlinks -s /usr/local/bin/
+                /opt/aws/bin/cfn-init
+                apt-get -y install ruby ruby1.8-dev build-essential wget libruby1.8 rubygems
+                # Install chef-solo and dependencies
+                gem update --no-rdoc --no-ri
+                # gem install ohai chef --no-rdoc --no-ri
+                DEBIAN_FRONTEND='noninteractive' apt-get -y install chef
+                export CHEF_DIR=/etc/chef && mkdir -p $CHEF_DIR/cookbooks && cd $CHEF_DIR/cookbooks && http_proxy= wget http://10.197.217.62/downloads/cookbooks/ganglia.tgz
+                tar xzvf ganglia.tgz && rm ganglia.tgz
+                '#Execute application runlist'
+                chef-solo -l debug -j /etc/chef/node.json -c /etc/chef/solo.rb
+      KeyName: {Ref: 'xlcloud:defaultKeyName'}
+      SecurityGroups:
+      - {Ref: MonitorSecurityGroup}
+      InstanceType:
+          Ref: 'xlcloud:defaultInstanceType'
+      ImageId: 
+          Ref: 'xlcloud:defaultImageId'
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+           # /etc/cfn/cfn-credentials: &cfn-credentials-file
+           #   content:
+           #     Fn::Join:
+           #     - ''
+           #     - - AWSAccessKeyId=
+           #       - {Ref: MyKey}
+           #       - '
+
+           #         '
+           #       - AWSSecretKey=
+           #       - Fn::GetAtt: [MyKey, SecretAccessKey]
+           #       - '
+
+           #         '
+           #   owner: root
+           #   group: root
+           #   mode: '000400'
+            /root/.chef/knife.rb:
+              content:
+                Fn::Join:
+                - ''
+                - - |-
+                      cookbook_path [ '/etc/chef/cookbooks' ]
+                      ssl_verify_mode  :verify_none
+                      http_proxy 'http://10.197.217.62:3128'
+                      https_proxy 'http://10.197.217.62:3128'
+              owner: root
+              group: root
+              mode: '000644'
+            /etc/chef/node.json:
+              content:
+                Fn::Join:
+                - ''
+                - - |-
+                      {
+                       "ganglia" : { "central_monit" : true,
+                                     "cluster" : {"collector_host" : "127.0.0.1"}                  
+                                   },
+                       "run_list" : [ "recipe[ganglia]", "recipe[ganglia::web]" ]
+                       }
+              owner: root
+              group: root
+              mode: '000644'
+            /etc/chef/solo.rb:
+              content:
+                Fn::Join:
+                - ''
+                - - |- 
+                      file_cache_path  '/etc/chef'
+                      cookbook_path    '/etc/chef/cookbooks'
+                      json_attribs '/etc/chef/node.json'
+                      log_level        :info
+                      log_location     STDOUT
+                      ssl_verify_mode  :verify_none
+                      http_proxy 'http://10.197.217.62:3128'
+                      https_proxy 'http://10.197.217.62:3128'
+                      no_proxy '127.0.0.1,localhost'
+              owner: root
+              group: root
+              mode: '000644'
+            /tmp/heat_test.txt:
+              content:
+                Fn::Join:
+                - ''
+                - - 'memalarmhight :'
+                 # - {Ref: MEMAlarmHigh}
+                  - '
+
+                    '
+                  - 'alarm dim: '
+                  #- Fn::GetAtt: [MEMAlarmHigh, Dimensions]
+                  - '
+
+                    '
+                  - 'alarm threashold: '
+                  #- Fn::GetAtt: [MEMAlarmHigh, Threshold]
+                  - '
+
+                    '
+                  - 'alarm : '
+                  #- Fn::GetAtt: [MEMAlarmHigh, MetricName]
+                  - '
+
+                    '
+                  - 'aws::stackname : '
+                  - {Ref: 'AWS::StackName'}
+                  - '
+
+                    '
+                  - 'aws::stackid: '
+                  - {Ref: 'AWS::StackId'}
+                  - '
+
+                    '
+                  - 'AS:InstanceList:'
+#                  - Fn::GetAtt: [Layer1, InstanceList]
+                  - '
+
+                    '
+                  - '----end
+
+                    '
+                  - '
+
+                    '
+              owner: root
+              group: root
+              mode: '000644'
+  NodeIPAddress: {Type: 'AWS::EC2::EIP'}
+  NodeIPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: {Ref: MonitorNode}
+      EIP: {Ref: NodeIPAddress}
