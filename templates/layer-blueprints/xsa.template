@@ -157,6 +157,18 @@
        ],
        "SecurityGroupEgress" : []
       }
+    },
+    "ElasticIp" : {
+      "Type" : "AWS::EC2::EIP",
+	  "Properties" : {
+	  }
+    },
+    "ElasticIpAssociation" : {
+      "Type" : "AWS::EC2::EIPAssociation",
+      "Properties" : {
+        "EIP" : "ElasticIp",
+        "InstanceId" : "XsaNode"
+      }
     }
   }
 }
