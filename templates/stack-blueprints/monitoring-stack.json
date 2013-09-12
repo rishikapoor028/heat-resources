@@ -1,0 +1,340 @@
+{
+  "HeatTemplateFormatVersion": "2012-12-12", 
+  "Description": "demonstrate deployment of Ganglia in a Virtual Cluster", 
+  "Parameters": {
+    "MonitorPort": {
+      "Default": "8649", 
+      "Type": "String", 
+      "Description": "TCP port of monitoring traffic data"
+    }, 
+    "NodeCountMaximum": {
+      "Default": "4", 
+      "AllowedPattern": "[0-9]*", 
+      "Type": "String", 
+      "Description": "Maximum number of nodes to scale up to"
+    }, 
+    "xlcloud:defaultImageId": {
+      "Default": "quantal64", 
+      "Type": "String", 
+      "Description": "Distribution of choice", 
+      "AllowedValues": [
+        "precise64", 
+        "precise32", 
+        "quantal64", 
+        "raring", 
+        "CentOS63-x86_64-cfntools", 
+        "F18-x86_64", 
+        "raring-server-cloudimg-amd64", 
+        "quantal-server-cloudimg-amd64"
+      ]
+    }, 
+    "NodeCountMinimum": {
+      "Default": "1", 
+      "AllowedPattern": "[0-9]*", 
+      "Type": "String", 
+      "Description": "Minimum numb"
+    }, 
+    "CookbooksUrl": {
+      "Default": "http://10.197.217.62/downloads/cookbooks/ganglia.tgz", 
+      "Type": "String", 
+      "Description": "Url of the application cookbooks archive"
+    },
+    "xlcloud:defaultKeyName": {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access",
+      "Type": "String"
+    },
+    "xlcloud:defaultInstanceType": {
+      "Description" : "Default instance type (flavor) for instances in this stack",
+      "Type": "String",
+      "Default":"m1.tiny",
+      "AllowedValues":[
+        "m1.tiny",
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge"
+      ],
+      "ConstraintDescription":"must be a valid XLcloud instance type."
+    },
+    "xlcloud:defaultImageId": {
+      "Description" : "Default image name for instances in this stack",
+      "Type": "String",
+      "Default":"F18-x86_64",
+      "AllowedValues":[
+        "F17-x86_64",
+        "F18-x86_64"
+      ],
+      "ConstraintDescription":"must be a valid XLcloud image name."
+    },
+    "xlcloud:defaultNetworkUuid": {
+      "Description" : "Project's network identifier",
+      "Type": "String",
+      "Default" : "PENDING",
+      "ConstraintDescription":"project doesn't have network defined in XLcloud"
+    },
+    "xlcloud:defaultSubnetUuid": {
+      "Description" : "Project's default subnet identifier",
+      "Type": "String",
+      "Default" : "PENDING",
+      "ConstraintDescription":"project doesn't have default subnet defined in XLcloud"
+    }
+  }, 
+  "Outputs": {
+    "NodeIP": {
+      "Description": "Ganglia deployment", 
+      "Value": {
+        "Ref": "NodeIPAddress"
+      }
+    }
+  }, 
+  "Resources": {
+    "Layer1": {
+      "Type": "AWS::CloudFormation::Stack", 
+      "Properties": {
+        "TemplateURL": "http://10.197.217.62/downloads/tpl/as-ganglia-layer5.yaml", 
+        "TimeoutInMinutes": 2, 
+        "Parameters": {
+          "MonitorPort": {
+            "Ref": "MonitorPort"
+          }, 
+          "NodeCountMaximum": {
+            "Ref": "NodeCountMaximum"
+          }, 
+          "NodeCountMinimum": {
+            "Ref": "NodeCountMinimum"
+          }, 
+          "MyKeyIam": {
+            "Ref": "MyKey"
+          },
+          "MonitorIP": {
+            "Fn::GetAtt": [
+              "MonitorNode", 
+              "PrivateIp"
+            ]
+          }, 
+          "MyKeySecretAccessKey": "foo", 
+
+          "xlcloud:defaultKeyName": {
+            "Ref": "xlcloud:defaultKeyName"
+          }, 
+          "xlcloud:defaultInstanceType": {
+            "Ref": "xlcloud:defaultInstanceType"
+          },
+          "xlcloud:defaultImageId": {
+            "Ref": "xlcloud:defaultImageId"
+          } 
+        }
+      }
+    }, 
+    "NodeIPAddress": {
+      "Type": "AWS::EC2::EIP"
+    }, 
+    "CfnUser": {
+      "Type": "AWS::IAM::User"
+    }, 
+    "NodeIPAssoc": {
+      "Type": "AWS::EC2::EIPAssociation", 
+      "Properties": {
+        "InstanceId": {
+          "Ref": "MonitorNode"
+        }, 
+        "EIP": {
+          "Ref": "NodeIPAddress"
+        }
+      }
+    }, 
+    "MonitorNode": {
+      "Type": "AWS::EC2::Instance", 
+      "Properties": {
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "", 
+              [
+                "#!/bin/bash -v\nexec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n/sbin/iptables -F\n/sbin/iptables -X\nexport MY_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/local-ipv4/)\nexport MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)\nexport MY_HOSTNAME=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/hostname)\ncat /etc/hosts && echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts && cat /etc/hosts\nexport MY_HTTP_PROXY=http://10.197.217.62:3128\ncat << EOF >> /etc/profile.d/http_proxy.sh\nexport http_proxy=$MY_HTTP_PROXY\nexport https_proxy=$MY_HTTP_PROXY\nexport no_proxy=127.0.0.1,localhost,169.254.169.254,$MY_IPV4\nEOF\n#### export proxies\nsource /etc/profile.d/http_proxy.sh\necho 'Acquire::http::Proxy \"http://10.197.217.62:3128\";' >> /etc/apt/apt.conf\nlocale-gen fr_FR.UTF-8\napt-get update\n#### apt-get -y install git\napt-get -y remove python-boto\napt-get -y install python-psutil python-pip cloud-init\npip install 'boto==2.5.2' heat-cfntools\ncfn-create-aws-symlinks -s /usr/local/bin/\n/opt/aws/bin/cfn-init\napt-get -y install ruby ruby1.8-dev build-essential wget libruby1.8 rubygems\n# Install chef-solo and dependencies\ngem update --no-rdoc --no-ri\n# gem install ohai chef --no-rdoc --no-ri\nDEBIAN_FRONTEND='noninteractive' apt-get -y install chef\nexport CHEF_DIR=/etc/chef && mkdir -p $CHEF_DIR/cookbooks && cd $CHEF_DIR/cookbooks && http_proxy= wget http://10.197.217.62/downloads/cookbooks/ganglia.tgz\ntar xzvf ganglia.tgz && rm ganglia.tgz\n'#Execute application runlist'\nchef-solo -l debug -j /etc/chef/node.json -c /etc/chef/solo.rb"
+              ]
+            ]
+          }
+        }, 
+        "KeyName": {
+          "Ref": "KeyName"
+        }, 
+        "SecurityGroups": [
+          {
+            "Ref": "MonitorSecurityGroup"
+          }
+        ], 
+        "InstanceType": {"Ref" : "xlcloud:defaultInstanceType"}, 
+        "ImageId": {
+          "Ref": "xlcloud:defaultImageId"
+        }
+      }, 
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "config": {
+            "files": {
+              "/root/.chef/knife.rb": {
+                "content": {
+                  "Fn::Join": [
+                    "", 
+                    [
+                      "cookbook_path [ '/etc/chef/cookbooks' ]\nssl_verify_mode  :verify_none\nhttp_proxy 'http://10.197.217.62:3128'\nhttps_proxy 'http://10.197.217.62:3128'"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000644"
+              }, 
+              "/etc/chef/node.json": {
+                "content": {
+                  "Fn::Join": [
+                    "", 
+                    [
+                      "{\n \"ganglia\" : { \"central_monit\" : true,\n               \"cluster\" : {\"collector_host\" : \"127.0.0.1\"}                  \n             },\n \"run_list\" : [ \"recipe[ganglia]\", \"recipe[ganglia::web]\" ]\n }"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000644"
+              }, 
+              "/etc/chef/solo.rb": {
+                "content": {
+                  "Fn::Join": [
+                    "", 
+                    [
+                      "file_cache_path  '/etc/chef'\ncookbook_path    '/etc/chef/cookbooks'\njson_attribs '/etc/chef/node.json'\nlog_level        :info\nlog_location     STDOUT\nssl_verify_mode  :verify_none\nhttp_proxy 'http://10.197.217.62:3128'\nhttps_proxy 'http://10.197.217.62:3128'\nno_proxy '127.0.0.1,localhost'"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000644"
+              }, 
+              "/etc/cfn/cfn-credentials": {
+                "content": {
+                  "Fn::Join": [
+                    "", 
+                    [
+                      "AWSAccessKeyId=", 
+                      {
+                        "Ref": "MyKey"
+                      }, 
+                      "\n", 
+                      "AWSSecretKey=", 
+                      {
+                        "Fn::GetAtt": [
+                          "MyKey", 
+                          "SecretAccessKey"
+                        ]
+                      }, 
+                      "\n"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000400"
+              }, 
+              "/tmp/heat_test.txt": {
+                "content": {
+                  "Fn::Join": [
+                    "", 
+                    [
+                      "memalarmhight :", 
+                      "\n", 
+                      "alarm dim: ", 
+                      "\n", 
+                      "alarm threashold: ", 
+                      "\n", 
+                      "alarm : ", 
+                      "\n", 
+                      "aws::stackname : ", 
+                      {
+                        "Ref": "AWS::StackName"
+                      }, 
+                      "\n", 
+                      "aws::stackid: ", 
+                      {
+                        "Ref": "AWS::StackId"
+                      }, 
+                      "\n", 
+                      "AS:InstanceList:", 
+                      "\n", 
+                      "----end\n", 
+                      "\n"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "000644"
+              }
+            }
+          }
+        }
+      }
+    }, 
+    "MyKey": {
+      "Type": "AWS::IAM::AccessKey", 
+      "Properties": {
+        "UserName": {
+          "Ref": "CfnUser"
+        }
+      }
+    }, 
+    "MonitorSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup", 
+      "Properties": {
+        "SecurityGroupIngress": [
+          {
+            "ToPort": "-1", 
+            "IpProtocol": "icmp", 
+            "FromPort": "-1", 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": "80", 
+            "IpProtocol": "tcp", 
+            "FromPort": "80", 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": "443", 
+            "IpProtocol": "tcp", 
+            "FromPort": "443", 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": "22", 
+            "IpProtocol": "tcp", 
+            "FromPort": "22", 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": {
+              "Ref": "MonitorPort"
+            }, 
+            "IpProtocol": "tcp", 
+            "FromPort": {
+              "Ref": "MonitorPort"
+            }, 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": {
+              "Ref": "MonitorPort"
+            }, 
+            "IpProtocol": "udp", 
+            "FromPort": {
+              "Ref": "MonitorPort"
+            }, 
+            "CidrIp": "0.0.0.0/0"
+          }
+        ], 
+        "GroupDescription": "Firewall rules : SSH, HTTP(s) and Ganglia"
+      }
+    }
+  }
+}
