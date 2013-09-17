@@ -20,6 +20,19 @@ Parameters:
     Default: '4'
     AllowedPattern: '[0-9]*'
 
+  parentStackID:
+    Description: parentStackID
+    Type: String
+    Default: 'parentStackID:'
+  parentIamAccessyKey:
+    Description: parentIamAccessyKey
+    Type: String
+    Default: 'parentIamAccessyKey:'
+  parentIamSecretKey:
+    Description: parentIamSecretKey
+    Type: String
+    Default: 'parentIamSecretKey:'
+    #AllowedPattern: '[0-9]*'
   MonitorHandle:
     Description: WaitConditionHandle
     Type: String
@@ -44,7 +57,7 @@ Parameters:
     - F17-x86_64
     - F18-x86_64
     - F19-x86_64-chef-solo
-    - quantal-server-cloudimg-amd64
+    - cirros-0.3.1-x86_64-uec
     Description: Default image name for instances in this stack
     Default: F19-x86_64-chef-solo
   xlcloud:defaultInstanceType: 
@@ -93,7 +106,6 @@ Resources:
           - - |-
                 #!/bin/bash -v
                 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-                export MY_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/local-ipv4/)
                 export MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
                 export MY_HOSTNAME=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/hostname)
                 echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts
@@ -139,6 +151,28 @@ Resources:
               owner: root
               group: root
               mode: '000400'
+            /etc/cfn/cfn-credentials-parent: &cfn-credentials-parent-file
+              content:
+                Fn::Join:
+                - ''
+                - - AWSAccessKeyId=
+                  - {Ref: parentIamAccessyKey}
+                  - '
+
+                    '
+                  - AWSSecretKey=
+                  - {Ref: parentIamSecretKey}
+                  - '
+
+                    '
+                  - parentStackID=
+                  - {Ref: parentStackID}
+                  - '
+
+                    '
+              owner: root
+              group: root
+              mode: '000400'
             /root/.chef/knife.rb:
               content:
                 Fn::Join:
@@ -160,7 +194,7 @@ Resources:
                        "ganglia" : { "central_monit" : true,
                                      "cluster" : {"collector_host" : "127.0.0.1"}                  
                                    },
-                       "run_list" : [ "recipe[ganglia]", "recipe[ganglia::web]" ]
+                       "run_list" : [ "recipe[ganglia]", "recipe[ganglia::web]", "recipe[ganglia::python_rr]" ]
                        }
               owner: root
               group: root

@@ -1,7 +1,7 @@
 HeatTemplateFormatVersion: '2012-12-12'
 Description: Layer1 AutoScalingGroup with Ganglia 
 Outputs:
-  NodeIP:
+  NodeIPs:
     Description: Ganglia deployment
     Value:
       Fn::GetAtt: ['Layer1', 'InstanceList'] 
@@ -35,7 +35,7 @@ Parameters:
     - F17-x86_64
     - F18-x86_64
     - F19-x86_64-chef-solo
-    - quantal-server-cloudimg-amd64
+    - cirros-0.3.1-x86_64-uec
     Description: Default image name for instances in this stack
     Default: quantal-server-cloudimg-amd64
   xlcloud:defaultInstanceType: 
@@ -101,6 +101,8 @@ Resources:
       - {ToPort: {Ref: MonitorPort}, IpProtocol: tcp, FromPort: {Ref: MonitorPort}, CidrIp: 0.0.0.0/0}
       - {ToPort: '22', IpProtocol: tcp, FromPort: '22', CidrIp: 0.0.0.0/0}
       GroupDescription: Enable SSh and Ganglia traffic
+
+
   Layer1Config:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
@@ -186,11 +188,10 @@ Resources:
                   - |- 
                       "}
                        },
-                       "run_list" : [ "recipe[ganglia]" ]
+                        "run_list" : [ "recipe[ganglia]", "recipe[ganglia::python_rr]" ]
                        }
 
-#"run_list" : [ "recipe[ganglia]", "recipe[ganglia::python_rr]" ]
-#
+#"run_list" : [ "recipe[ganglia]" ]
   L1ScaleUpPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
@@ -205,4 +206,3 @@ Resources:
       AutoScalingGroupName: {Ref: Layer1}
       Cooldown: '62'
       AdjustmentType: ChangeInCapacity
-
