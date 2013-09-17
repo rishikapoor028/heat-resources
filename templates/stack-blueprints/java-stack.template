@@ -28,22 +28,10 @@
         "F18-x86_64"
       ],
       "ConstraintDescription":"must be a valid XLcloud image name."
-    },
-    "xlcloud:defaultNetworkUuid": {
-      "Description" : "Project's network identifier",
-      "Type": "String",
-      "Default" : "PENDING",
-      "ConstraintDescription":"project doesn't have network defined in XLcloud"
-    },
-    "xlcloud:defaultSubnetUuid": {
-      "Description" : "Project's default subnet identifier",
-      "Type": "String",
-      "Default" : "PENDING",
-      "ConstraintDescription":"project doesn't have default subnet defined in XLcloud"
     }
   },
   "Resources" : {
-    "XSA Layer" : {
+    "XSA_Layer" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Properties" : {
         "TemplateURL" : "",
@@ -51,7 +39,7 @@
         }
       }
     },
-    "App Servers Layer" : {
+    "App_Servers_Layer" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Properties" : {
         "TemplateURL" : "",
@@ -59,13 +47,19 @@
         }
       }
     },
-    "DB Layer" : {
+    "DB_Layer" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Properties" : {
         "TemplateURL" : "",
         "Parameters" : {
         }
       }
+    }
+  },
+  "Outputs" : {
+    "XsaURL" : {
+      "Description" : "XSA endpoint",
+      "Value" : { "Fn::GetAtt" : [ "XSA_Layer", "Outputs.XsaURL" ] }
     }
   }
 }

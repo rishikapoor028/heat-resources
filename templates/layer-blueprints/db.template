@@ -27,15 +27,9 @@
       ],
       "ConstraintDescription":"must be a valid XLcloud image name."
     },
-    "xlcloud:defaultNetworkUuid": {
+    "xlcloud:layerSubnetUuid": {
       "Description" : "Project's network identifier",
-      "Type": "String",
-      "ConstraintDescription":"project doesn't have network defined in XLcloud"
-    },
-    "xlcloud:defaultSubnetUuid": {
-      "Type": "String",
-      "Description" : "Project's default subnet identifier",
-      "ConstraintDescription":"project doesn't have default subnet defined in XLcloud"
+      "Type": "String"
     },
     "xlcloud:DbNode:min": {
       "Type": "String",
@@ -182,7 +176,8 @@
         "AvailabilityZones" : { "Fn::GetAZs" : "" },
         "LaunchConfigurationName" : { "Ref" : "DbNode" },
         "MinSize" : { "Ref" : "xlcloud:DbNode:min" },
-        "MaxSize" : { "Ref" : "xlcloud:DbNode:max" }
+        "MaxSize" : { "Ref" : "xlcloud:DbNode:max" },
+        "VPCZoneIdentifier" : [{"Ref" : "xlcloud:layerSubnetUuid"}]
       }
     },
     "xiaSecurityGroup" : {
