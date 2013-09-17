@@ -24,15 +24,9 @@
       ],
       "ConstraintDescription":"must be a valid XLcloud image name."
     },
-    "xlcloud:defaultNetworkUuid": {
-      "Description" : "Project's network identifier",
-      "Type": "String",
-      "ConstraintDescription":"project doesn't have network defined in XLcloud"
-    },
-    "xlcloud:defaultSubnetUuid": {
-      "Type": "String",
-      "Description" : "Project's default subnet identifier",
-      "ConstraintDescription":"project doesn't have default subnet defined in XLcloud"
+    "xlcloud:layerSubnetUuid": {
+      "Description" : "Layer subnet identifier",
+      "Type": "String"
     },
     "xlcloud:runlists/setup_default": {
       "Description" : "Default recipes for setup phase",
