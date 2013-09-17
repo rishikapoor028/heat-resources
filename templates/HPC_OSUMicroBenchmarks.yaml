@@ -3,12 +3,27 @@
 # - associate floating IP address to head node
 # - use Cinder volume instead of ephemeral storage
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Deploy SLURM cluster with N (default=2) compute nodes + 1 head node to run micro benchmarks of MPI. Once the cluster is up, login to the head node and run: salloc -N2 mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency"
+Description: "Deploy SLURM cluster with N (default=2) compute nodes + 1 head node to run micro benchmarks of MPI.
+
+              Once the cluster is up, login to the head node and run:
+
+              salloc -N2 mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency"
 
 Parameters:
-  KeyName:
+  "xlcloud:defaultKeyName":
     Description: "Name of an existing EC2 KeyPair to enable SSH access to the instances"
     Type: String
+  "xlcloud:defaultImageId":
+    Description: "Name of an existing Glance image"
+    Type: String
+    Default: 'F19-x86_64-chef-solo'
+    AllowedValues: [ 'F19-x86_64-chef-solo' ]
+  "xlcloud:layerSubnetUuid":
+    Description: "The subnet identifier this layer is connected to"
+    Type: String 
+  "xlcloud:defaultInstanceType":
+    Type: String
+    Default: "m1.medium"
   NumberOfComputes:
     Description: "Number of compute nodes to launch"
     Type: String
@@ -118,10 +133,11 @@ Resources:
             /etc/chef: "http://10.197.217.62/downloads/cookbooks/slurm.tgz"
 
     Properties:
-      ImageId: F19-x86_64-chef-solo
-      InstanceType: m1.small
-      KeyName: {Ref: KeyName}
+      ImageId: {Ref: 'xlcloud:defaultImageId'}
+      InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
+      KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups: [default]
+      #SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
       UserData:
         Fn::Base64:
           Fn::Join:
@@ -155,6 +171,75 @@ Resources:
           files:
             /etc/cfn/cfn-credentials: *cfn-credentials
 
+            /etc/cfn/cfn-hup.conf:
+              content:
+                Fn::Join:
+                - ''
+                - - '[main]
+
+                    '
+                  - 'stack='
+                  - {Ref: 'AWS::StackName'}
+                  - '
+
+                    ' 
+                  - 'credential-file=/etc/cfn/cfn-credentials
+
+                    ' 
+              mode: "000400"                                          
+              owner: "root"                                            
+              group: "root"            
+
+            /etc/cfn/waitcondition-signal:
+              content:
+                Fn::Join:
+                - ''
+                - - '#!/bin/bash -ve
+
+                    '
+                  - "/usr/bin/cfn-signal -e 0 -i $(hostname) '"
+                  - {Ref: ComputeHandle}
+                  - "'
+
+                    "
+                  - 'echo "cfn-signal executed"
+
+                    '
+              mode: "000750"
+              owner: "root"
+              group: "root"
+
+            /etc/cfn/hooks.conf:
+              content:
+                Fn::Join:
+                - ''
+                - - '[waitcondition-wakeup]
+
+                    '
+                  - 'triggers=post.update
+
+                    '
+                  - 'path=Resources.ClusterMetaData
+
+                    '
+                  - 'action=/etc/cfn/waitcondition-signal
+
+                    '
+                  - 'runas=root
+
+                    '
+
+            /tmp/cfn-hup-crontab.txt:
+              content:
+                Fn::Join:
+                - ''
+                - - 'MAIL=""
+
+                    '
+                  - '* * * * * /usr/bin/cfn-hup -f
+
+                    '
+
             /etc/chef/solo.rb: *chef-solo
 
             /etc/chef/setup-runlist.json:
@@ -181,10 +266,11 @@ Resources:
             /etc/chef: "http://10.197.217.62/downloads/cookbooks/slurm.tgz"
 
     Properties:
-      ImageId: F19-x86_64-chef-solo
-      InstanceType: m1.medium
-      KeyName: {Ref: KeyName}
+      ImageId: {Ref: 'xlcloud:defaultImageId'}
+      InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
+      KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups: [default]
+      #SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
       UserData:
         Fn::Base64:
           Fn::Join:
@@ -204,9 +290,9 @@ Resources:
             - 'chef-solo -j /etc/chef/setup-runlist.json
 
               '
-            - "cfn-signal -e 0 -i $(hostname) '"
-            - {Ref: ComputeHandle}
-            - "'"
+            - 'crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt
+
+              '
 
 Outputs:
   NodesIP:
