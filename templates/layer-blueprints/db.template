@@ -176,8 +176,7 @@
         "AvailabilityZones" : { "Fn::GetAZs" : "" },
         "LaunchConfigurationName" : { "Ref" : "DbNode" },
         "MinSize" : { "Ref" : "xlcloud:DbNode:min" },
-        "MaxSize" : { "Ref" : "xlcloud:DbNode:max" },
-        "VPCZoneIdentifier" : [{"Ref" : "xlcloud:layerSubnetUuid"}]
+        "MaxSize" : { "Ref" : "xlcloud:DbNode:max" }
       }
     },
     "xiaSecurityGroup" : {
