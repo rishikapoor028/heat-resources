@@ -3,7 +3,7 @@
   "Description" : "XSA layer template",
   "Parameters": {
     "xlcloud:defaultKeyName": {
-      "Description" : "Name of an existing EC2 KeyPair to enable SSH access",
+      "Description" : "XSA (XLcloud Stack Agent) is responsible for lifecycle management of stack layers. XSA defines a REST API allowing it to receive events (e.g. 'shutdown' or 'configure'). Those events are further propagated to XIAs (XLcloud Instance Agents) associated with individual instances.",
       "Type": "String"
     },
     "xlcloud:defaultInstanceType": {
@@ -73,14 +73,6 @@
     "xlcloud:cookbookRepositories": {
       "Type": "String"
     },
-    "xlcloud:TomcatNode:min": {
-      "Type": "String",
-      "Default" : 1     
-    },
-    "xlcloud:TomcatNode:max": {
-      "Type": "String",
-      "Default" : 1   
-    }
   },
   "Resources" : {
     "XsaNode": {
@@ -121,23 +113,23 @@
           "#!/bin/bash -xe\n",
           "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n",
  
-          "# Flush iptables's default rules\n",
+          "# Flush iptables' default rules\n",
           "/sbin/iptables -F\n",
           "/sbin/iptables -X\n",
  
-          "# export proxies\n",
+          "# Export proxies\n",
           "echo 'export http_proxy=http://10.197.217.62:3128' >> /etc/bashrc\n",
           "echo 'export https_proxy=http://10.197.217.62:3128' >> /etc/bashrc\n",
           "echo 'export no_proxy=127.0.0.1,localhost,10.197.217.70,169.254.169.254' >> /etc/bashrc\n",
           "echo proxy=http://10.197.217.62:3128/ >> /etc/yum.conf\n",
           "source /root/.bashrc\n",
  
-          "# Heat's random hostname is too long and causes chef to crush. This simple fix helps solving the issue.\n",         
+          "# Heat's random hostname is too long and causes chef to crush. This simple fix helps to solve the issue.\n",         
           "curl -s http://169.254.169.254/latest/meta-data/local-ipv4 | sed 's/\\./-/g' > /etc/hostname\n",
           "echo -e \"10.197.217.70 iam.toolcloud.bull \n \" >> /etc/hosts",
           "echo \"127.0.0.1 $(cat /etc/hostname)\" >> /etc/hosts\n",
  
-          "# calling cfn-init\n",
+          "# Calling cfn-init\n",
           "/opt/aws/bin/cfn-init\n"
         ]]}}
       }
@@ -145,7 +137,7 @@
     "XsaSecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
       "Properties" : {
-       "GroupDescription" : "Allow ssh and http connection to host",
+       "GroupDescription" : "XSA Security Group controls the traffic of the XSA instance. You can add rules to the security group that allow traffic to or from the associated instance.",
        "SecurityGroupIngress" : [
          { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0" },
          { "IpProtocol" : "tcp", "FromPort" : "8080", "ToPort" : "8080", "CidrIp" : "0.0.0.0/0" }
