@@ -1,9 +1,9 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
-  "Description" : "XSA layer template",
+  "Description" : "XSA (XLcloud Stack Agent) is responsible for lifecycle management of stack layers. XSA defines a REST API allowing it to receive events (e.g. 'shutdown' or 'configure'). Those events are further propagated to XIAs (XLcloud Instance Agents) associated with individual instances.",
   "Parameters": {
     "xlcloud:defaultKeyName": {
-      "Description" : "XSA (XLcloud Stack Agent) is responsible for lifecycle management of stack layers. XSA defines a REST API allowing it to receive events (e.g. 'shutdown' or 'configure'). Those events are further propagated to XIAs (XLcloud Instance Agents) associated with individual instances.",
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access",
       "Type": "String"
     },
     "xlcloud:defaultInstanceType": {
