@@ -4,7 +4,7 @@
    "Parameters":{
       "xlcloud:defaultKeyName":{
          "Description":"Name of an existing EC2 KeyPair to enable SSH access",
-         "Type":"String",
+         "Type":"String"
       },
       "xlcloud:defaultInstanceType":{
          "Description":"Default instance type (flavor) for instances in this stack",
@@ -23,11 +23,27 @@
          "Description":"Default image name for instances in this stack",
          "Type":"String",
          "Default":"F19-x86_64-chef-solo",
-         "AllowedValues":[ "F19-x86_64-chef-solo" ],
+         "AllowedValues":[
+            "F19-x86_64-chef-solo"
+         ],
          "ConstraintDescription":"must be a valid XLcloud image name."
       }
    },
    "Resources":{
+      "IPAddress":{
+         "Type":"AWS::EC2::EIP"
+      },
+      "IPAssoc":{
+         "Type":"AWS::EC2::EIPAssociation",
+         "Properties":{
+            "InstanceId":{
+               "Ref":"ActiveMQServer"
+            },
+            "EIP":{
+               "Ref":"IPAddress"
+            }
+         }
+      },
       "ActiveMQServerSecurityGroup":{
          "Type":"AWS::EC2::SecurityGroup",
          "Properties":{
@@ -77,50 +93,76 @@
                         }
                      },
                      "/etc/chef/runlist-setup.json":{
-                        "content": {
-			    "run_list": [ "role[rabbitmq-for-mcollective]" ]
-			}
-                     },
-                     "/root/.chef/knife.rb":{
-			"content": {
-                           "Fn::Join":[ "\n", [
-			        "cookbook_path  [ '/var/chef/chef-repo/cookbooks' ]",
-                                "role_path    [ '/var/chef/chef-repo/roles' ]",
-			        "http_proxy 'http://10.197.217.62:3128'",
-			        "https_proxy 'http://10.197.217.62:3128'",
-			        "no_proxy '127.0.0.1,localhost'"
-			      ]
-			   ]
+                        "content":{
+                           "run_list":[
+                              "role[rabbitmq-for-mcollective]"
+                           ]
                         }
                      },
-		     "/var/chef/chef-repo/roles/rabbitmq-for-mcollective":{
-			"content": {
-			    "name": "rabbitmq-for-mcollective",
-			    "default_attributes": {
-				    "rabbitmq": {
-					    "port": "63613",
-					    "virtualhosts": [ "/mcollective", "/xlcloud" ],
-					    "enabled_plugins": [ "amqp_client", "rabbitmq_stomp" ],
-					    "enabled_users": [ { "name": "xlcloud", "password": "xlcloud", "rights" : [ { "vhost": "/xlcloud" , "conf": ".*", "write": ".*","read": ".*"} ] } ]
-				    }
-			    },
-			    "override_attributes": { },
-			    "json_class": "Chef::Role",
-			    "description": "This is a role to install rabbitmq for mcollective.",
-			    "chef_type": "role",
-			    "run_list": [ "recipe[rabbitmq]", "recipe[rabbitmq::plugin_management]", "recipe[rabbitmq::policy_management]",
-				"recipe[rabbitmq::user_management]", "recipe[rabbitmq::virtualhost_management]" ]
-			}
-		     },
-		     "/var/chef/chef-repo/Cheffile":{
-			"content": {
-                           "Fn::Join":[ "", [
-				"#!/usr/bin/env ruby", "\n",
-				"#^syntax detection", "\n",
-				"site 'http://community.opscode.com/api/v1'", "\n",
-				"cookbook 'rabbitmq'"
-			      ]
-			   ]
+                     "/root/.chef/knife.rb":{
+                        "content":{
+                           "Fn::Join":[ "\n", [
+                                 "cookbook_path  [ '/var/chef/chef-repo/cookbooks' ]",
+                                 "role_path    [ '/var/chef/chef-repo/roles' ]",
+                                 "http_proxy 'http://10.197.217.62:3128'",
+                                 "https_proxy 'http://10.197.217.62:3128'",
+                                 "no_proxy '127.0.0.1,localhost'"
+                              ]
+                           ]
+                        }
+                     },
+                     "/var/chef/chef-repo/roles/rabbitmq-for-mcollective":{
+                        "content":{
+                           "name":"rabbitmq-for-mcollective",
+                           "default_attributes":{
+                              "rabbitmq":{
+                                 "port":"63613",
+                                 "virtualhosts":[
+                                    "/xlcloud"
+                                 ],
+                                 "enabled_plugins":[
+                                    "amqp_client",
+                                    "rabbitmq_stomp"
+                                 ],
+                                 "enabled_users":[
+                                    {
+                                       "name":"xlcloud",
+                                       "password":"xlcloud",
+                                       "rights":[
+                                          {
+                                             "vhost":"/xlcloud",
+                                             "conf":".*",
+                                             "write":".*",
+                                             "read":".*"
+                                          }
+                                       ]
+                                    }
+                                 ]
+                              }
+                           },
+                           "override_attributes":{
+                           },
+                           "json_class":"Chef::Role",
+                           "description":"This is a role to install rabbitmq for mcollective.",
+                           "chef_type":"role",
+                           "run_list":[
+                              "recipe[rabbitmq]",
+                              "recipe[rabbitmq::plugin_management]",
+                              "recipe[rabbitmq::policy_management]",
+                              "recipe[rabbitmq::user_management]",
+                              "recipe[rabbitmq::virtualhost_management]"
+                           ]
+                        }
+                     },
+                     "/var/chef/chef-repo/Cheffile":{
+                        "content":{
+                           "Fn::Join":[ "\n", [
+                                 "#!/usr/bin/env ruby",
+                                 "#^syntax detection",
+                                 "site 'http://community.opscode.com/api/v1'",
+                                 "    cookbook 'rabbitmq'"
+                              ]
+                           ]
                         }
                      }
                   }
@@ -148,25 +190,25 @@
                      "\n",
                      [
                         "#!/bin/bash -xe",
-			"source /etc/profile.d/proxy.sh",
+                        "source /etc/profile.d/proxy.sh",
                         "set hostip=`curl -s http://169.254.169.254/latest/meta-data/local-ipv4`",
                         "set hostname=`hostname`",
                         "echo '${hostip} ${hostname}' >> /etc/hosts",
-			"yum -y install gcc-c++ make wget tar rubygems ruby-devel",
-			"gem install --no-ri --no-rdoc librarian-chef",
-			"pip install --upgrade heat-cfntools",
-			"/bin/cfn-create-aws-symlinks",
-			"mkdir /var/chef",
-			"cd /var/chef",
-			"wget -O master.tar.gz http://github.com/opscode/chef-repo/tarball/master",
+                        "yum -y install gcc-c++ make wget tar rubygems ruby-devel",
+                        "gem install --no-ri --no-rdoc librarian-chef",
+                        "pip install --upgrade heat-cfntools",
+                        "/bin/cfn-create-aws-symlinks",
+                        "mkdir /var/chef",
+                        "cd /var/chef",
+                        "wget -O master.tar.gz http://github.com/opscode/chef-repo/tarball/master",
                         "tar -zxf master.tar.gz",
-			"mv opscode-chef-repo* chef-repo",
-			"rm master.tar.gz",
+                        "mv opscode-chef-repo* chef-repo",
+                        "rm master.tar.gz",
                         "# calling cfn-init",
                         "/opt/aws/bin/cfn-init",
-			"cd /var/chef/chef-repo",
-			"(cd /var/chef/chef-repo; /usr/local/bin/librarian-chef install --clean --verbose)",
-			"/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log"
+                        "cd /var/chef/chef-repo",
+                        "(cd /var/chef/chef-repo; /usr/local/bin/librarian-chef install --clean --verbose)",
+                        "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log"
                      ]
                   ]
                }
@@ -178,7 +220,9 @@
       "Internal IP":{
          "Description":"URL of the ActiveMQ Server",
          "Value":{
-            "Fn::Join":["", [
+            "Fn::Join":[
+               "",
+               [
                   {
                      "Fn::GetAtt":[
                         "ActiveMQServer",
