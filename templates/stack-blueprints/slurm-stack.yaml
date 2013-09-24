@@ -1,0 +1,316 @@
+# TODO(pasquier-s):
+# - add security groups
+# - use Cinder volume instead of ephemeral storage
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Deploy SLURM cluster with N (default=2) compute nodes + 1 head node to run micro benchmarks of MPI.
+
+              Once the cluster is up, login to the head node and run:
+
+              salloc -N2 -c<CPUs> mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency"
+
+Parameters:
+  "xlcloud:defaultKeyName":
+    Description: "Name of an existing EC2 KeyPair to enable SSH access to the instances"
+    Type: String
+  "xlcloud:defaultImageId":
+    Description: "Name of an existing Glance image"
+    Type: String
+    Default: 'F19-x86_64-chef-solo'
+    AllowedValues: [ 'F19-x86_64-chef-solo' ]
+  "xlcloud:layerSubnetUuid":
+    Description: "The subnet identifier this layer is connected to"
+    Type: String 
+  "xlcloud:defaultInstanceType":
+    Type: String
+    Default: "m1.medium"
+    AllowedValues: [ 'm1.small', 'm1.medium' ]
+  NumberOfComputes:
+    Description: "Number of compute nodes to launch"
+    Type: String
+    Default: '2'
+
+Mappings:
+  SlurmParameters: { "m1.small": { "cpus": "1"}, "m1.medium": {"cpus": "2"} }
+
+Resources:
+  HeadIp: { Type: 'AWS::EC2::EIP' }
+
+  IPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: {Ref: Head}
+      EIP: {Ref: HeadIp}
+
+  CfnUser:
+    Type: AWS::IAM::User
+  CfnUserKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: {Ref: CfnUser}
+
+  Computes:
+    Type: OS::Heat::InstanceGroup
+    DependsOn: HeadReady
+    Properties:
+      LaunchConfigurationName: {Ref: ComputeConfiguration}
+      Size: {Ref: NumberOfComputes}
+      AvailabilityZones: {'Fn::GetAZs': ''}
+
+  ClusterMetaData:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Metadata:
+      IpAddresses: {'Fn::GetAtt': [Computes, InstanceList]}
+      Size: {Ref: NumberOfComputes}
+    Properties:
+      ImageId: foobar
+      InstanceType: foobar
+
+  HeadHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  HeadReady:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: Head
+    Properties:
+      Handle: {Ref: HeadHandle}
+      Count: '1' 
+      Timeout: '1200'
+
+  ComputeHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  ComputeReady:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: Computes
+    Properties:
+      Handle: {Ref: ComputeHandle}
+      Count: {Ref: NumberOfComputes}
+      Timeout: '1200'
+
+  Head:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum: {}
+          files:
+            /etc/chef/solo.rb: &chef-solo
+              content:
+                Fn::Join:
+                - "\n"
+                - - "cookbook_path '/etc/chef/cookbooks'"
+                  - "log_level :info"
+                  - "log_location STDOUT"
+                  - "ssl_verify_mode :verify_none"
+                  - "http_proxy 'http://10.197.217.62:3128'"
+                  - "https_proxy 'http://10.197.217.62:3128'"
+                  - "no_proxy '127.0.0.1,localhost'"
+
+            /etc/chef/setup-runlist.json:
+              content: '{"slurm": {"role": "head"}, "run_list": [ "recipe[slurm::setup]" ]}'
+
+            /etc/chef/configure-runlist.json:
+              content:
+                Fn::Join:
+                - ''
+                - - '{"slurm": {"role": "head","stack":"'
+                  - {Ref: "AWS::StackName"}
+                  - '","cpus":'
+                  - {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
+                  - '}, "run_list": [ "recipe[slurm::configure]" ]}'
+
+            /etc/chef/deploy-runlist.json:
+              content: ''
+
+            /etc/cfn/cfn-credentials: &cfn-credentials
+              content:
+                Fn::Join:
+                - ''
+                - - AWSAccessKeyId=
+                  - {Ref : CfnUserKey}
+                  - '
+
+                    '
+                  - AWSSecretKey=
+                  - 'Fn::GetAtt': [CfnUserKey, SecretAccessKey]
+                  - '
+
+                    '
+              mode: "00400"
+              owner: root
+              group: root
+
+          sources:
+            /etc/chef: "http://10.197.217.62/downloads/cookbooks/xlc-slurm.tgz"
+
+    Properties:
+      ImageId: {Ref: 'xlcloud:defaultImageId'}
+      InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
+      KeyName: {Ref: 'xlcloud:defaultKeyName'}
+      SecurityGroups: [default]
+      #SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - '#!/bin/bash -ve
+
+              '
+            - 'source /etc/profile.d/proxy.sh
+
+              '
+            - 'pip install --upgrade heat-cfntools
+
+              '
+            - 'cfn-init
+
+              '
+            - 'chef-solo -j /etc/chef/setup-runlist.json
+
+              '
+            - "cfn-signal -e 0 '"
+            - {Ref: HeadHandle}
+            - "'"
+
+  ComputeConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum: {}
+          files:
+            /etc/cfn/cfn-credentials: *cfn-credentials
+
+            /etc/cfn/cfn-hup.conf:
+              content:
+                Fn::Join:
+                - ''
+                - - '[main]
+
+                    '
+                  - 'stack='
+                  - {Ref: 'AWS::StackName'}
+                  - '
+
+                    '
+                  - 'credential-file=/etc/cfn/cfn-credentials
+
+                    '
+              mode: "000400"
+              owner: "root"
+              group: "root"
+
+            /etc/cfn/waitcondition-signal:
+              content:
+                Fn::Join:
+                - ''
+                - - '#!/bin/bash -ve
+
+                    '
+                  - "/usr/bin/cfn-signal -e 0 -i $(hostname) '"
+                  - {Ref: ComputeHandle}
+                  - "'
+
+                    "
+                  - 'echo "cfn-signal executed"
+
+                    ' 
+              mode: "000750"
+              owner: "root"
+              group: "root"
+
+            /etc/cfn/hooks.conf:
+              content:
+                Fn::Join:
+                - ''
+                - - '[waitcondition-wakeup]
+
+                    '
+                  - 'triggers=post.update
+
+                    '
+                  - 'path=Resources.ClusterMetaData
+
+                    '
+                  - 'action=/etc/cfn/waitcondition-signal
+
+                    '
+                  - 'runas=root
+
+                    '
+
+            /tmp/cfn-hup-crontab.txt:
+              content:
+                Fn::Join:
+                - ''
+                - - 'MAIL=""
+
+                    '
+                  - '* * * * * /usr/bin/cfn-hup -f
+
+                    '
+
+            /etc/chef/solo.rb: *chef-solo
+
+            /etc/chef/setup-runlist.json:
+              content:
+                Fn::Join:
+                - ''
+                - - '{"slurm": {"role": "compute","nfs_server":"'
+                  - {"Fn::GetAtt": [Head, PrivateIp]}
+                  - '"}, "run_list": [ "recipe[slurm::setup]", "recipe[slurm::benchmarks]" ]}'
+
+            /etc/chef/configure-runlist.json:
+              content:
+                Fn::Join:
+                - ''
+                - - '{"slurm": {"role": "compute","nfs_server":"'
+                  - {"Fn::GetAtt": [Head, PrivateIp]}
+                  - '"}, "run_list": [ "recipe[slurm::configure]" ]}'
+
+
+            /etc/chef/deploy-runlist.json:
+              content: ''
+
+          sources:
+            /etc/chef: "http://10.197.217.62/downloads/cookbooks/xlc-slurm.tgz"
+
+    Properties:
+      ImageId: {Ref: 'xlcloud:defaultImageId'}
+      InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
+      KeyName: {Ref: 'xlcloud:defaultKeyName'}
+      SecurityGroups: [default]
+      #SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - '#!/bin/bash -ve
+
+              '
+            - 'source /etc/profile.d/proxy.sh
+
+              '
+            - 'pip install --upgrade heat-cfntools
+
+              '
+            - 'cfn-init
+
+              '
+            - 'chef-solo -j /etc/chef/setup-runlist.json
+
+              '
+            - 'crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt
+
+              '
+
+Outputs:
+  HeadAddress:
+    Value: {Ref: HeadIp}
+    Description: IP address of the cluster's head
+  NodesAddresses:
+    Value: {'Fn::GetAtt': [Computes, InstanceList]}
+    Description: IP addresses of the cluster's compute nodes
+
