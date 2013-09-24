@@ -171,9 +171,9 @@ Resources:
           - - '#!/bin/bash -ve
 
               '
-            - 'echo "export no_proxy=$no_proxy,10.197.217.62" >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh
+            - "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh
 
-              '
+              "
             - 'pip install --upgrade heat-cfntools
 
               '
@@ -313,9 +313,9 @@ Resources:
           - - '#!/bin/bash -ve
 
               '
-            - 'echo "export no_proxy=$no_proxy,10.197.217.62" >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh
+            - "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh
 
-              '
+              "
             - 'pip install --upgrade heat-cfntools
 
               '
