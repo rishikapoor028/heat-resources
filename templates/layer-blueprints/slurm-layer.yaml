@@ -128,7 +128,7 @@ Resources:
                 Fn::Join:
                 - ''
                 - - '{"slurm": {"role": "head","stack":"'
-                  - {Ref: "AWS::StackName"}
+                  - {Ref: "AWS::StackId"}
                   - '","cpus":'
                   - {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
                   - '}, "run_list": [ "recipe[slurm::configure]" ]}'
@@ -205,7 +205,7 @@ Resources:
 
                     '
                   - 'stack='
-                  - {Ref: 'AWS::StackName'}
+                  - {Ref: 'AWS::StackId'}
                   - '
 
                     '
