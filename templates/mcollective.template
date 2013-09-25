@@ -102,9 +102,7 @@
                                  "password":"xlcloud"
                               }
                            },
-                           "run_list":[
-                              "role[mcollective-server-with-stomp-connector]"
-                           ]
+                           "run_list":[ "role[mcollective-server-with-stomp-connector]" ]
                         }
                      },
                      "/var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json":{
@@ -198,7 +196,7 @@
                         "rm master.tar.gz",
                         "/opt/aws/bin/cfn-init",
                         "cd /var/chef/chef-repo",
-			"/usr/local/bin/librarian-chef install --clean --verbose",
+                        "/usr/local/bin/librarian-chef install --clean --verbose",
                         "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log"
                      ]
                   ]
