@@ -77,11 +77,11 @@
     "xlcloud:cookbookRepositories": {
       "Type": "String"
     },
-    "xlcloud:TomcatNode:min": {
+    "xlcloud:TomcatNode_defaultScaling:min": {
       "Type": "String",
       "Default" : 1     
     },
-    "xlcloud:TomcatNode:max": {
+    "xlcloud:TomcatNode_defaultScaling:max": {
       "Type": "String",
       "Default" : 1   
     }
@@ -174,8 +174,8 @@
           "Properties" : {
           "AvailabilityZones" : { "Fn::GetAZs" : "" },
           "LaunchConfigurationName" : { "Ref" : "TomcatNode" },
-          "MinSize" : { "Ref" : "xlcloud:TomcatNode:min" },
-          "MaxSize" : { "Ref" : "xlcloud:TomcatNode:max" }
+          "MinSize" : { "Ref" : "xlcloud:TomcatNode_defaultScaling:min" },
+          "MaxSize" : { "Ref" : "xlcloud:TomcatNode_defaultScaling:max" }
         }
     },  
       "xiaSecurityGroup" : {
