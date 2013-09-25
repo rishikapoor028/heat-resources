@@ -31,13 +31,13 @@
       "Description" : "Project's network identifier",
       "Type": "String"
     },
-    "xlcloud:DbNode:min": {
+    "xlcloud:DbNode_defaultScaling:min": {
       "Type": "String",
       "Default" : "1",
       "AllowedPattern": "[0-9]+",
       "ConstraintDescription": "invalid value"
     },
-    "xlcloud:DbNode:max": {
+    "xlcloud:DbNode_defaultScaling:max": {
       "Type": "String",
       "Default" : "1",
       "AllowedPattern": "[0-9]+",
@@ -175,8 +175,8 @@
       "Properties" : {
         "AvailabilityZones" : { "Fn::GetAZs" : "" },
         "LaunchConfigurationName" : { "Ref" : "DbNode" },
-        "MinSize" : { "Ref" : "xlcloud:DbNode:min" },
-        "MaxSize" : { "Ref" : "xlcloud:DbNode:max" }
+        "MinSize" : { "Ref" : "xlcloud:DbNode_defaultScaling:min" },
+        "MaxSize" : { "Ref" : "xlcloud:DbNode_defaultScaling:max" }
       }
     },
     "xiaSecurityGroup" : {
