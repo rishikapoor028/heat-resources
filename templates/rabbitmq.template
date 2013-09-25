@@ -115,7 +115,7 @@
                            ]
                         }
                      },
-                     "/var/chef/chef-repo/roles/rabbitmq-for-mcollective":{
+                     "/var/chef/chef-repo/roles/rabbitmq-for-mcollective.json":{
                         "content":{
                            "name":"rabbitmq-for-mcollective",
                            "default_attributes":{

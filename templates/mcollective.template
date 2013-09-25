@@ -111,7 +111,6 @@
                         "content":{
                            "chef_type":"role",
                            "default_attributes":{
-
                            },
                            "override_attributes":{
                               "mcollective":{
