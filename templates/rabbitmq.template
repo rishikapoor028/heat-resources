@@ -78,7 +78,9 @@
                   "files":{
                      "/etc/chef/solo.rb":{
                         "content":{
-                           "Fn::Join":[ "\n", [
+                           "Fn::Join":[
+                              "\n",
+                              [
                                  "file_cache_path  '/var/chef/cache'",
                                  "cookbook_path    [ '/var/chef/chef-repo/cookbooks' ]",
                                  "role_path    [ '/var/chef/chef-repo/roles' ]",
@@ -101,7 +103,9 @@
                      },
                      "/root/.chef/knife.rb":{
                         "content":{
-                           "Fn::Join":[ "\n", [
+                           "Fn::Join":[
+                              "\n",
+                              [
                                  "cookbook_path  [ '/var/chef/chef-repo/cookbooks' ]",
                                  "role_path    [ '/var/chef/chef-repo/roles' ]",
                                  "http_proxy 'http://10.197.217.62:3128'",
@@ -141,6 +145,7 @@
                               }
                            },
                            "override_attributes":{
+
                            },
                            "json_class":"Chef::Role",
                            "description":"This is a role to install rabbitmq for mcollective.",
@@ -156,7 +161,9 @@
                      },
                      "/var/chef/chef-repo/Cheffile":{
                         "content":{
-                           "Fn::Join":[ "\n", [
+                           "Fn::Join":[
+                              "\n",
+                              [
                                  "#!/usr/bin/env ruby",
                                  "#^syntax detection",
                                  "site 'http://community.opscode.com/api/v1'",
@@ -217,8 +224,8 @@
       }
    },
    "Outputs":{
-      "Internal IP":{
-         "Description":"URL of the ActiveMQ Server",
+      "Private IP":{
+         "Description":"Private IP of the ActiveMQ broker",
          "Value":{
             "Fn::Join":[
                "",
@@ -231,6 +238,12 @@
                   }
                ]
             ]
+         }
+      },
+      "Public IP":{
+         "Description":"Public IP of the ActiveMQ broker",
+         "Value":{
+            "Ref":"IPAddress"
          }
       }
    }
