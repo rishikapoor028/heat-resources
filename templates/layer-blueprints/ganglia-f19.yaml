@@ -9,17 +9,11 @@ Parameters:
   MonitorPort: {Default: '8649', Type: String, Description: TCP port of monitoring traffic data}
   #RunList: {Default: ganglia, Type: String,
   #  Description: Collection of recipes to execute}
-  NodeCountMinimum:
-    Description: Minimum numb
+  stackName:
+    Description: The Stack Name (used in ganglia web console)
     Type: String
-    Default: '1'
-    AllowedPattern: '[0-9]*'
-  NodeCountMaximum:
-    Description: Maximum number of nodes to scale up to
-    Type: String
-    Default: '4'
-    AllowedPattern: '[0-9]*'
-
+    Default: 'stack'
+    AllowedPattern: '[a-z|A-Z|0-9]*'
   parentStackID:
     Description: parentStackID
     Type: String
@@ -109,6 +103,7 @@ Resources:
                 export MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
                 export MY_HOSTNAME=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/hostname)
                 echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts
+                hostname ganglia
                 echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh
                 source /etc/profile.d/proxy.sh
                 #locale-gen fr_FR.UTF-8
@@ -192,10 +187,15 @@ Resources:
                 - - |-
                       {
                        "ganglia" : { "central_monit" : true,
-                                     "cluster" : {"collector_host" : "127.0.0.1"}                  
-                                   },
+                                     "cluster" : {"collector_host" : "127.0.0.1", "name" :
+
+                  - '"'
+                  - {Ref: "stackName"}
+                  - '"'
+                  - |-
+                      }},
                        "run_list" : [ "recipe[ganglia]", "recipe[ganglia::web]", "recipe[ganglia::python_rr]" ]
-                       }
+                      }
               owner: root
               group: root
               mode: '000644'
