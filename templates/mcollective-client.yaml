@@ -60,9 +60,9 @@
                     - "\n"
                     - 
                       - "file_cache_path  '/var//chef/cache'"
-                      - "role_path    [ '/var/chef/chef-repo/roles' ]'"
-                      - "cookbook_path    [ '/var/chef/chef-repo/cookbooks' ] ]"
-                      - "log_level : info"
+                      - "role_path    [ '/var/chef/chef-repo/roles' ]"
+                      - "cookbook_path    [ '/var/chef/chef-repo/cookbooks' ]"
+                      - "log_level :info"
                       - "log_location STDOUT"
                       - "ssl_verify_mode :verify_none"
                       - "http_proxy 'http://10.197.217.62:3128'"
@@ -113,11 +113,12 @@
                     - "\n"
                     - 
                       - "#!/usr/bin/env ruby"
+                      - "#^syntax detection"
                       - "site 'http://community.opscode.com/api/v1'"
                       - "cookbook 'ohai'"
-                      - "cookbook 'xlc-mcollective'"
-                      - "    :git => 'git://gitorious.ow2.org/xlcloud/cookbooks.git'"
-                      - "    :path => 'xlc-mcollective'"
+                      - "cookbook 'mcollective',"
+                      - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                      - "    :path => 'mcollective'"
       Properties: 
         ImageId: 
           Ref: "xlcloud:defaultImageId"
@@ -134,6 +135,7 @@
               - "\n"
               - 
                 - "#!/bin/bash -xe"
+                - "export HOME=/root",
                 - "source /etc/profile.d/proxy.sh"
                 - "#curl -s http://169.254.169.254/latest/meta-data/hostname | sed 's/\\./-/g' > /etc/hostname"
                 - "#set hostip=`curl -s http://169.254.169.254/latest/meta-data/local-ipv4`"

@@ -129,16 +129,17 @@ Resources:
             /etc/chef/solo.rb: &chef-solo
               content:
                 Fn::Join:
-                - "\n"
-                - - "cookbook_path '/var/chef/chef-repo/cookbooks'"
-                  - "file_cache_path '/var/chef/cache'"
-                  - "role_path [ '/var/chef/chef-repo/roles' ]'"
-                  - "log_level :info"
-                  - "log_location STDOUT"
-                  - "ssl_verify_mode :verify_none"
-                  - "http_proxy 'http://10.197.217.62:3128'"
-                  - "https_proxy 'http://10.197.217.62:3128'"
-                  - "no_proxy '127.0.0.1,localhost'"
+                    - "\n"
+                    - 
+                      - "file_cache_path  '/var/chef/cache'"
+                      - "role_path    [ '/var/chef/chef-repo/roles' ]"
+                      - "cookbook_path    [ '/var/chef/chef-repo/cookbooks' ]"
+                      - "log_level :info"
+                      - "log_location STDOUT"
+                      - "ssl_verify_mode :verify_none"
+                      - "http_proxy 'http://10.197.217.62:3128'"
+                      - "https_proxy 'http://10.197.217.62:3128'"
+                      - "no_proxy '127.0.0.1,localhost'"
 
             /etc/chef/setup-runlist.json:
               content: 
@@ -204,14 +205,14 @@ Resources:
                     - "#!/usr/bin/env ruby"
                     - "site 'http://community.opscode.com/api/v1'"
                     - "cookbook 'ohai'"
-                    - "cookbook 'xlc-mcollective'"
-                    - "    :git => 'git://gitorious.ow2.org/xlcloud/cookbooks.git'"
-                    - "    :path => 'xlc-mcollective'"
-                    - "cookbook 'xlc-slurm'"
-                    - "    :git => 'git://gitorious.ow2.org/xlcloud/cookbooks.git'"
+                    - "cookbook 'mcollective',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'mcollective'"
+                    - "cookbook 'xlc-slurm',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'xlc-slurm'"
-                    - "cookbook 'ganglia'"
-                    - "    :git => 'git://gitorious.ow2.org/xlcloud/cookbooks.git'"
+                    - "cookbook 'ganglia',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'ganglia'"
 
 #         sources:
@@ -232,7 +233,7 @@ Resources:
             - "\n"
             -
              - "#!/bin/bash -ve"
-             - "$HOME is required by librarian"
+             - "# HOME is required by librarian"
              - "export HOME=/root"
              - "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh"
              - "yum -y install gcc-c++ make wget tar rubygems ruby-devel"
