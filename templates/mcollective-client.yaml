@@ -25,10 +25,9 @@
       ConstraintDescription: "must be a valid XLcloud image name."
     xlcloud:brokerAddress: 
       Type: "String"
-      Default: "10.0.0.1"
       Description: "Rabbitmq broker address"
   Resources: 
-    MCollectiveServerSecurityGroup: 
+    MCollectiveSecurityGroup: 
       Type: "AWS::EC2::SecurityGroup"
       Properties: 
         GroupDescription: "Enable Stomp protocol via port 63613 plus SSH access"
@@ -83,8 +82,8 @@
                       username: "xlcloud"
                       password: "xlcloud"
                   run_list: 
-                    - "role[mcollective-server-with-stomp-connector]"
-              /var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json: 
+                    - "role[mcollective-client-with-stomp-connector]"
+              /var/chef/chef-repo/roles/mcollective-client-with-stomp-connector.json: 
                 content: 
                   chef_type: "role"
                   default_attributes: {}
@@ -92,13 +91,13 @@
                     mcollective: 
                       connector: "stomp"
                       factsource: "ohai"
-                  description: "This is a role to install mcollective server."
+                  description: "This is a role to install mcollective client."
                   run_list: 
                     - "recipe[ohai]"
-                    - "recipe[mcollective::server]"
+                    - "recipe[mcollective::client]"
 
                   json_class: "Chef::Role"
-                  name: "mcollective-server-with-stomp-connector"
+                  name: "mcollective-client-with-stomp-connector"
               /root/.chef/knife.rb: 
                 content: 
                   Fn::Join: 
@@ -128,7 +127,7 @@
           Ref: "xlcloud:defaultKeyName"
         SecurityGroups: 
           - 
-            Ref: "MCollectiveServerSecurityGroup"
+            Ref: "MCollectiveSecurityGroup"
         UserData: 
           Fn::Base64: 
             Fn::Join: 
