@@ -40,8 +40,8 @@
             CidrIp: "0.0.0.0/0"
           - 
             IpProtocol: "tcp"
-            FromPort: "6163"
-            ToPort: "6163"
+            FromPort: "63613"
+            ToPort: "63613"
             CidrIp: "0.0.0.0/0"
           - 
             IpProtocol: "tcp"
@@ -79,7 +79,7 @@
                     stomp: 
                       hostname: 
                         Ref: "xlcloud:brokerAddress"
-                      port: "6163"
+                      port: "63613"
                       username: "xlcloud"
                       password: "xlcloud"
                   run_list: 
