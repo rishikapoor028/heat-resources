@@ -151,15 +151,15 @@ Resources:
                   - {Ref: "xlcloud:monitorIP"}
                   - '", "name" : "slurm"}},  "run_list": [ "role[mcollective-server-with-stomp-connector]", "recipe[slurm::setup]", "recipe[ganglia]"]}'
 
-             /etc/chef/configure-runlist.json:
-              content:
-                Fn::Join:
-                - ''
-                - - '{"slurm": {"role": "head","stack":"'
-                  - {Ref: "AWS::StackId"}
-                  - '","cpus":'
-                  - {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
-                  - '}, "run_list": [ "recipe[slurm::configure]" ]}'
+            /etc/chef/configure-runlist.json:
+             content:
+               Fn::Join:
+               - ''
+               - - '{"slurm": {"role": "head","stack":"'
+                 - {Ref: "AWS::StackId"}
+                 - '","cpus":'
+                 - {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
+                 - '}, "run_list": [ "recipe[slurm::configure]" ]}'
 
             /etc/chef/deploy-runlist.json:
               content: ''
