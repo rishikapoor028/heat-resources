@@ -10,7 +10,6 @@ sudo chef-solo -j /etc/chef/configure-runlist.json
               Once the cluster is up, login to the head node and run:
 
               salloc -N2 -c<CPUs> mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency
-              
 "
 
 Parameters:
@@ -231,29 +230,29 @@ Resources:
         Fn::Base64:
           Fn::Join:
             - "\n"
-            - 
-                - "#!/bin/bash -ve"
-		- "$HOME is required by librarian"
-		- "export HOME=/root"
-		- "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh"
-		- "yum -y install gcc-c++ make wget tar rubygems ruby-devel"
-		- "gem install --no-ri --no-rdoc librarian-chef"
-		- "gem install --no-ri --no-rdoc stomp"
-		- "pip install --upgrade heat-cfntools"
-		- "#/bin/cfn-create-aws-symlinks"
-		- "mkdir /var/chef"
-		- "cd /var/chef"
-		- "wget -O master.tar.gz http://github.com/opscode/chef-repo/tarball/master"
-		- "tar -zxf master.tar.gz"
-		- "mv opscode-chef-repo* chef-repo"
-		- "rm master.tar.gz"
-		- "/opt/aws/bin/cfn-init"
-		- "cd /var/chef/chef-repo"
-		- "/usr/local/bin/librarian-chef install --clean --verbose"
-		- "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log"
-		- "cfn-signal -e 0 '"
-		- {Ref: HeadHandle}
-		- "'"
+            -
+             - "#!/bin/bash -ve"
+             - "$HOME is required by librarian"
+             - "export HOME=/root"
+             - "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh"
+             - "yum -y install gcc-c++ make wget tar rubygems ruby-devel"
+             - "gem install --no-ri --no-rdoc librarian-chef"
+             - "gem install --no-ri --no-rdoc stomp"
+             - "pip install --upgrade heat-cfntools"
+             - "#/bin/cfn-create-aws-symlinks"
+             - "mkdir /var/chef"
+             - "cd /var/chef"
+             - "wget -O master.tar.gz http://github.com/opscode/chef-repo/tarball/master"
+             - "tar -zxf master.tar.gz"
+             - "mv opscode-chef-repo* chef-repo"
+             - "rm master.tar.gz"
+             - "/opt/aws/bin/cfn-init"
+             - "cd /var/chef/chef-repo"
+             - "/usr/local/bin/librarian-chef install --clean --verbose"
+             - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log"
+             - "cfn-signal -e 0 '"
+             - {Ref: HeadHandle}
+             - "'"
 
   ComputeConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
@@ -379,26 +378,26 @@ Resources:
           Fn::Join:
             - "\n"
             - 
-		- "#!/bin/bash -ve"
-		- "$HOME is required by librarian"
-		- "export HOME=/root"
-		- "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh"
-		- "yum -y install gcc-c++ make wget tar rubygems ruby-devel"
-		- "gem install --no-ri --no-rdoc librarian-chef"
-		- "gem install --no-ri --no-rdoc stomp"
-		- "pip install --upgrade heat-cfntools"
-		- "#/bin/cfn-create-aws-symlinks"
-		- "mkdir /var/chef"
-		- "cd /var/chef"
-		- "wget -O master.tar.gz http://github.com/opscode/chef-repo/tarball/master"
-		- "tar -zxf master.tar.gz"
-		- "mv opscode-chef-repo* chef-repo"
-		- "rm master.tar.gz"
-		- "/opt/aws/bin/cfn-init"
-                - 'crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
-		- "cd /var/chef/chef-repo"
-		- "/usr/local/bin/librarian-chef install --clean --verbose"
-		- "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log"
+              - "#!/bin/bash -ve"
+              - "$HOME is required by librarian"
+              - "export HOME=/root"
+              - "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh"
+              - "yum -y install gcc-c++ make wget tar rubygems ruby-devel"
+              - "gem install --no-ri --no-rdoc librarian-chef"
+              - "gem install --no-ri --no-rdoc stomp"
+              - "pip install --upgrade heat-cfntools"
+              - "#/bin/cfn-create-aws-symlinks"
+              - "mkdir /var/chef"
+              - "cd /var/chef"
+              - "wget -O master.tar.gz http://github.com/opscode/chef-repo/tarball/master"
+              - "tar -zxf master.tar.gz"
+              - "mv opscode-chef-repo* chef-repo"
+              - "rm master.tar.gz"
+              - "/opt/aws/bin/cfn-init"
+              - "crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
+              - "cd /var/chef/chef-repo"
+              - "/usr/local/bin/librarian-chef install --clean --verbose"
+              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log"
 
 Outputs:
   HeadAddress:
@@ -407,4 +406,3 @@ Outputs:
   NodesAddresses:
     Value: {'Fn::GetAtt': [Computes, InstanceList]}
     Description: IP addresses of the cluster's compute nodes
-
