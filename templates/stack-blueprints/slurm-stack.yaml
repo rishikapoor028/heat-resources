@@ -8,7 +8,7 @@ Parameters:
   MonitorPort: {Default: '8649', Type: String, Description: TCP port of monitoring traffic data}
   #RunList: {Default: ganglia, Type: String,
   #  Description: Collection of recipes to execute}
-  NumberOfComputes:
+  'xlcloud:Computes:size':
     Description: "Number of compute nodes to launch"
     Type: String
     Default: '2'
@@ -80,7 +80,7 @@ Resources:
                     'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
                     'xlcloud:monitorIP' : {'Fn::GetAtt': ['MonitorNode', 'Outputs.MonitorIP']},
-                    'NumberOfComputes' : {Ref: NumberOfComputes}}
+                    'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml'
       #TemplateURL : 'http://10.197.217.62/downloads/tpl/slurm-layer.yaml'
       TimeoutInMinutes: 10
