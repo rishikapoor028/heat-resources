@@ -166,7 +166,8 @@
                               [
                                  "#!/usr/bin/env ruby",
                                  "#^syntax detection",
-                                 "cookbook 'rabbitmq',
+                                 "site 'http://community.opscode.com/api/v1'",
+                                 "cookbook 'rabbitmq',",
                                  "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
                                  "    :path => 'rabbitmq'"
                               ]
