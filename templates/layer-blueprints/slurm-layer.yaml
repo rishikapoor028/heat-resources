@@ -197,23 +197,23 @@ Resources:
                   json_class: "Chef::Role"
                   name: "mcollective-server-with-stomp-connector"
 
-              /var/chef/chef-repo/Cheffile:
-                content:
-                  Fn::Join:
-                    - "\n"
-                    - 
-                      - "#!/usr/bin/env ruby"
-                      - "site 'http://community.opscode.com/api/v1'"
-                      - "cookbook 'ohai'"
-                      - "cookbook 'xlc-mcollective'"
-                      - "    :git => 'git://gitorious.ow2.org/xlcloud/cookbooks.git'"
-                      - "    :path => 'xlc-mcollective'"
-                      - "cookbook 'xlc-slurm'"
-                      - "    :git => 'git://gitorious.ow2.org/xlcloud/cookbooks.git'"
-                      - "    :path => 'xlc-slurm'"
-                      - "cookbook 'ganglia'"
-                      - "    :git => 'git://gitorious.ow2.org/xlcloud/cookbooks.git'"
-                      - "    :path => 'ganglia'"
+            /var/chef/chef-repo/Cheffile:
+              content:
+                Fn::Join:
+                  - "\n"
+                  - 
+                    - "#!/usr/bin/env ruby"
+                    - "site 'http://community.opscode.com/api/v1'"
+                    - "cookbook 'ohai'"
+                    - "cookbook 'xlc-mcollective'"
+                    - "    :git => 'git://gitorious.ow2.org/xlcloud/cookbooks.git'"
+                    - "    :path => 'xlc-mcollective'"
+                    - "cookbook 'xlc-slurm'"
+                    - "    :git => 'git://gitorious.ow2.org/xlcloud/cookbooks.git'"
+                    - "    :path => 'xlc-slurm'"
+                    - "cookbook 'ganglia'"
+                    - "    :git => 'git://gitorious.ow2.org/xlcloud/cookbooks.git'"
+                    - "    :path => 'ganglia'"
 
 #         sources:
 #           /etc/chef: "http://10.197.217.62/downloads/cookbooks/xlc-slurm.tgz"
