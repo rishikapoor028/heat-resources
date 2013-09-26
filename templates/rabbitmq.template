@@ -1,6 +1,6 @@
 {
    "AWSTemplateFormatVersion":"2010-09-09",
-   "Description":"ActiveMQ template",
+   "Description":"RabbitMQ template",
    "Parameters":{
       "xlcloud:defaultKeyName":{
          "Description":"Name of an existing EC2 KeyPair to enable SSH access",
@@ -44,7 +44,7 @@
             }
          }
       },
-      "ActiveMQServerSecurityGroup":{
+      "RabbitMQSecurityGroup":{
          "Type":"AWS::EC2::SecurityGroup",
          "Properties":{
             "GroupDescription":"Enable Stomp protocol via port 63613 plus SSH access",
@@ -188,7 +188,7 @@
             },
             "SecurityGroups":[
                {
-                  "Ref":"ActiveMQServerSecurityGroup"
+                  "Ref":"RabbitMQSecurityGroup"
                }
             ],
             "UserData":{
