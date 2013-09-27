@@ -26,7 +26,7 @@ Parameters:
     - F19-x86_64-chef-solo
     - F19-x86_64-chef-solo-snap
     Description: Cloud image Id for instances in this stack
-  "xlcloud:layerSubnetUuid":
+  "xlcloud:defaultSubnetUuid":
      Description: "The subnet identifier this layer is connected to"
      Type: String 
   "xlcloud:defaultInstanceType":
@@ -241,7 +241,7 @@ Resources:
       SecurityGroups: 
           - 
             Ref: "LayerSecurityGroup"
-      #SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
+      #SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
       UserData:
         Fn::Base64:
           Fn::Join:
@@ -388,7 +388,7 @@ Resources:
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups: [default]
-      #SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
+      #SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
       UserData:
         Fn::Base64:
           Fn::Join:

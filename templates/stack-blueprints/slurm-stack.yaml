@@ -79,6 +79,7 @@ Resources:
       Parameters: { #'MyKeyIam' : {Ref: MyKey}, 
                     'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
                     'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
+                    'xlcloud:defaultSubnetUuid' : {Ref: 'xlcloud:defaultSubnetUuid'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
                     'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
                     'xlcloud:monitorIP' : {'Fn::GetAtt': ['MonitorNode', 'Outputs.MonitorIP']},
