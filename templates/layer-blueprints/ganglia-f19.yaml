@@ -94,7 +94,7 @@ Resources:
                 echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh
                 source /etc/profile.d/proxy.sh
                 #locale-gen fr_FR.UTF-8
-                #pip install --upgrade heat-cfntools
+                pip install --upgrade heat-cfntools
                 cfn-init
                 export CHEF_DIR=/etc/chef && mkdir -p $CHEF_DIR/cookbooks && cd $CHEF_DIR/cookbooks && http_proxy= wget http://10.197.217.62/downloads/tpl/ganglia.tgz
                 tar xzvf ganglia.tgz && rm ganglia.tgz
