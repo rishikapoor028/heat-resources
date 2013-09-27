@@ -30,11 +30,12 @@ Parameters:
 
   "xlcloud:defaultImageId": 
     Type: String
-    ConstraintDescription: must be a valid XLcloud image name.
+    ConstraintDescription: Must be a valid XLcloud image name.
     AllowedValues: 
     - F19-x86_64-chef-solo
+    - F19-x86_64-chef-solo-snap
     Description: Default image name for instances in this stack
-    Default: F19-x86_64-chef-solo
+    Default: F19-x86_64-chef-solo-snap
 
   "xlcloud:defaultInstanceType":
     Type: String
@@ -79,10 +80,11 @@ Resources:
                     'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
                     'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
+                    'xlcloud:SubnetUuid' : {Ref: 'xlcloud:SubnetUuid'},
                     'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
                     'xlcloud:monitorIP' : {'Fn::GetAtt': ['MonitorNode', 'Outputs.MonitorIP']},
                     'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
-      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml'
+      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml'
       #TemplateURL : 'http://10.197.217.62/downloads/tpl/slurm-layer.yaml'
       TimeoutInMinutes: 10
 
@@ -97,6 +99,6 @@ Resources:
                     'parentIamAccessyKey' : {Ref: 'MyKey'},
                     'parentIamSecretKey' : {'Fn::GetAtt': ['MyKey', 'SecretAccessKey']},
                     'MonitorPort' : {Ref: MonitorPort}}
-      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources/blobs/raw/master/templates/layer-blueprints/ganglia-f19.yaml'
+      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/ganglia-f19.yaml'
       #TemplateURL : 'http://10.197.217.62/downloads/tpl/ganglia-f19.yaml'
       TimeoutInMinutes: 5

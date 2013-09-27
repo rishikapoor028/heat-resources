@@ -19,14 +19,16 @@ Parameters:
   "xlcloud:defaultKeyName":
     Description: "Name of an existing EC2 KeyPair to enable SSH access to the instances"
     Type: String
-  "xlcloud:defaultImageId":
-    Description: "Name of an existing Glance image"
+  "xlcloud:defaultImageId": 
     Type: String
-    Default: 'F19-x86_64-chef-solo'
-    AllowedValues: [ 'F19-x86_64-chef-solo' ]
-# "xlcloud:layerSubnetUuid":
-#    Description: "The subnet identifier this layer is connected to"
-#    Type: String 
+    ConstraintDescription: must be a valid XLcloud image name.
+    AllowedValues: 
+    - F19-x86_64-chef-solo
+    - F19-x86_64-chef-solo-snap
+    Description: Cloud image Id for instances in this stack
+  "xlcloud:layerSubnetUuid":
+     Description: "The subnet identifier this layer is connected to"
+     Type: String 
   "xlcloud:defaultInstanceType":
     Type: String
     Default: "m1.medium"
