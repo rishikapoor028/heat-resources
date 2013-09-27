@@ -39,9 +39,8 @@ Parameters:
     Type: String
     ConstraintDescription: must be a valid XLcloud image name.
     AllowedValues: 
-    - F19-x86_64-chef-solo
+    - F19-x86_64-chef-solo-librarian
     Description: Default image name for instances in this stack
-    Default: F19-x86_64-chef-solo
   xlcloud:defaultInstanceType: 
     Type: String
     ConstraintDescription: must be a valid XLcloud instance type.

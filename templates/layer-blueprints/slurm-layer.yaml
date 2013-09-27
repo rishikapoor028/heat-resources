@@ -23,7 +23,7 @@ Parameters:
     Type: String
     ConstraintDescription: must be a valid XLcloud image name.
     AllowedValues: 
-    - F19-x86_64-chef-solo
+    - F19-x86_64-chef-solo-librarian
     Description: Cloud image Id for instances in this stack
   "xlcloud:defaultSubnetUuid":
      Description: "The subnet identifier this layer is connected to"
@@ -248,26 +248,14 @@ Resources:
             - "\n"
             -
              - "#!/bin/bash -ve"
-             - "# HOME is required by librarian"
+             - "# $HOME is required by librarian"
              - "export HOME=/root"
              - "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh"
-             - "#yum -y install gcc-c++ make wget tar rubygems ruby-devel"
-             - "#gem install --no-ri --no-rdoc librarian-chef"
-             - "#gem install --no-ri --no-rdoc stomp"
-             - "#pip install --upgrade heat-cfntools"
-             - "#/bin/cfn-create-aws-symlinks"
-             - "#mkdir /var/chef"
-             - "#cd /var/chef"
-             - "#wget -O master.tar.gz http://github.com/opscode/chef-repo/tarball/master"
-             - "#tar -zxf master.tar.gz"
-             - "#mv opscode-chef-repo* chef-repo"
-             - "#rm master.tar.gz"
-             - "/opt/aws/bin/cfn-init"
-             - "cfn-signal -e 0 '"
+             - "cfn-init"
              - "cd /var/chef/chef-repo"
              - "/usr/local/bin/librarian-chef install --clean --verbose"
              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
-             - "#cfn-signal -e 0 '"
+             - "cfn-signal -e 0 '"
              - {Ref: HeadHandle}
              - "'"
 
@@ -396,21 +384,10 @@ Resources:
             - "\n"
             - 
               - "#!/bin/bash -ve"
-              - "$HOME is required by librarian"
+              - "#$HOME is required by librarian"
               - "export HOME=/root"
               - "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh"
-              - "#yum -y install gcc-c++ make wget tar rubygems ruby-devel"
-              - "#gem install --no-ri --no-rdoc librarian-chef"
-              - "#gem install --no-ri --no-rdoc stomp"
-              - "#pip install --upgrade heat-cfntools"
-              - "#/bin/cfn-create-aws-symlinks"
-              - "#mkdir /var/chef"
-              - "#cd /var/chef"
-              - "#wget -O master.tar.gz http://github.com/opscode/chef-repo/tarball/master"
-              - "#tar -zxf master.tar.gz"
-              - "#mv opscode-chef-repo* chef-repo"
-              - "#rm master.tar.gz"
-              - "/opt/aws/bin/cfn-init"
+              - "cfn-init"
               - "cd /var/chef/chef-repo"
               - "/usr/local/bin/librarian-chef install --clean --verbose"
               - "crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
