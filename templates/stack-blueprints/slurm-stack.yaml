@@ -83,7 +83,7 @@ Resources:
 
   SlurmLayer:
     Type: AWS::CloudFormation::Stack
-    DependsOn: MonitorReady
+    DependsOn: MonitorNode
     Properties:
       Parameters: { #'MyKeyIam' : {Ref: MyKey}, 
                     'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
@@ -103,8 +103,6 @@ Resources:
                     'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
                     'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
-                    # give waithandler ref for cfn-signal
-                    'MonitorHandle' : {Ref: 'MonitorHandle'},
                     'parentStackID' : {Ref: 'AWS::StackId'},
                     'parentIamAccessyKey' : {Ref: 'MyKey'},
                     'parentIamSecretKey' : {'Fn::GetAtt': ['MyKey', 'SecretAccessKey']},
