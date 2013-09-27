@@ -24,9 +24,9 @@ Parameters:
     Type: String
     Default: 'F19-x86_64-chef-solo'
     AllowedValues: [ 'F19-x86_64-chef-solo' ]
-  "xlcloud:layerSubnetUuid":
-     Description: "The subnet identifier this layer is connected to"
-     Type: String 
+# "xlcloud:layerSubnetUuid":
+#    Description: "The subnet identifier this layer is connected to"
+#    Type: String 
   "xlcloud:defaultInstanceType":
     Type: String
     Default: "m1.medium"
