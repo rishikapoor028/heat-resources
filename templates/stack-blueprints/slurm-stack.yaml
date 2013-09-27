@@ -28,7 +28,7 @@ Parameters:
     Description: Project's network identifier
     Default: c345f427-e1a6-4bd9-9b0a-a181313a2125
 
-  "xlcloud:defaultImageId": 
+  "xlcloud:defaultImageId":
     Type: String
     ConstraintDescription: Must be a valid XLcloud image name.
     AllowedValues: 
@@ -58,13 +58,13 @@ Parameters:
     Type: String
     Default: '2'
 
-  "xlcloud:brokerAddress": 
+  "xlcloud:brokerAddress":
       Type: "String"
       Description: "Rabbitmq broker address"
 
 
 Resources:
-  CfnUser: 
+  CfnUser:
     Type: AWS::IAM::User
 
   MyKey:
@@ -80,7 +80,6 @@ Resources:
                     'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
                     'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
-                    'xlcloud:SubnetUuid' : {Ref: 'xlcloud:SubnetUuid'},
                     'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
                     'xlcloud:monitorIP' : {'Fn::GetAtt': ['MonitorNode', 'Outputs.MonitorIP']},
                     'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
