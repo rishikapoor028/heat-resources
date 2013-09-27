@@ -24,7 +24,6 @@ Parameters:
     ConstraintDescription: must be a valid XLcloud image name.
     AllowedValues: 
     - F19-x86_64-chef-solo
-    - F19-x86_64-chef-solo-snap
     Description: Cloud image Id for instances in this stack
   "xlcloud:defaultSubnetUuid":
      Description: "The subnet identifier this layer is connected to"
@@ -264,10 +263,11 @@ Resources:
              - "#mv opscode-chef-repo* chef-repo"
              - "#rm master.tar.gz"
              - "/opt/aws/bin/cfn-init"
+             - "cfn-signal -e 0 '"
              - "cd /var/chef/chef-repo"
              - "/usr/local/bin/librarian-chef install --clean --verbose"
              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
-             - "cfn-signal -e 0 '"
+             - "#cfn-signal -e 0 '"
              - {Ref: HeadHandle}
              - "'"
 

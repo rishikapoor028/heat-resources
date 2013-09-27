@@ -39,13 +39,9 @@ Parameters:
     Type: String
     ConstraintDescription: must be a valid XLcloud image name.
     AllowedValues: 
-    - F17-x86_64
-    - F18-x86_64
     - F19-x86_64-chef-solo
-    - F19-x86_64-chef-solo-snap
-    - cirros-0.3.1-x86_64-uec
     Description: Default image name for instances in this stack
-    Default: F19-x86_64-chef-solo-snap
+    Default: F19-x86_64-chef-solo
   xlcloud:defaultInstanceType: 
     Type: String
     ConstraintDescription: must be a valid XLcloud instance type.
