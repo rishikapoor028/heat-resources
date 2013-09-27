@@ -71,16 +71,6 @@ Resources:
     Properties:
       UserName: {Ref: CfnUser}
 
-  MonitorHandle:
-    Type: AWS::CloudFormation::WaitConditionHandle
-
-  MonitorReady:
-    Type: AWS::CloudFormation::WaitCondition
-    Properties:
-      Handle: {Ref: MonitorHandle}
-      Count: '1' 
-      Timeout: '1600'
-
   SlurmLayer:
     Type: AWS::CloudFormation::Stack
     DependsOn: MonitorNode
