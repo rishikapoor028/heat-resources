@@ -86,6 +86,9 @@ Resources:
       LaunchConfigurationName: {Ref: ComputeConfiguration}
       Size: {Ref: "xlcloud:Computes:size"}
       AvailabilityZones: {'Fn::GetAZs': ''}
+      Tags:
+      - Key: StackId
+        Value: {Ref: 'AWS::StackId'}
 
   ClusterMetaData:
     Type: AWS::AutoScaling::LaunchConfiguration
@@ -230,6 +233,9 @@ Resources:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
+      Tags:
+      - Key: StackId
+        Value: {Ref: 'AWS::StackId'}
       SecurityGroups: 
           - 
             Ref: "LayerSecurityGroup"
