@@ -132,37 +132,37 @@ Resources:
             /etc/chef/solo.rb: &chef-solo
               content:
                 Fn::Join:
-                    - "\n"
-                    - 
-                      - "file_cache_path  '/var/chef/cache'"
-                      - "role_path    [ '/var/chef/chef-repo/roles' ]"
-                      - "cookbook_path    [ '/var/chef/chef-repo/cookbooks' ]"
-                      - "log_level :info"
-                      - "log_location STDOUT"
-                      - "ssl_verify_mode :verify_none"
-                      - "http_proxy 'http://10.197.217.62:3128'"
-                      - "https_proxy 'http://10.197.217.62:3128'"
-                      - "no_proxy '127.0.0.1,localhost'"
+                  - "\n"
+                  - 
+                    - "file_cache_path  '/var/chef/cache'"
+                    - "role_path    [ '/var/chef/chef-repo/roles' ]"
+                    - "cookbook_path    [ '/var/chef/chef-repo/cookbooks' ]"
+                    - "log_level :info"
+                    - "log_location STDOUT"
+                    - "ssl_verify_mode :verify_none"
+                    - "http_proxy 'http://10.197.217.62:3128'"
+                    - "https_proxy 'http://10.197.217.62:3128'"
+                    - "no_proxy '127.0.0.1,localhost'"
 
             /etc/chef/setup-runlist.json:
               content: 
                 Fn::Join:
-                - ''
-                - - '{"mcollective":{ "enable_puppetlabs_repo":"true", "loglevel":"debug",'
-                  - '"stomp":{ "hostname":{ "Ref":"xlcloud:brokerAddress" }, "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
-                  - '"slurm": {"role": "head"}, "ganglia" : { "central_monit" : false, "cluster" : {"collector_host" :"'
-                  - {Ref: "xlcloud:monitorIP"}
-                  - '", "name" : "slurm"}},  "run_list": [ "role[mcollective-server-with-stomp-connector]", "recipe[slurm::setup]", "recipe[ganglia]"]}'
+                  - ''
+                  - - '{"mcollective":{ "enable_puppetlabs_repo":"true", "loglevel":"debug",'
+                    - '"stomp":{ "hostname":{ "Ref":"xlcloud:brokerAddress" }, "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
+                    - '"slurm": {"role": "head"}, "ganglia" : { "central_monit" : false, "cluster" : {"collector_host" :"'
+                    - {Ref: "xlcloud:monitorIP"}
+                    - '", "name" : "slurm"}},  "run_list": [ "role[mcollective-server-with-stomp-connector]", "recipe[slurm::setup]", "recipe[ganglia]"]}'
 
             /etc/chef/configure-runlist.json:
              content:
                Fn::Join:
-               - ''
-               - - '{"slurm": {"role": "head","stack":"'
-                 - {Ref: "AWS::StackId"}
-                 - '","cpus":'
-                 - {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
-                 - '}, "run_list": [ "recipe[slurm::configure]" ]}'
+                 - ''
+                 - - '{"slurm": {"role": "head","stack":"'
+                   - {Ref: "AWS::StackId"}
+                   - '","cpus":'
+                   - {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
+                   - '}, "run_list": [ "recipe[slurm::configure]" ]}'
 
             /etc/chef/deploy-runlist.json:
               content: ''
@@ -170,23 +170,23 @@ Resources:
             /etc/cfn/cfn-credentials: &cfn-credentials
               content:
                 Fn::Join:
-                - ''
-                - - AWSAccessKeyId=
-                  - {Ref : CfnUserKey}
-                  - '
+                  - ''
+                  - - AWSAccessKeyId=
+                    - {Ref : CfnUserKey}
+                    - '
 
-                    '
-                  - AWSSecretKey=
-                  - 'Fn::GetAtt': [CfnUserKey, SecretAccessKey]
-                  - '
+                      '
+                    - AWSSecretKey=
+                    - 'Fn::GetAtt': [CfnUserKey, SecretAccessKey]
+                    - '
 
-                    '
+                      '
               mode: "00400"
               owner: root
               group: root
 
             /var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json: 
-                content: 
+              content: 
                   chef_type: "role"
                   default_attributes: {}
                   override_attributes: 
@@ -200,6 +200,7 @@ Resources:
 
                   json_class: "Chef::Role"
                   name: "mcollective-server-with-stomp-connector"
+
               mode: "00400"
               owner: root
               group: root
