@@ -3,12 +3,9 @@ HeatTemplateFormatVersion: '2012-12-12'
 Outputs:
   MonitorIP:
     Description: Ganglia deployment
-    #Value: {Ref: NodeIPAddress}
     Value:  {'Fn::GetAtt': ['MonitorNode', 'PrivateIp']}
 Parameters:
   MonitorPort: {Default: '8649', Type: String, Description: TCP port of monitoring traffic data}
-  #RunList: {Default: ganglia, Type: String,
-  #  Description: Collection of recipes to execute}
   stackName:
     Description: The Stack Name (used in ganglia web console)
     Type: String
@@ -26,12 +23,6 @@ Parameters:
     Description: parentIamSecretKey
     Type: String
     Default: 'parentIamSecretKey:'
-    #AllowedPattern: '[0-9]*'
-  MonitorHandle:
-    Description: WaitConditionHandle
-    Type: String
-    Default: 'foo'
-    #AllowedPattern: '[0-9]*'
 
 ## XLCLOUD default Params
  # xlcloud:defaultSubnetUuid: 
@@ -113,10 +104,6 @@ Resources:
                 tar xzvf ganglia.tgz && rm ganglia.tgz
                 #Execute application runlist
                 chef-solo -j /etc/chef/node.json -c /etc/chef/solo.rb
-                cfn-signal -e 0 
-            - '"'
-            - {Ref: 'MonitorHandle'} 
-            - '"'
 
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups:
