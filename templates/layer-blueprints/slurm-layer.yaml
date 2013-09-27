@@ -238,9 +238,7 @@ Resources:
       Tags:
       - Key: StackId
         Value: {Ref: 'AWS::StackId'}
-      SecurityGroups: 
-          - 
-            Ref: "LayerSecurityGroup"
+      SecurityGroups: [default]
       #SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
       UserData:
         Fn::Base64:
