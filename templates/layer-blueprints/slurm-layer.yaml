@@ -69,14 +69,14 @@ Resources:
             ToPort: "-1"
             CidrIp: "0.0.0.0/0"
           - 
-            IpProtocol: "udp"
-            FromPort: "-1"
-            ToPort: "-1"
-            CidrIp: "0.0.0.0/0"
-          - 
             IpProtocol: "tcp"
             FromPort: "63613"
             ToPort: "63613"
+            CidrIp: "0.0.0.0/0"
+          -
+            IpProtocol: "tcp"
+            FromPort: "22"
+            ToPort: "22"
             CidrIp: "0.0.0.0/0"
 
   Computes:
@@ -182,20 +182,24 @@ Resources:
               owner: root
               group: root
 
-            /var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json:
-                content:
+            /var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json: 
+                content: 
                   chef_type: "role"
                   default_attributes: {}
-                  override_attributes:
-                    mcollective:
+                  override_attributes: 
+                    mcollective: 
                       connector: "stomp"
                       factsource: "ohai"
                   description: "This is a role to install mcollective server."
-                  run_list:
+                  run_list: 
                     - "recipe[ohai]"
                     - "recipe[mcollective::server]"
+
                   json_class: "Chef::Role"
                   name: "mcollective-server-with-stomp-connector"
+              mode: "00400"
+              owner: root
+              group: root
 
             /var/chef/chef-repo/Cheffile:
               content:
@@ -214,6 +218,9 @@ Resources:
                     - "cookbook 'ganglia',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'ganglia'"
+              mode: "00400"
+              owner: root
+              group: root
 
 #         sources:
 #           /etc/chef: "http://10.197.217.62/downloads/cookbooks/xlc-slurm.tgz"
@@ -250,7 +257,7 @@ Resources:
              - "/opt/aws/bin/cfn-init"
              - "cd /var/chef/chef-repo"
              - "/usr/local/bin/librarian-chef install --clean --verbose"
-             - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log"
+             - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
              - "cfn-signal -e 0 '"
              - {Ref: HeadHandle}
              - "'"

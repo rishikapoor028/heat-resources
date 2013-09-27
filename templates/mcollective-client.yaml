@@ -68,7 +68,7 @@
                       - "http_proxy 'http://10.197.217.62:3128'"
                       - "https_proxy 'http://10.197.217.62:3128'"
                       - "no_proxy '127.0.0.1,localhost'"
-              /etc/chef/runlist-setup.json: 
+              /etc/chef/setup-runlist.json: 
                 content: 
                   yum: 
                     proxy: "http://10.197.217.62:3128/"
@@ -155,7 +155,7 @@
                 - "/opt/aws/bin/cfn-init"
                 - "cd /var/chef/chef-repo"
                 - "/usr/local/bin/librarian-chef install --clean --verbose"
-                - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log"
+                - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
   Outputs: 
     Internal IP: 
       Description: "URL of the MCollective Server"

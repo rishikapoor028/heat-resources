@@ -122,7 +122,7 @@
                               "rabbitmq":{
                                  "port":"63613",
                                  "virtualhosts":[
-                                    "/xlcloud"
+                                    "/"
                                  ],
                                  "enabled_plugins":[
                                     "amqp_client",
@@ -134,7 +134,7 @@
                                        "password":"xlcloud",
                                        "rights":[
                                           {
-                                             "vhost":"/xlcloud",
+                                             "vhost":"/",
                                              "conf":".*",
                                              "write":".*",
                                              "read":".*"
@@ -189,10 +189,16 @@
                "Ref":"xlcloud:defaultKeyName"
             },
             "SecurityGroups":[
-               {
+            {
                   "Ref":"RabbitMQSecurityGroup"
-               }
+            }
             ],
+	    "Tags":[
+            {
+		"Key" : "StackId",
+		"Value" : {Ref: "AWS::StackId"} 
+	    }
+	    ],
             "UserData":{
                "Fn::Base64":{
                   "Fn::Join":[
