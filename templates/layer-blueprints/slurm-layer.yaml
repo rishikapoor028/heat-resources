@@ -254,9 +254,7 @@ Resources:
              - "cd /var/chef/chef-repo\n"
              - "/usr/local/bin/librarian-chef install --clean --verbose\n"
              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log\n"
-             - "cfn-signal -e 0 \"\n"
-             - {Ref: HeadHandle}
-             - "\""
+             - "cfn-signal -e 0 \" {Ref: HeadHandle} \"\n"
 
   ComputeConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
