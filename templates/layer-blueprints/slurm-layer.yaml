@@ -206,7 +206,7 @@ Resources:
               owner: root
               group: root
 
-            /var/chef/chef-repo/Cheffile:
+            /var/chef/chef-repo/Cheffile: &Cheffile
               content:
                 Fn::Join:
                   - "\n"
@@ -217,9 +217,21 @@ Resources:
                     - "cookbook 'mcollective',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'mcollective'"
-                    - "cookbook 'xlc-slurm',"
+                    - "cookbook 'slurm',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
-                    - "    :path => 'xlc-slurm'"
+                    - "    :path => 'slurm'"
+                    - "cookbook 'hostfile',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'hostfile'"
+                    - "cookbook 'line',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'line'"
+                    - "cookbook 'nfs',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'nfs'"
+                    - "cookbook 'nfs_export',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'nfs'"
                     - "cookbook 'ganglia',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'ganglia'"
@@ -227,9 +239,6 @@ Resources:
               owner: root
               group: root
 
-#         sources:
-#           /etc/chef: "http://10.197.217.62/downloads/cookbooks/xlc-slurm.tgz"
-#           /etc/chef/cookbooks: "http://10.197.217.62/downloads/tpl/ganglia.tgz"
 
     Properties:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
@@ -291,6 +300,8 @@ Resources:
             yum: {}
           files:
             /etc/cfn/cfn-credentials: *cfn-credentials
+
+            /var/chef/chef-repo/Cheffile: *Cheffile
 
             /etc/cfn/cfn-hup.conf:
               content:
