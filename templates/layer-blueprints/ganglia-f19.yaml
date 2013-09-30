@@ -92,7 +92,6 @@ Resources:
                 echo $MY_HOSTNAME > /etc/hostname
                 hostname $MY_HOSTNAME 
                 echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts
-                echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh
                 source /etc/profile.d/proxy.sh
                 #locale-gen fr_FR.UTF-8
                 pip install --upgrade heat-cfntools
