@@ -243,18 +243,39 @@ Resources:
       UserData:
         Fn::Base64:
           Fn::Join:
-            - ""
-            -
-             - "#!/bin/bash -ve\n"
-             - "# $HOME is required by librarian\n"
-             - "export HOME=/root\n"
-             - "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh\n"
-             - "pip install --upgrade heat-cfntools\n"
-             - "cfn-init\n"
-             - "cd /var/chef/chef-repo\n"
-             - "/usr/local/bin/librarian-chef install --clean --verbose\n"
-             - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log\n"
-             - "cfn-signal -e 0 \" {Ref: HeadHandle} \"\n"
+          - ''
+          - - '#!/bin/bash -ve
+
+            - '
+            - '# $HOME is required by librarian
+
+            - '
+            - 'export HOME=/root
+
+            - '
+            - 'echo "export no_proxy=$no_proxy,10.197.217.62" >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh
+
+            - '
+            - 'pip install --upgrade heat-cfntools
+
+            - '
+            - 'cfn-init
+
+            - '
+            - 'cd /var/chef/chef-repo
+
+            - '
+            - '/usr/local/bin/librarian-chef install --clean --verbose
+
+            - '
+            - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
+
+              '
+            - "cfn-signal -e 0 '"
+            - {Ref: HeadHandle}
+            - "'"
+
+
 
   ComputeConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
