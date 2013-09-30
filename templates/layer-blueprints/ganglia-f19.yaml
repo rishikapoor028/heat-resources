@@ -88,7 +88,9 @@ Resources:
                 #!/bin/bash -v
                 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
                 export MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-                export MY_HOSTNAME=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/hostname)
+                export MY_HOSTNAME=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/instance-id)
+                echo $MY_HOSTNAME > /etc/hostname
+                hostname $MY_HOSTNAME 
                 echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts
                 hostname ganglia
                 echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh

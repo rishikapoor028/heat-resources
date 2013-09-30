@@ -246,35 +246,40 @@ Resources:
           - ''
           - - '#!/bin/bash -ve
 
-            - '
+            '
             - '# $HOME is required by librarian
 
-            - '
+            '
             - 'export HOME=/root
 
-            - '
+            '
+            - 'echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
+
+            '
+            - 'hostname `cat /etc/hostname` 
+
+            '
             - 'echo "export no_proxy=$no_proxy,10.197.217.62" >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh
 
-            - '
+            '
             - 'pip install --upgrade heat-cfntools
 
-            - '
+            '
             - 'cfn-init
 
-            - '
+            '
             - 'cd /var/chef/chef-repo
 
-            - '
+            '
             - '/usr/local/bin/librarian-chef install --clean --verbose
 
-            - '
+            '
             - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
 
               '
             - "cfn-signal -e 0 '"
             - {Ref: HeadHandle}
             - "'"
-
 
 
   ComputeConfiguration:
@@ -404,6 +409,8 @@ Resources:
               - "#!/bin/bash -ve"
               - "#$HOME is required by librarian"
               - "export HOME=/root"
+              - "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname"
+              - "hostname `cat /etc/hostname`"
               - "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh"
               - "pip install --upgrade heat-cfntools"
               - "cfn-init"
