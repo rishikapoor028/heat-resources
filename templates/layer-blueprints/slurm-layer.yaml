@@ -253,7 +253,7 @@ Resources:
             - 'export HOME=/root
 
             '
-            - 'echo "export no_proxy=$no_proxy,10.197.217.62" >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh
+            - 'source /etc/profile.d/proxy.sh
 
             '
             - 'echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
@@ -409,7 +409,7 @@ Resources:
               - "#!/bin/bash -ve"
               - "#HOME is required by librarian"
               - "export HOME=/root"
-              - "echo 'export no_proxy=$no_proxy,10.197.217.62' >> /etc/profile.d/proxy.sh && source /etc/profile.d/proxy.sh"
+              - "source /etc/profile.d/proxy.sh"
               - "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname"
               - "hostname `cat /etc/hostname`"
               - "pip install --upgrade heat-cfntools"
