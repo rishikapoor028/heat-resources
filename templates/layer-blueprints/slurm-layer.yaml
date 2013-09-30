@@ -150,7 +150,9 @@ Resources:
                 Fn::Join:
                   - ''
                   - - '{"mcollective":{ "enable_puppetlabs_repo":"true", "loglevel":"debug",'
-                    - '"stomp":{ "hostname":{ "Ref":"xlcloud:brokerAddress" }, "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
+                    - '"stomp":{ "hostname":"'
+                    - {Ref: "xlcloud:brokerAddress"}
+                    - '", "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
                     - '"slurm": {"role": "head"}, "ganglia" : { "central_monit" : false, "cluster" : {"collector_host" :"'
                     - {Ref: "xlcloud:monitorIP"}
                     - '", "name" : "slurm"}},  "run_list": [ "role[mcollective-server-with-stomp-connector]", "recipe[slurm::setup]", "recipe[ganglia]"]}'
@@ -220,9 +222,9 @@ Resources:
                     - "cookbook 'slurm',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'slurm'"
-                    - "cookbook 'hostfile',"
+                    - "cookbook 'hostsfile',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
-                    - "    :path => 'hostfile'"
+                    - "    :path => 'hostsfile'"
                     - "cookbook 'line',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'line'"
@@ -379,8 +381,12 @@ Resources:
                 Fn::Join:
                 - ''
                 - - '{"mcollective":{ "enable_puppetlabs_repo":"true", "loglevel":"debug",'
-                  - '"stomp":{ "hostname":{ "Ref":"xlcloud:brokerAddress" }, "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
-                  - '"slurm": {"role": "compute","nfs_server":" {"Fn::GetAtt": [Head, PrivateIp]}"},'
+                  - '"stomp":{ "hostname": "'
+                  - {Ref: "xlcloud:brokerAddress"}
+                  - '", "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
+                  - '"slurm": {"role": "compute","nfs_server":"'
+                  - {"Fn::GetAtt": [Head, PrivateIp]}
+                  - '"},'
                   - '"ganglia" : { "central_monit" : false, '
                   - '"cluster" : {'
                   - '"name" : "slurm",'
@@ -401,10 +407,6 @@ Resources:
 
             /etc/chef/deploy-runlist.json:
               content: ''
-
-#         sources:
-#           /etc/chef: "http://10.197.217.62/downloads/cookbooks/xlc-slurm.tgz"
-#           /etc/chef/cookbooks: "http://10.197.217.62/downloads/tpl/ganglia.tgz"
 
     Properties:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
@@ -428,7 +430,7 @@ Resources:
               - "cd /var/chef/chef-repo"
               - "/usr/local/bin/librarian-chef install --clean --verbose"
               - "crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
-              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log"
+              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
 
 Outputs:
   HeadAddress:
