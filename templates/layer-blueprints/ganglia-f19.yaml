@@ -5,6 +5,9 @@ Outputs:
     Description: Ganglia deployment
     Value:  {'Fn::GetAtt': ['MonitorNode', 'PrivateIp']}
 Parameters:
+  "xlcloud:brokerAddress": 
+      Type: "String"
+      Description: "Rabbitmq broker address"
   MonitorPort: {Default: '8649', Type: String, Description: TCP port of monitoring traffic data}
   stackName:
     Description: The Stack Name (used in ganglia web console)
@@ -70,12 +73,12 @@ Resources:
       - {ToPort: {Ref: MonitorPort}, IpProtocol: udp, FromPort: {Ref: MonitorPort}, CidrIp: 0.0.0.0/0}
       GroupDescription: "Firewall rules : SSH, HTTP(s) and Ganglia"
 
-  CfnUser:
-    Type: AWS::IAM::User
-  CfnUserKey:
-    Type: AWS::IAM::AccessKey
-    Properties:
-      UserName: {Ref: CfnUser}
+  #CfnUser:
+  #  Type: AWS::IAM::User
+  #CfnUserKey:
+  #  Type: AWS::IAM::AccessKey
+  #  Properties:
+  #    UserName: {Ref: CfnUser}
 
   MonitorNode:
     Type: AWS::EC2::Instance
@@ -90,15 +93,15 @@ Resources:
                 export MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
                 export MY_HOSTNAME=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/instance-id)
                 echo $MY_HOSTNAME > /etc/hostname
-                hostname $MY_HOSTNAME 
+                hostname $MY_HOSTNAME
+                export HOME=/root
                 echo $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts
                 source /etc/profile.d/proxy.sh
-                #locale-gen fr_FR.UTF-8
                 pip install --upgrade heat-cfntools
                 cfn-init
-                tar xzvf ganglia.tgz && rm ganglia.tgz
-                #Execute application runlist
-                chef-solo -j /etc/chef/node.json -c /etc/chef/solo.rb
+                cd /var/chef/chef-repo
+                /usr/local/bin/librarian-chef install --clean --verbose
+                /bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
 
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups:
@@ -111,141 +114,113 @@ Resources:
       AWS::CloudFormation::Init:
         config:
           files:
-            /etc/cfn/cfn-credentials: &cfn-credentials-file
-              content:
+            #/etc/cfn/cfn-credentials: &cfn-credentials-file
+            #  content:
+            #    Fn::Join:
+            #    - ''
+            #    - - AWSAccessKeyId=
+            #      - {Ref: CfnUserKey}
+            #      - '
+
+            #        '
+            #      - AWSSecretKey=
+            #      - Fn::GetAtt: [CfnUserKey, SecretAccessKey]
+            #      - '
+
+            #        '
+            #  owner: root
+            #  group: root
+            #  mode: '000400'
+            #/etc/cfn/cfn-credentials-parent: &cfn-credentials-parent-file
+            #  content:
+            #    Fn::Join:
+            #    - ''
+            #    - - AWSAccessKeyId=
+            #      - {Ref: parentIamAccessyKey}
+            #      - '
+
+            #        '
+            #      - AWSSecretKey=
+            #      - {Ref: parentIamSecretKey}
+            #      - '
+
+            #        '
+            #      - parentStackID=
+            #      - {Ref: parentStackID}
+            #      - '
+
+            #        '
+            #  owner: root
+            #  group: root
+            #  mode: '000400'
+
+            /etc/chef/deploy-runlist.json:
+              content: ''
+            /etc/chef/setup-runlist.json:
+              content: 
                 Fn::Join:
-                - ''
-                - - AWSAccessKeyId=
-                  - {Ref: CfnUserKey}
-                  - '
-
-                    '
-                  - AWSSecretKey=
-                  - Fn::GetAtt: [CfnUserKey, SecretAccessKey]
-                  - '
-
-                    '
-              owner: root
-              group: root
-              mode: '000400'
-            /etc/cfn/cfn-credentials-parent: &cfn-credentials-parent-file
-              content:
-                Fn::Join:
-                - ''
-                - - AWSAccessKeyId=
-                  - {Ref: parentIamAccessyKey}
-                  - '
-
-                    '
-                  - AWSSecretKey=
-                  - {Ref: parentIamSecretKey}
-                  - '
-
-                    '
-                  - parentStackID=
-                  - {Ref: parentStackID}
-                  - '
-
-                    '
-              owner: root
-              group: root
-              mode: '000400'
-            /root/.chef/knife.rb:
-              content:
-                Fn::Join:
-                - ''
-                - - |-
-                      cookbook_path [ '/etc/chef/cookbooks' ]
-                      ssl_verify_mode  :verify_none
-                      http_proxy 'http://10.197.217.62:3128'
-                      https_proxy 'http://10.197.217.62:3128'
-              owner: root
-              group: root
-              mode: '000644'
-            /etc/chef/node.json:
-              content:
-                Fn::Join:
-                - ''
-                - - |-
-                      {
-                       "ganglia" : { "central_monit" : true,
-                                     "cluster" : {"collector_host" : "127.0.0.1", "name" :
-
-                  - '"'
-                  - {Ref: "stackName"}
-                  - '"'
-                  - |-
-                      }},
-                       "run_list" : [ "recipe[ganglia]", "recipe[ganglia::web]", "recipe[ganglia::python_rr]" ]
-                      }
-              owner: root
-              group: root
-              mode: '000644'
+                  - ''
+                  - - '{"mcollective":{ "enable_puppetlabs_repo":"true", "loglevel":"debug",'
+                    - '"stomp":{ "hostname":"'
+                    - {Ref: "xlcloud:brokerAddress"}
+                    - '", "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
+                    - '"ganglia" : { "central_monit" : true, "cluster" : {"collector_host" :"127.0.0.1",'
+                    - '"name" : "slurm"}},  "run_list": [ "role[mcollective-server-with-stomp-connector]", "recipe[ganglia]","recipe[ganglia::web]", "recipe[ganglia::python_rr]"]}'
             /etc/chef/solo.rb:
               content:
                 Fn::Join:
-                - ''
-                - - |- 
-                      file_cache_path  '/etc/chef'
-                      cookbook_path    '/etc/chef/cookbooks'
-                      json_attribs '/etc/chef/node.json'
-                      log_level        :info
-                      log_location     STDOUT
-                      ssl_verify_mode  :verify_none
-                      http_proxy 'http://10.197.217.62:3128'
-                      https_proxy 'http://10.197.217.62:3128'
-                      no_proxy '127.0.0.1,localhost'
+                  - "\n"
+                  -
+                    - "file_cache_path  '/var/chef/cache'"
+                    - "role_path    [ '/var/chef/chef-repo/roles' ]"
+                    - "cookbook_path    [ '/var/chef/chef-repo/cookbooks' ]"
+                    - "log_level :info"
+                    - "log_location STDOUT"
+                    - "ssl_verify_mode :verify_none"
+                    - "http_proxy 'http://10.197.217.62:3128'"
+                    - "https_proxy 'http://10.197.217.62:3128'"
+                    - "no_proxy '127.0.0.1,localhost'"
               owner: root
               group: root
               mode: '000644'
-            /tmp/heat_test.txt:
+            /var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json: &mcollective-server-with-stomp-connector
+              content: 
+                  chef_type: "role"
+                  default_attributes: {}
+                  override_attributes: 
+                    mcollective: 
+                      connector: "stomp"
+                      factsource: "ohai"
+                  description: "This is a role to install mcollective server."
+                  run_list: 
+                    - "recipe[ohai]"
+                    - "recipe[mcollective::server]"
+
+                  json_class: "Chef::Role"
+                  name: "mcollective-server-with-stomp-connector"
+
+              mode: "00400"
+              owner: root
+              group: root
+
+            /var/chef/chef-repo/Cheffile: &Cheffile
               content:
                 Fn::Join:
-                - ''
-                - - 'memalarmhight :'
-                 # - {Ref: MEMAlarmHigh}
-                  - '
-
-                    '
-                  - 'alarm dim: '
-                  #- Fn::GetAtt: [MEMAlarmHigh, Dimensions]
-                  - '
-
-                    '
-                  - 'alarm threashold: '
-                  #- Fn::GetAtt: [MEMAlarmHigh, Threshold]
-                  - '
-
-                    '
-                  - 'alarm : '
-                  #- Fn::GetAtt: [MEMAlarmHigh, MetricName]
-                  - '
-
-                    '
-                  - 'aws::stackname : '
-                  - {Ref: 'AWS::StackName'}
-                  - '
-
-                    '
-                  - 'aws::stackid: '
-                  - {Ref: 'AWS::StackId'}
-                  - '
-
-                    '
-                  - 'AS:InstanceList:'
-#                  - Fn::GetAtt: [Layer1, InstanceList]
-                  - '
-
-                    '
-                  - '----end
-
-                    '
-                  - '
-
-                    '
+                  - "\n"
+                  - 
+                    - "#!/usr/bin/env ruby"
+                    - "site 'http://community.opscode.com/api/v1'"
+                    - "cookbook 'ohai'"
+                    - "cookbook 'mcollective',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'mcollective'"
+                    - "cookbook 'ganglia',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'ganglia'"
+              mode: "00400"
               owner: root
               group: root
-              mode: '000644'
+
   NodeIPAddress: {Type: 'AWS::EC2::EIP'}
   NodeIPAssoc:
     Type: AWS::EC2::EIPAssociation

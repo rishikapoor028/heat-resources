@@ -94,6 +94,7 @@ Resources:
                     'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
                     'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
+                    'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
                     'parentStackID' : {Ref: 'AWS::StackId'},
                     'parentIamAccessyKey' : {Ref: 'MyKey'},
                     'parentIamSecretKey' : {'Fn::GetAtt': ['MyKey', 'SecretAccessKey']},
