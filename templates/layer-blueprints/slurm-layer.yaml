@@ -249,7 +249,7 @@ Resources:
       Tags:
       - Key: StackId
         Value: {Ref: 'AWS::StackId'}
-      SecurityGroups: [default,  LayerSecurityGroup]
+      SecurityGroups: [default,  {"Ref" : "LayerSecurityGroup"}]
       #SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
       UserData:
         Fn::Base64:
@@ -412,7 +412,7 @@ Resources:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
-      SecurityGroups: [default,  LayerSecurityGroup]
+      SecurityGroups: [default,  {"Ref" : "LayerSecurityGroup"}]
       #SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
       UserData:
         Fn::Base64:
