@@ -2,8 +2,8 @@ Description: XLcloud Slurm Stack
 HeatTemplateFormatVersion: '2012-12-12'
 Outputs:
   NodeIP:
-    Description: XLcloud Slurm Stack 
-    Value: {'Fn::GetAtt': ['SlurmLayer', 'Outputs.HeadAddress']}
+    Description: XLcloud Slurm Stack
+    Value: {'Fn::GetAtt': ['Slurm', 'Outputs.HeadAddress']}
 
 Parameters:
   "MonitorPort":
@@ -63,42 +63,30 @@ Parameters:
 
 
 Resources:
-  CfnUser:
-    Type: AWS::IAM::User
-
-  MyKey:
-    Type: AWS::IAM::AccessKey
-    Properties:
-      UserName: {Ref: CfnUser}
-
-  SlurmLayer:
+  Slurm:
     Type: AWS::CloudFormation::Stack
-    DependsOn: MonitorNode
+    DependsOn: Monitor
     Properties:
-      Parameters: { #'MyKeyIam' : {Ref: MyKey}, 
+      Parameters: {
                     'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
                     'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
                     'xlcloud:defaultSubnetUuid' : {Ref: 'xlcloud:defaultSubnetUuid'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
                     'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
-                    'xlcloud:monitorIP' : {'Fn::GetAtt': ['MonitorNode', 'Outputs.MonitorIP']},
+                    'xlcloud:monitorIP' : {'Fn::GetAtt': ['Monitor', 'Outputs.MonitorIP']},
                     'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml'
-      #TemplateURL : 'http://10.197.217.62/downloads/tpl/slurm-layer.yaml'
       TimeoutInMinutes: 10
 
-  MonitorNode:
+  Monitor:
     Type: AWS::CloudFormation::Stack
     Properties:
-      Parameters: { #'MyKeyIam' : {Ref: MyKey}, 
+      Parameters: {
                     'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
                     'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
                     'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
                     'parentStackID' : {Ref: 'AWS::StackId'},
-                    'parentIamAccessyKey' : {Ref: 'MyKey'},
-                    'parentIamSecretKey' : {'Fn::GetAtt': ['MyKey', 'SecretAccessKey']},
                     'MonitorPort' : {Ref: MonitorPort}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/ganglia-f19.yaml'
-      #TemplateURL : 'http://10.197.217.62/downloads/tpl/ganglia-f19.yaml'
       TimeoutInMinutes: 5
