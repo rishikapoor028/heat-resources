@@ -164,7 +164,7 @@ Resources:
                     - '"stomp":{ "hostname":"'
                     - {Ref: "xlcloud:brokerAddress"}
                     - '", "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
-                    - '"ganglia" : { "central_monit" : false, "cluster" : {"collector_host" :"127.0.0.1",'
+                    - '"ganglia" : { "central_monit" : true, "cluster" : {"collector_host" :"127.0.0.1",'
                     - '"name" : "slurm"}},  "run_list": [ "role[mcollective-server-with-stomp-connector]", "recipe[ganglia]","recipe[ganglia::web]", "recipe[ganglia::python_rr]"]}'
             /etc/chef/solo.rb:
               content:
