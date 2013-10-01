@@ -80,7 +80,7 @@ Resources:
             ToPort: "22"
             CidrIp: "0.0.0.0/0"
 
-  Nodes:
+  Computes:
     Type: OS::Heat::InstanceGroup
     DependsOn: HeadReady
     Properties:
@@ -94,7 +94,7 @@ Resources:
   ClusterMetaData:
     Type: AWS::AutoScaling::LaunchConfiguration
     Metadata:
-      IpAddresses: {'Fn::GetAtt': [Nodes, InstanceList]}
+      IpAddresses: {'Fn::GetAtt': [Computes, InstanceList]}
       Size: {Ref: "xlcloud:Computes:size"}
     Properties:
       ImageId: foobar
@@ -116,7 +116,7 @@ Resources:
 
   ComputeReady:
     Type: AWS::CloudFormation::WaitCondition
-    DependsOn: Nodes
+    DependsOn: Computes
     Properties:
       Handle: {Ref: ComputeHandle}
       Count: {Ref: "xlcloud:Computes:size"}
@@ -437,5 +437,5 @@ Outputs:
     Value: {Ref: HeadIp}
     Description: IP address of the cluster's head
   NodesAddresses:
-    Value: {'Fn::GetAtt': [Nodes, InstanceList]}
+    Value: {'Fn::GetAtt': [Computes, InstanceList]}
     Description: IP addresses of the cluster's compute nodes

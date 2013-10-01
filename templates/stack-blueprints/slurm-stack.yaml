@@ -3,7 +3,7 @@ HeatTemplateFormatVersion: '2012-12-12'
 Outputs:
   NodeIP:
     Description: XLcloud Slurm Stack 
-    Value: {'Fn::GetAtt': ['Slurm', 'Outputs.HeadAddress']}
+    Value: {'Fn::GetAtt': ['SlurmLayer', 'Outputs.HeadAddress']}
 
 Parameters:
   "MonitorPort":
@@ -71,9 +71,9 @@ Resources:
     Properties:
       UserName: {Ref: CfnUser}
 
-  Slurm:
+  SlurmLayer:
     Type: AWS::CloudFormation::Stack
-    DependsOn: Monitor
+    DependsOn: MonitorNode
     Properties:
       Parameters: { #'MyKeyIam' : {Ref: MyKey}, 
                     'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
@@ -81,13 +81,13 @@ Resources:
                     'xlcloud:defaultSubnetUuid' : {Ref: 'xlcloud:defaultSubnetUuid'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
                     'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
-                    'xlcloud:monitorIP' : {'Fn::GetAtt': ['Monitor', 'Outputs.MonitorIP']},
+                    'xlcloud:monitorIP' : {'Fn::GetAtt': ['MonitorNode', 'Outputs.MonitorIP']},
                     'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml'
       #TemplateURL : 'http://10.197.217.62/downloads/tpl/slurm-layer.yaml'
       TimeoutInMinutes: 10
 
-  Monitor:
+  MonitorNode:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters: { #'MyKeyIam' : {Ref: MyKey}, 
