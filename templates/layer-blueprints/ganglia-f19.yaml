@@ -5,6 +5,9 @@ Outputs:
     Description: Ganglia deployment
     Value:  {'Fn::GetAtt': ['MonitorNode', 'PrivateIp']}
 Parameters:
+  "xlcloud:brokerAddress": 
+      Type: "String"
+      Description: "Rabbitmq broker address"
   MonitorPort: {Default: '8649', Type: String, Description: TCP port of monitoring traffic data}
   stackName:
     Description: The Stack Name (used in ganglia web console)
