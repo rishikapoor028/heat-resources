@@ -233,7 +233,7 @@ Resources:
                     - "    :path => 'nfs'"
                     - "cookbook 'nfs_export',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
-                    - "    :path => 'nfs'"
+                    - "    :path => 'nfs_export'"
                     - "cookbook 'ganglia',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'ganglia'"
