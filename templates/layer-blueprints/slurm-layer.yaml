@@ -188,7 +188,7 @@ Resources:
               owner: root
               group: root
 
-            /var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json: 
+            /var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json: &mcollective-server-with-stomp-connector
               content: 
                   chef_type: "role"
                   default_attributes: {}
@@ -302,7 +302,7 @@ Resources:
             yum: {}
           files:
             /etc/cfn/cfn-credentials: *cfn-credentials
-
+            /var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json: *mcollective-server-with-stomp-connector
             /var/chef/chef-repo/Cheffile: *Cheffile
 
             /etc/cfn/cfn-hup.conf:
