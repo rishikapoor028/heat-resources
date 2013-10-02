@@ -88,8 +88,7 @@ Resources:
       Size: {Ref: "xlcloud:Computes:size"}
       AvailabilityZones: {'Fn::GetAZs': ''}
       Tags:
-      - Key: StackId
-        Value: {Ref: 'AWS::StackId'}
+      - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
 
   ClusterMetaData:
     Type: AWS::AutoScaling::LaunchConfiguration
@@ -134,11 +133,11 @@ Resources:
               content:
                 Fn::Join:
                   - "\n"
-                  - 
-		    - "Deploy SLURM cluster with N (default=2) compute nodes + 1 head node to run micro benchmarks of MPI."
-		    - "On each nodes, run sudo chef-solo -j /etc/chef/configure-runlist.json"
-		    - "Once the cluster is up, login to the head node and run:"
-		    - "    salloc -N2 -c<CPUs> mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency"
+                  -
+                    - "Deploy SLURM cluster with N (default=2) compute nodes + 1 head node to run micro benchmarks of MPI."
+                    - "On each nodes, run sudo chef-solo -j /etc/chef/configure-runlist.json"
+                    - "Once the cluster is up, login to the head node and run:"
+                    - "    salloc -N2 -c<CPUs> mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency"
 
             /etc/chef/solo.rb: &chef-solo
               content:
@@ -257,8 +256,7 @@ Resources:
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       Tags:
-      - Key: StackId
-        Value: {Ref: 'AWS::StackId'}
+      - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
       SecurityGroups: [default,  {"Ref" : "LayerSecurityGroup"}]
       #SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
       UserData:
