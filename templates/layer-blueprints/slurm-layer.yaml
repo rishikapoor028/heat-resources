@@ -108,7 +108,7 @@ Resources:
     Properties:
       Handle: {Ref: HeadHandle}
       Count: '1' 
-      Timeout: '1200'
+      Timeout: '2400'
 
   ComputeHandle:
     Type: AWS::CloudFormation::WaitConditionHandle
@@ -119,7 +119,7 @@ Resources:
     Properties:
       Handle: {Ref: ComputeHandle}
       Count: {Ref: "xlcloud:Computes:size"}
-      Timeout: '1200'
+      Timeout: '2400'
 
   Head:
     Type: AWS::EC2::Instance
