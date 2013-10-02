@@ -429,8 +429,8 @@ Resources:
               - "cfn-init"
               - "cd /var/chef/chef-repo"
               - "/usr/local/bin/librarian-chef install --clean --verbose"
-              - "crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
               - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
+              - "crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
 
 Outputs:
   HeadAddress:
