@@ -175,7 +175,8 @@
           "AvailabilityZones" : { "Fn::GetAZs" : "" },
           "LaunchConfigurationName" : { "Ref" : "TomcatNode" },
           "MinSize" : { "Ref" : "xlcloud:TomcatNode_defaultScaling:min" },
-          "MaxSize" : { "Ref" : "xlcloud:TomcatNode_defaultScaling:max" }
+          "MaxSize" : { "Ref" : "xlcloud:TomcatNode_defaultScaling:max" },
+          "VPCZoneIdentifier" : [{"Ref" : "xlcloud:layerSubnetUuid"}]
         }
     },  
       "xiaSecurityGroup" : {
