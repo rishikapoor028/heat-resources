@@ -137,7 +137,7 @@ Resources:
                     - "Deploy SLURM cluster with N (default=2) compute nodes + 1 head node to run micro benchmarks of MPI."
                     - "On each nodes, run sudo chef-solo -j /etc/chef/configure-runlist.json"
                     - "Once the cluster is up, login to the head node and run:"
-                    - "    salloc -N2 -c<CPUs> mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency"
+                    - "    salloc -N2 -c<CPUs> mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency\n"
 
             /etc/chef/solo.rb: &chef-solo
               content:
@@ -437,8 +437,8 @@ Resources:
               - "cfn-init"
               - "cd /var/chef/chef-repo"
               - "/usr/local/bin/librarian-chef install --clean --verbose"
-              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
               - "crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
+              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
 
 Outputs:
   HeadAddress:
