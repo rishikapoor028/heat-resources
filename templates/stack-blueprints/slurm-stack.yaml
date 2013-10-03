@@ -76,7 +76,7 @@ Resources:
                     'xlcloud:monitorIP' : {'Fn::GetAtt': ['Monitor', 'Outputs.MonitorIP']},
                     'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml'
-      TimeoutInMinutes: 10
+      TimeoutInMinutes: 20
 
   Monitor:
     Type: AWS::CloudFormation::Stack
