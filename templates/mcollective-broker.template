@@ -1,6 +1,6 @@
 {
    "AWSTemplateFormatVersion":"2010-09-09",
-   "Description":"RabbitMQ template",
+   "Description":"RabbitMQ broker for mcollective",
    "Parameters":{
       "xlcloud:defaultKeyName":{
          "Description":"Name of an existing EC2 KeyPair to enable SSH access",
@@ -22,11 +22,25 @@
       "xlcloud:defaultImageId":{
          "Description":"Default image name for instances in this stack",
          "Type":"String",
-         "Default":"F19-x86_64-chef-solo",
-         "AllowedValues":[
-            "F19-x86_64-chef-solo"
-         ],
+         "Default":"F19-x86_64-xlcloud",
          "ConstraintDescription":"must be a valid XLcloud image name."
+      },
+      "StompPort": {
+         "Type": "Number",
+         "MinValue": 1,
+         "MaxValue": 65535,
+         "Default": 63613,
+         "Description": "TCP Port used by the Stomp service"
+      },
+      "RabbitUser": {
+         "Description":"RabbitMQ user",
+         "Type":"String",
+         "Default":"xlcloud"
+      },
+      "RabbitPassword": {
+         "Description":"RabbitMQ password",
+         "Type":"String",
+         "Default":"xlcloud"
       }
    },
    "Resources":{
@@ -37,7 +51,7 @@
          "Type":"AWS::EC2::EIPAssociation",
          "Properties":{
             "InstanceId":{
-               "Ref":"ActiveMQServer"
+               "Ref":"RabbitMQServer"
             },
             "EIP":{
                "Ref":"IPAddress"
@@ -47,7 +61,9 @@
       "RabbitMQSecurityGroup":{
          "Type":"AWS::EC2::SecurityGroup",
          "Properties":{
-            "GroupDescription":"Enable Stomp protocol via port 63613 plus SSH access",
+            "GroupDescription": { "Fn::Join": ["",
+                ["Enable Stomp protocol via port ", {"Ref": "StompPort"},
+                 " plus SSH access"]]},
             "SecurityGroupIngress":[
                {
                   "IpProtocol":"icmp",
@@ -57,8 +73,8 @@
                },
                {
                   "IpProtocol":"tcp",
-                  "FromPort":"63613",
-                  "ToPort":"63613",
+                  "FromPort":{"Ref": "StompPort"},
+                  "ToPort":{"Ref": "StompPort"},
                   "CidrIp":"0.0.0.0/0"
                },
                {
@@ -70,7 +86,7 @@
             ]
          }
       },
-      "ActiveMQServer":{
+      "RabbitMQServer":{
          "Type":"AWS::EC2::Instance",
          "Metadata":{
             "AWS::CloudFormation::Init":{
@@ -120,18 +136,20 @@
                            "name":"rabbitmq-for-mcollective",
                            "default_attributes":{
                               "rabbitmq":{
-                                 "port":"63613",
+                                 "port":{"Ref": "StompPort"},
                                  "virtualhosts":[
                                     "/"
                                  ],
                                  "enabled_plugins":[
                                     "amqp_client",
-                                    "rabbitmq_stomp"
+                                    "rabbitmq_stomp",
+                                    "rabbitmq_management"
                                  ],
                                  "enabled_users":[
                                     {
-                                       "name":"xlcloud",
-                                       "password":"xlcloud",
+                                       "name":{"Ref":"RabbitUser"},
+                                       "password":{"Ref":"RabbitPassword"},
+                                       "tag": "administrator",
                                        "rights":[
                                           {
                                              "vhost":"/",
@@ -148,7 +166,7 @@
 
                            },
                            "json_class":"Chef::Role",
-                           "description":"This is a role to install rabbitmq for mcollective.",
+                           "description":"Role for configuring rabbitmq as a broker for mcollective.",
                            "chef_type":"role",
                            "run_list":[
                               "recipe[rabbitmq]",
@@ -202,29 +220,21 @@
             "UserData":{
                "Fn::Base64":{
                   "Fn::Join":[
-                     "\n",
+                     "",
                      [
-                        "#!/bin/bash -xe",
-                         "export HOME=/root",
-                        "source /etc/profile.d/proxy.sh",
-                        "#curl -s http://169.254.169.254/latest/meta-data/hostname | sed 's/\\./-/g' > /etc/hostname",
-                        "#set hostip=`curl -s http://169.254.169.254/latest/meta-data/local-ipv4`",
-                        "#echo \"127.0.0.1 $(cat /etc/hostname)\" >> /etc/hosts",
-                        "#echo \"${hostip} $(cat /etc/hostname)\" >> /etc/hosts",
-                        "yum -y install gcc-c++ make wget tar rubygems ruby-devel",
-                        "gem install --no-ri --no-rdoc librarian-chef",
-                        "pip install --upgrade heat-cfntools",
-                        "/bin/cfn-create-aws-symlinks",
-                        "mkdir /var/chef",
-                        "cd /var/chef",
-                        "wget -O master.tar.gz http://github.com/opscode/chef-repo/tarball/master",
-                        "tar -zxf master.tar.gz",
-                        "mv opscode-chef-repo* chef-repo",
-                        "rm master.tar.gz",
-                        "/opt/aws/bin/cfn-init",
-                        "cd /var/chef/chef-repo",
-                        "/usr/local/bin/librarian-chef install --clean --verbose",
-                        "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log"
+                        "#!/bin/bash -xe\n",
+                        "export HOME=/root\n",
+                        "source /etc/profile.d/proxy.sh\n",
+                        "pip install --upgrade heat-cfntools\n",
+                        "/bin/cfn-create-aws-symlinks\n",
+                        "/opt/aws/bin/cfn-init\n",
+                        "cd /var/chef/chef-repo\n",
+                        "/usr/local/bin/librarian-chef install --clean --verbose\n",
+                        "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log\n",
+                        "curl -s http://127.0.0.1:15672/cli/rabbitmqadmin > /usr/local/bin/rabbitmqadmin\n",
+                        "chmod 0755 /usr/local/bin/rabbitmqadmin\n",
+                        "/usr/local/bin/rabbitmqadmin -u ", {"Ref":"RabbitUser"}, " -p ", {"Ref":"RabbitPassword"}, " declare exchange  name=mcollective_broadcast type=topic\n",
+                        "/usr/local/bin/rabbitmqadmin -u ", {"Ref":"RabbitUser"}, " -p ", {"Ref":"RabbitPassword"}, " declare exchange  name=mcollective_directed type=direct\n"
                      ]
                   ]
                }
@@ -234,14 +244,14 @@
    },
    "Outputs":{
       "Private IP":{
-         "Description":"Private IP of the ActiveMQ broker",
+         "Description":"Private IP of the RabbitMQ broker",
          "Value":{
             "Fn::Join":[
                "",
                [
                   {
                      "Fn::GetAtt":[
-                        "ActiveMQServer",
+                        "RabbitMQServer",
                         "PublicIp"
                      ]
                   }
@@ -250,7 +260,7 @@
          }
       },
       "Public IP":{
-         "Description":"Public IP of the ActiveMQ broker",
+         "Description":"Public IP of the RabbitMQ broker",
          "Value":{
             "Ref":"IPAddress"
          }
