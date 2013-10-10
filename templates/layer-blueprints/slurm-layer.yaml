@@ -2,15 +2,16 @@
 # - add security groups
 # - use Cinder volume instead of ephemeral storage
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Deploy SLURM cluster with N (default=2) compute nodes + 1 head node to run micro benchmarks of MPI.
+Description: &template_description
+  "Deploy SLURM cluster with N (default=2) compute nodes + 1 head node to run micro benchmarks of MPI.
 
-On each nodes, run chef-solo :
-sudo chef-solo -j /etc/chef/configure-runlist.json
+On each node, run chef-solo:
 
-              Once the cluster is up, login to the head node and run:
+    $ sudo chef-solo -j /etc/chef/configure-runlist.json
 
-              salloc -N2 -c<CPUs> mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency
-"
+Once the cluster is up, login to the head node and run:
+
+    $ salloc -N2 -c<CPUs> mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency\n"
 
 Parameters:
   "xlcloud:monitorIP":
@@ -23,7 +24,7 @@ Parameters:
     Type: String
     ConstraintDescription: must be a valid XLcloud image name.
     AllowedValues: 
-    - F19-x86_64-chef-solo-librarian
+    - F19-x86_64-xlcloud
     Description: Cloud image Id for instances in this stack
   "xlcloud:defaultSubnetUuid":
      Description: "The subnet identifier this layer is connected to"
@@ -126,18 +127,9 @@ Resources:
     Metadata:
       AWS::CloudFormation::Init:
         config:
-          packages:
-            yum: {}
           files:
             /etc/motd:
-              content:
-                Fn::Join:
-                  - "\n"
-                  -
-                    - "Deploy SLURM cluster with N (default=2) compute nodes + 1 head node to run micro benchmarks of MPI."
-                    - "On each nodes, run sudo chef-solo -j /etc/chef/configure-runlist.json"
-                    - "Once the cluster is up, login to the head node and run:"
-                    - "    salloc -N2 -c<CPUs> mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency\n"
+              content: *template_description
 
             /etc/chef/solo.rb: &chef-solo
               content:
@@ -164,7 +156,7 @@ Resources:
                     - '", "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
                     - '"slurm": {"role": "head"}, "ganglia" : { "central_monit" : false, "cluster" : {"collector_host" :"'
                     - {Ref: "xlcloud:monitorIP"}
-                    - '", "name" : "slurm"}},  "run_list": [ "role[mcollective-server-with-stomp-connector]", "recipe[slurm::setup]", "recipe[ganglia]"]}'
+                    - '", "name" : "slurm"}},  "run_list": [ "role[mcollective-server]", "recipe[slurm::setup]", "recipe[ganglia]"]}'
 
             /etc/chef/configure-runlist.json:
              content:
@@ -197,13 +189,13 @@ Resources:
               owner: root
               group: root
 
-            /var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json: &mcollective-server-with-stomp-connector
-              content: 
+            /var/chef/chef-repo/roles/mcollective-server.json: &mcollective-server
+              content:
                   chef_type: "role"
                   default_attributes: {}
-                  override_attributes: 
+                  override_attributes:
                     mcollective: 
-                      connector: "stomp"
+                      connector: "rabbitmq"
                       factsource: "ohai"
                   description: "This is a role to install mcollective server."
                   run_list: 
@@ -211,7 +203,7 @@ Resources:
                     - "recipe[mcollective::server]"
 
                   json_class: "Chef::Role"
-                  name: "mcollective-server-with-stomp-connector"
+                  name: "mcollective-server"
 
               mode: "00400"
               owner: root
@@ -278,7 +270,7 @@ Resources:
             - 'echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
 
             '
-            - 'hostname `cat /etc/hostname` 
+            - 'hostname `cat /etc/hostname`
 
             '
             - 'pip install --upgrade heat-cfntools
@@ -310,7 +302,7 @@ Resources:
             yum: {}
           files:
             /etc/cfn/cfn-credentials: *cfn-credentials
-            /var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json: *mcollective-server-with-stomp-connector
+            /var/chef/chef-repo/roles/mcollective-server.json: *mcollective-server
             /var/chef/chef-repo/Cheffile: *Cheffile
 
             /etc/cfn/cfn-hup.conf:
@@ -400,7 +392,7 @@ Resources:
                   - '"name" : "slurm",'
                   - '"collector_host" : "'
                   - {Ref: "xlcloud:monitorIP"} 
-                  - '"}}, "run_list": [ "role[mcollective-server-with-stomp-connector]","recipe[slurm::setup]", "recipe[slurm::benchmarks]", "recipe[ganglia]" ]}'
+                  - '"}}, "run_list": [ "role[mcollective-server]","recipe[slurm::setup]", "recipe[slurm::benchmarks]", "recipe[ganglia]" ]}'
 
 #- {"Fn::GetAtt": [Head, PrivateIp]}
 

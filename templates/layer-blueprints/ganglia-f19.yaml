@@ -5,9 +5,9 @@ Outputs:
     Description: Ganglia deployment
     Value:  {'Fn::GetAtt': ['MonitorNode', 'PrivateIp']}
 Parameters:
-  "xlcloud:brokerAddress": 
+  "xlcloud:brokerAddress":
       Type: "String"
-      Description: "Rabbitmq broker address"
+      Description: "RabbitMQ broker address"
   MonitorPort: {Default: '8649', Type: String, Description: TCP port of monitoring traffic data}
   stackName:
     Description: The Stack Name (used in ganglia web console)
@@ -28,23 +28,23 @@ Parameters:
     Default: 'parentIamSecretKey:'
 
 ## XLCLOUD default Params
- # xlcloud:defaultSubnetUuid: 
+ # xlcloud:defaultSubnetUuid:
  #   Type: String
  #   ConstraintDescription: project doesn't have default subnet defined in XLcloud
  #   Description: Project's default subnet identifier
  #   Default: PENDING
- # xlcloud:defaultNetworkUuid: 
+ # xlcloud:defaultNetworkUuid:
  #   Type: String
  #   ConstraintDescription: project doesn't have network defined in XLcloud
  #   Description: Project's network identifier
  #   Default: PENDING
-  xlcloud:defaultImageId: 
+  xlcloud:defaultImageId:
     Type: String
     ConstraintDescription: must be a valid XLcloud image name.
-    AllowedValues: 
-    - F19-x86_64-chef-solo-librarian
+    AllowedValues:
+    - F19-x86_64-xlcloud
     Description: Default image name for instances in this stack
-  xlcloud:defaultInstanceType: 
+  xlcloud:defaultInstanceType:
     Type: String
     ConstraintDescription: must be a valid XLcloud instance type.
     AllowedValues: 
@@ -154,6 +154,8 @@ Resources:
             #  group: root
             #  mode: '000400'
 
+            /etc/chef/configure-runlist.json:
+              content: ''
             /etc/chef/deploy-runlist.json:
               content: ''
             /etc/chef/setup-runlist.json:
@@ -165,7 +167,7 @@ Resources:
                     - {Ref: "xlcloud:brokerAddress"}
                     - '", "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
                     - '"ganglia" : { "central_monit" : true, "cluster" : {"collector_host" :"127.0.0.1",'
-                    - '"name" : "slurm"}},  "run_list": [ "role[mcollective-server-with-stomp-connector]", "recipe[ganglia]","recipe[ganglia::web]", "recipe[ganglia::python_rr]"]}'
+                    - '"name" : "slurm"}},  "run_list": [ "role[mcollective-server]", "recipe[ganglia]","recipe[ganglia::web]", "recipe[ganglia::python_rr]"]}'
             /etc/chef/solo.rb:
               content:
                 Fn::Join:
@@ -183,13 +185,13 @@ Resources:
               owner: root
               group: root
               mode: '000644'
-            /var/chef/chef-repo/roles/mcollective-server-with-stomp-connector.json: &mcollective-server-with-stomp-connector
-              content: 
+            /var/chef/chef-repo/roles/mcollective-server.json: &mcollective-server
+              content:
                   chef_type: "role"
                   default_attributes: {}
-                  override_attributes: 
-                    mcollective: 
-                      connector: "stomp"
+                  override_attributes:
+                    mcollective:
+                      connector: "rabbitmq"
                       factsource: "ohai"
                   description: "This is a role to install mcollective server."
                   run_list: 
@@ -197,7 +199,7 @@ Resources:
                     - "recipe[mcollective::server]"
 
                   json_class: "Chef::Role"
-                  name: "mcollective-server-with-stomp-connector"
+                  name: "mcollective-server"
 
               mode: "00400"
               owner: root
