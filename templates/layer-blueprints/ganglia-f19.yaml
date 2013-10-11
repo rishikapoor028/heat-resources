@@ -89,7 +89,6 @@ Resources:
           - ''
           - - |-
                 #!/bin/bash -v
-                exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
                 export MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
                 export MY_HOSTNAME=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/instance-id)
                 echo $MY_HOSTNAME > /etc/hostname
@@ -159,15 +158,17 @@ Resources:
             /etc/chef/deploy-runlist.json:
               content: ''
             /etc/chef/setup-runlist.json:
-              content: 
-                Fn::Join:
-                  - ''
-                  - - '{"mcollective":{ "enable_puppetlabs_repo":"true", "loglevel":"debug",'
-                    - '"stomp":{ "hostname":"'
-                    - {Ref: "xlcloud:brokerAddress"}
-                    - '", "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
-                    - '"ganglia" : { "central_monit" : true, "cluster" : {"collector_host" :"127.0.0.1",'
-                    - '"name" : "slurm"}},  "run_list": [ "role[mcollective-server]", "recipe[ganglia]","recipe[ganglia::web]", "recipe[ganglia::python_rr]"]}'
+              content:
+                ganglia:
+                    central_monit: "true"
+                    cluster:
+                        collector_host: "127.0.0.1"
+                        name: "slurm"
+                run_list:
+                    - "role[xlc-mco-agent]"
+                    - "recipe[ganglia]"
+                    - "recipe[ganglia::web]"
+                    - "recipe[ganglia::python_rr]"
             /etc/chef/solo.rb:
               content:
                 Fn::Join:
@@ -185,7 +186,7 @@ Resources:
               owner: root
               group: root
               mode: '000644'
-            /var/chef/chef-repo/roles/mcollective-server.json: &mcollective-server
+            /var/chef/chef-repo/roles/xlc-mco-agent.json:
               content:
                   chef_type: "role"
                   default_attributes: {}
@@ -193,13 +194,20 @@ Resources:
                     mcollective:
                       connector: "rabbitmq"
                       factsource: "ohai"
-                  description: "This is a role to install mcollective server."
-                  run_list: 
+                      loglevel: "debug"
+                      stomp:
+                        hostname: {Ref: "xlcloud:brokerAddress"}
+                        port: "63613"
+                        username: "xlcloud"
+                        password: "xlcloud"
+                  description: "This is a role to install ohai + mcollective server + xlcloud agent."
+                  run_list:
                     - "recipe[ohai]"
                     - "recipe[mcollective::server]"
+                    - "recipe[xlc-mco-agent]"
 
                   json_class: "Chef::Role"
-                  name: "mcollective-server"
+                  name: "xlc-mco-agent"
 
               mode: "00400"
               owner: root
@@ -216,6 +224,9 @@ Resources:
                     - "cookbook 'mcollective',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'mcollective'"
+                    - "cookbook 'xlc-mco-agent',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'xlc-mco-agent'"
                     - "cookbook 'ganglia',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'ganglia'"
