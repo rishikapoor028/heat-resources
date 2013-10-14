@@ -25,12 +25,12 @@
          "Default":"F19-x86_64-xlcloud",
          "ConstraintDescription":"must be a valid XLcloud image name."
       },
-      "StompPort": {
+      "RabbitPort": {
          "Type": "Number",
          "MinValue": 1,
          "MaxValue": 65535,
          "Default": 63613,
-         "Description": "TCP Port used by the Stomp service"
+         "Description": "TCP Port used by the RabbitMQ service"
       },
       "RabbitUser": {
          "Description":"RabbitMQ user",
@@ -62,7 +62,7 @@
          "Type":"AWS::EC2::SecurityGroup",
          "Properties":{
             "GroupDescription": { "Fn::Join": ["",
-                ["Enable Stomp protocol via port ", {"Ref": "StompPort"},
+                ["Enable Stomp protocol via port ", {"Ref": "RabbitPort"},
                  " plus SSH access"]]},
             "SecurityGroupIngress":[
                {
@@ -73,8 +73,8 @@
                },
                {
                   "IpProtocol":"tcp",
-                  "FromPort":{"Ref": "StompPort"},
-                  "ToPort":{"Ref": "StompPort"},
+                  "FromPort":{"Ref": "RabbitPort"},
+                  "ToPort":{"Ref": "RabbitPort"},
                   "CidrIp":"0.0.0.0/0"
                },
                {
@@ -136,7 +136,7 @@
                            "name":"rabbitmq-for-mcollective",
                            "default_attributes":{
                               "rabbitmq":{
-                                 "port":{"Ref": "StompPort"},
+                                 "port":{"Ref": "RabbitPort"},
                                  "virtualhosts":[
                                     "/"
                                  ],
