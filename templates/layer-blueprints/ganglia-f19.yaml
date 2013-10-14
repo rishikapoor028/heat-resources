@@ -1,23 +1,39 @@
-# heat stack-create -f ganglia.yaml ganglia.T1 -P 'xlcloud:defaultKeyName=swannDev1'
 HeatTemplateFormatVersion: '2012-12-12'
+Description: "Deploy a monitoring node."
 Outputs:
   MonitorIP:
-    Description: Ganglia deployment
+    Description: "Private IP address of the Ganglia server"
     Value:  {'Fn::GetAtt': ['MonitorNode', 'PrivateIp']}
+  PublicURL:
+    Description: "Monitoring dashboard URL"
+    Value:
+      'Fn::Join':
+         - ''
+         - - 'http://'
+           - {'Ref':'NodeIPAddress'}
+           - '/ganglia'
 Parameters:
   "xlcloud:brokerAddress":
       Type: "String"
       Description: "RabbitMQ broker address"
+  "xlcloud:brokerPort":
+      Type: "String"
+      Description: "RabbitMQ broker port"
+  "xlcloud:brokerUsername":
+      Type: "String"
+      Description: "RabbitMQ broker username"
+  "xlcloud:brokerPassword":
+      Type: "String"
+      Description: "RabbitMQ broker password"
   MonitorPort: {Default: '8649', Type: String, Description: TCP port of monitoring traffic data}
   stackName:
     Description: The Stack Name (used in ganglia web console)
     Type: String
     Default: 'stack'
     AllowedPattern: '[a-z|A-Z|0-9]*'
-  parentStackID:
-    Description: parentStackID
+  "xlcloud:stackId":
+    Description: "Identifier of the parent stack"
     Type: String
-    Default: 'parentStackID:'
   parentIamAccessyKey:
     Description: parentIamAccessyKey
     Type: String
@@ -26,18 +42,9 @@ Parameters:
     Description: parentIamSecretKey
     Type: String
     Default: 'parentIamSecretKey:'
-
-## XLCLOUD default Params
- # xlcloud:defaultSubnetUuid:
- #   Type: String
- #   ConstraintDescription: project doesn't have default subnet defined in XLcloud
- #   Description: Project's default subnet identifier
- #   Default: PENDING
- # xlcloud:defaultNetworkUuid:
- #   Type: String
- #   ConstraintDescription: project doesn't have network defined in XLcloud
- #   Description: Project's network identifier
- #   Default: PENDING
+  xlcloud:defaultSubnetUuid:
+    Description: "The subnet identifier this layer is connected to"
+    Type: String
   xlcloud:defaultImageId:
     Type: String
     ConstraintDescription: must be a valid XLcloud image name.
@@ -63,8 +70,9 @@ Resources:
   MonitorSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      VpcId: neutron
       SecurityGroupIngress:
-      - {ToPort: '-1', IpProtocol: icmp, FromPort: '-1', CidrIp: 0.0.0.0/0}
+      - {IpProtocol: icmp, CidrIp: 0.0.0.0/0, FromPort: '-1', ToPort: '-1'}
       - {ToPort: '80', IpProtocol: tcp, FromPort: '80', CidrIp: 0.0.0.0/0}
       - {ToPort: '443', IpProtocol: tcp, FromPort: '443', CidrIp: 0.0.0.0/0}
       - {ToPort: '22', IpProtocol: tcp, FromPort: '22', CidrIp: 0.0.0.0/0}
@@ -107,7 +115,7 @@ Resources:
       - {Ref: MonitorSecurityGroup}
       InstanceType:
           Ref: 'xlcloud:defaultInstanceType'
-      ImageId: 
+      ImageId:
           Ref: 'xlcloud:defaultImageId'
     Metadata:
       AWS::CloudFormation::Init:
@@ -154,21 +162,15 @@ Resources:
             #  mode: '000400'
 
             /etc/chef/configure-runlist.json:
-              content: ''
+              content: {}
             /etc/chef/deploy-runlist.json:
-              content: ''
+              content: {}
             /etc/chef/setup-runlist.json:
               content:
-                ganglia:
-                    central_monit: "true"
-                    cluster:
-                        collector_host: "127.0.0.1"
-                        name: "slurm"
                 run_list:
                     - "role[xlc-mco-agent]"
-                    - "recipe[ganglia]"
-                    - "recipe[ganglia::web]"
-                    - "recipe[ganglia::python_rr]"
+                    - "role[ganglia-server]"
+
             /etc/chef/solo.rb:
               content:
                 Fn::Join:
@@ -186,6 +188,7 @@ Resources:
               owner: root
               group: root
               mode: '000644'
+
             /var/chef/chef-repo/roles/xlc-mco-agent.json:
               content:
                   chef_type: "role"
@@ -194,12 +197,11 @@ Resources:
                     mcollective:
                       connector: "rabbitmq"
                       factsource: "ohai"
-                      loglevel: "debug"
                       stomp:
                         hostname: {Ref: "xlcloud:brokerAddress"}
-                        port: "63613"
-                        username: "xlcloud"
-                        password: "xlcloud"
+                        port: {Ref: "xlcloud:brokerPort"}
+                        username: {Ref: "xlcloud:brokerUsername"}
+                        password: {Ref: "xlcloud:brokerPassword"}
                   description: "This is a role to install ohai + mcollective server + xlcloud agent."
                   run_list:
                     - "recipe[ohai]"
@@ -208,6 +210,29 @@ Resources:
 
                   json_class: "Chef::Role"
                   name: "xlc-mco-agent"
+
+              mode: "00400"
+              owner: root
+              group: root
+
+            /var/chef/chef-repo/roles/ganglia-server.json:
+              content:
+                  chef_type: "role"
+                  default_attributes: {}
+                  override_attributes:
+                    ganglia:
+                      central_monit: true
+                      cluster:
+                        collector_host: "127.0.0.1"
+                        name: "slurm"
+                  description: "This is a role to install the ganglia service"
+                  run_list:
+                    - "recipe[ganglia]"
+                    - "recipe[ganglia::web]"
+                    - "recipe[ganglia::python_rr]"
+
+                  json_class: "Chef::Role"
+                  name: "ganglia-server"
 
               mode: "00400"
               owner: root
@@ -235,6 +260,7 @@ Resources:
               group: root
 
   NodeIPAddress: {Type: 'AWS::EC2::EIP'}
+
   NodeIPAssoc:
     Type: AWS::EC2::EIPAssociation
     Properties:

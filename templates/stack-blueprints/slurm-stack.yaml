@@ -1,9 +1,12 @@
-Description: XLcloud Slurm Stack 
+Description: XLcloud Slurm Stack
 HeatTemplateFormatVersion: '2012-12-12'
 Outputs:
-  NodeIP:
-    Description: XLcloud Slurm Stack
+  LoginIP:
+    Description: "Public address of the login node"
     Value: {'Fn::GetAtt': ['Slurm', 'Outputs.HeadAddress']}
+  MonitorURL:
+    Description: "Public URL of the monitoring node"
+    Value: {'Fn::GetAtt': ['Monitor', 'Outputs.PublicURL']}
 
 Parameters:
   "MonitorPort":
@@ -59,7 +62,22 @@ Parameters:
 
   "xlcloud:brokerAddress":
       Type: "String"
-      Description: "Rabbitmq broker address"
+      Description: "RabbitMQ broker address"
+
+  "xlcloud:brokerPort":
+      Type: "String"
+      Description: "RabbitMQ broker port"
+      Default: '63613'
+
+  "xlcloud:brokerUsername":
+      Type: "String"
+      Description: "RabbitMQ broker username"
+      Default: 'xlcloud'
+
+  "xlcloud:brokerPassword":
+      Type: "String"
+      Description: "RabbitMQ broker password"
+      Default: 'xlcloud'
 
 
 Resources:
@@ -73,7 +91,11 @@ Resources:
                     'xlcloud:defaultSubnetUuid' : {Ref: 'xlcloud:defaultSubnetUuid'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
                     'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
+                    'xlcloud:brokerPort' : {Ref: 'xlcloud:brokerPort'},
+                    'xlcloud:brokerUsername' : {Ref: 'xlcloud:brokerUsername'},
+                    'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
                     'xlcloud:monitorIP' : {'Fn::GetAtt': ['Monitor', 'Outputs.MonitorIP']},
+                    'xlcloud:stackId' : {Ref: 'AWS::StackId'},
                     'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml'
       TimeoutInMinutes: 20
@@ -86,7 +108,10 @@ Resources:
                     'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
                     'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
-                    'parentStackID' : {Ref: 'AWS::StackId'},
+                    'xlcloud:brokerPort' : {Ref: 'xlcloud:brokerPort'},
+                    'xlcloud:brokerUsername' : {Ref: 'xlcloud:brokerUsername'},
+                    'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
+                    'xlcloud:stackId' : {Ref: 'AWS::StackId'},
                     'MonitorPort' : {Ref: MonitorPort}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/ganglia-f19.yaml'
       TimeoutInMinutes: 5

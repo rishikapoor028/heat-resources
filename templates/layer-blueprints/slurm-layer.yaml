@@ -1,5 +1,4 @@
 # TODO(pasquier-s):
-# - add security groups
 # - use Cinder volume instead of ephemeral storage
 AWSTemplateFormatVersion: "2010-09-09"
 Description: &template_description
@@ -15,20 +14,23 @@ Once the cluster is up, login to the head node and run:
 
 Parameters:
   "xlcloud:monitorIP":
-    Description: "IP of Ganglia Metadata server (gmond)"
+    Description: "IP of the Ganglia Metadata server (gmond)"
     Type: String
   "xlcloud:defaultKeyName":
     Description: "Name of an existing EC2 KeyPair to enable SSH access to the instances"
     Type: String
-  "xlcloud:defaultImageId": 
+  "xlcloud:defaultImageId":
     Type: String
     ConstraintDescription: must be a valid XLcloud image name.
-    AllowedValues: 
+    AllowedValues:
     - F19-x86_64-xlcloud
     Description: Cloud image Id for instances in this stack
+  "xlcloud:stackId":
+     Description: "The identifier of the parent stack"
+     Type: String
   "xlcloud:defaultSubnetUuid":
      Description: "The subnet identifier this layer is connected to"
-     Type: String 
+     Type: String
   "xlcloud:defaultInstanceType":
     Type: String
     Default: "m1.medium"
@@ -37,9 +39,18 @@ Parameters:
     Description: "Number of compute nodes to launch"
     Type: String
     Default: '2'
-  "xlcloud:brokerAddress": 
+  "xlcloud:brokerAddress":
       Type: "String"
-      Description: "Rabbitmq broker address"
+      Description: "RabbitMQ broker address"
+  "xlcloud:brokerPort":
+      Type: "String"
+      Description: "RabbitMQ broker port"
+  "xlcloud:brokerUsername":
+      Type: "String"
+      Description: "RabbitMQ broker username"
+  "xlcloud:brokerPassword":
+      Type: "String"
+      Description: "RabbitMQ broker password"
 
 Mappings:
   SlurmParameters: { "m1.small": { "cpus": "1"}, "m1.medium": {"cpus": "2"} }
@@ -60,20 +71,21 @@ Resources:
     Properties:
       UserName: {Ref: CfnUser}
 
-  LayerSecurityGroup: 
+  LayerSecurityGroup:
       Type: "AWS::EC2::SecurityGroup"
-      Properties: 
-        GroupDescription: "Enable Stomp protocol via port 63613 plus SSH access"
+      Properties:
+        GroupDescription: "Enable Stomp protocol + SSH access + ICMP"
+        VpcId: neutron
         SecurityGroupIngress:
-          - 
+          -
             IpProtocol: "icmp"
             FromPort: "-1"
             ToPort: "-1"
             CidrIp: "0.0.0.0/0"
-          - 
+          -
             IpProtocol: "tcp"
-            FromPort: "63613"
-            ToPort: "63613"
+            FromPort: {Ref: "xlcloud:brokerPort"}
+            ToPort: {Ref: "xlcloud:brokerPort"}
             CidrIp: "0.0.0.0/0"
           -
             IpProtocol: "tcp"
@@ -108,7 +120,7 @@ Resources:
     DependsOn: Head
     Properties:
       Handle: {Ref: HeadHandle}
-      Count: '1' 
+      Count: '1'
       Timeout: '2400'
 
   ComputeHandle:
@@ -147,29 +159,32 @@ Resources:
                     - "no_proxy '127.0.0.1,localhost'"
 
             /etc/chef/setup-runlist.json:
-              content: 
-                Fn::Join:
-                  - ''
-                  - - '{"mcollective":{ "loglevel":"debug",'
-                    - '"stomp":{ "hostname":"'
-                    - {Ref: "xlcloud:brokerAddress"}
-                    - '", "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
-                    - '"slurm": {"role": "head"}, "ganglia" : { "central_monit" : false, "cluster" : {"collector_host" :"'
-                    - {Ref: "xlcloud:monitorIP"}
-                    - '", "name" : "slurm"}},  "run_list": [ "role[xlc-mco-agent]","recipe[slurm::setup]", "recipe[ganglia]"]}'
+              content:
+                slurm:
+                    role: "head"
+                run_list:
+                    - "role[xlc-mco-agent]"
+                    - "recipe[slurm::setup]"
+                    - "role[ganglia-agent]"
 
             /etc/chef/configure-runlist.json:
-             content:
-               Fn::Join:
-                 - ''
-                 - - '{"slurm": {"role": "head","stack":"'
-                   - {Ref: "AWS::StackId"}
-                   - '","cpus":'
-                   - {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
-                   - '}, "run_list": [ "recipe[slurm::configure]" ]}'
+              content:
+                Fn::Join:
+                  - ''
+                  - - '{"slurm": {"role": "head","stack":"'
+                    - {Ref: "AWS::StackId"}
+                    - '","cpus":'
+                    - {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
+                    - '}, "run_list": [ "recipe[slurm::configure]" ]}'
 
             /etc/chef/deploy-runlist.json:
-              content: ''
+              content: {}
+
+            /etc/xlcloud-facts.json:
+                content:
+                    layer_id: {Ref: 'AWS::StackId'}
+                    stack_id: {Ref: 'xlcloud:stackId'}
+                    logical_resource_id: "Head"
 
             /etc/cfn/cfn-credentials: &cfn-credentials
               content:
@@ -189,6 +204,26 @@ Resources:
               owner: root
               group: root
 
+            /var/chef/chef-repo/roles/ganglia-agent.json: &ganglia-agent
+              content:
+                  chef_type: "role"
+                  default_attributes: {}
+                  override_attributes:
+                    ganglia:
+                        central_monit: false
+                        cluster:
+                            collector_host: {Ref: "xlcloud:monitorIP"}
+                            name: "slurm"
+                  description: "This is a role to install the monitoring agent."
+                  run_list:
+                    - "recipe[ganglia]"
+                  json_class: "Chef::Role"
+                  name: "ganglia-agent"
+              mode: "00400"
+              owner: root
+              group: root
+
+
             /var/chef/chef-repo/roles/xlc-mco-agent.json: &xlc-mco-agent
               content:
                   chef_type: "role"
@@ -197,15 +232,18 @@ Resources:
                     mcollective:
                       connector: "rabbitmq"
                       factsource: "ohai"
+                      stomp:
+                        hostname: {Ref: "xlcloud:brokerAddress"}
+                        port: {Ref: "xlcloud:brokerPort"}
+                        username: {Ref: "xlcloud:brokerUsername"}
+                        password: {Ref: "xlcloud:brokerPassword"}
                   description: "This is a role to install ohai + mcollective server + xlcloud agent."
                   run_list:
                     - "recipe[ohai]"
                     - "recipe[mcollective::server]"
                     - "recipe[xlc-mco-agent]"
-
                   json_class: "Chef::Role"
                   name: "xlc-mco-agent"
-
               mode: "00400"
               owner: root
               group: root
@@ -214,7 +252,7 @@ Resources:
               content:
                 Fn::Join:
                   - "\n"
-                  - 
+                  -
                     - "#!/usr/bin/env ruby"
                     - "site 'http://community.opscode.com/api/v1'"
                     - "cookbook 'ohai'"
@@ -302,8 +340,6 @@ Resources:
     Metadata:
       AWS::CloudFormation::Init:
         config:
-          packages:
-            yum: {}
           files:
             /etc/cfn/cfn-credentials: *cfn-credentials
             /var/chef/chef-repo/roles/xlc-mco-agent.json: *xlc-mco-agent
@@ -382,35 +418,37 @@ Resources:
 
             /etc/chef/setup-runlist.json:
               content:
-                Fn::Join:
-                - ''
-                - - '{"mcollective":{ "enable_puppetlabs_repo":"true", "loglevel":"debug",'
-                  - '"stomp":{ "hostname": "'
-                  - {Ref: "xlcloud:brokerAddress"}
-                  - '", "port":"63613", "username":"xlcloud", "password":"xlcloud" } },'
-                  - '"slurm": {"role": "compute","nfs_server":"'
-                  - {"Fn::GetAtt": [Head, PrivateIp]}
-                  - '"},'
-                  - '"ganglia" : { "central_monit" : false, '
-                  - '"cluster" : {'
-                  - '"name" : "slurm",'
-                  - '"collector_host" : "'
-                  - {Ref: "xlcloud:monitorIP"} 
-                  - '"}}, "run_list": [ "role[xlc-mco-agent]","recipe[slurm::setup]", "recipe[slurm::benchmarks]", "recipe[ganglia]" ]}'
-
-#- {"Fn::GetAtt": [Head, PrivateIp]}
+                slurm:
+                  role: compute
+                  nfs_server: {"Fn::GetAtt": [Head, PrivateIp]}
+                run_list:
+                  - "role[xlc-mco-agent]"
+                  - "recipe[slurm::setup]"
+                  - "role[ganglia-agent]"
 
             /etc/chef/configure-runlist.json:
               content:
-                Fn::Join:
-                - ''
-                - - '{"slurm": {"role": "compute","nfs_server":"'
-                  - {"Fn::GetAtt": [Head, PrivateIp]}
-                  - '"}, "run_list": [ "recipe[slurm::configure]" ]}'
-
+                slurm:
+                  role: compute
+                  nfs_server: {"Fn::GetAtt": [Head, PrivateIp]}
+                run_list:
+                  - "recipe[slurm::configure]"
 
             /etc/chef/deploy-runlist.json:
-              content: ''
+              content:
+                run_list: [ "recipe[slurm::benchmarks]" ]
+
+            /etc/xlcloud-facts.json:
+                content:
+                    layer_id: {Ref: 'AWS::StackId'}
+                    stack_id: {Ref: 'xlcloud:stackId'}
+                    logical_resource_id: "Computes"
+
+            /var/chef/chef-repo/roles/xlc-mco-agent.json: *xlc-mco-agent
+
+            /var/chef/chef-repo/roles/ganglia-agent.json: *ganglia-agent
+
+            /var/chef/chef-repo/Cheffile: *Cheffile
 
     Properties:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
@@ -422,7 +460,7 @@ Resources:
         Fn::Base64:
           Fn::Join:
             - "\n"
-            - 
+            -
               - "#!/bin/bash -ve"
               - "#HOME is required by librarian"
               - "export HOME=/root"
@@ -433,8 +471,8 @@ Resources:
               - "cfn-init"
               - "cd /var/chef/chef-repo"
               - "/usr/local/bin/librarian-chef install --clean --verbose"
-              - "crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
               - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
+              - "crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
 
 Outputs:
   HeadAddress:
