@@ -44,6 +44,18 @@
       }
    },
    "Resources":{
+      "Handle":{
+         "Type": "AWS::CloudFormation::WaitConditionHandle"
+      },
+      "WaitCondition":{
+         "Type": "AWS::CloudFormation::WaitCondition",
+         "DependsOn": "RabbitMQServer",
+         "Properties":{
+           "Handle": {"Ref": "Handle"},
+           "Count": "1",
+           "Timeout": "600"
+         }
+      },
       "IPAddress":{
          "Type":"AWS::EC2::EIP"
       },
@@ -234,7 +246,8 @@
                         "curl -s http://127.0.0.1:15672/cli/rabbitmqadmin > /usr/local/bin/rabbitmqadmin\n",
                         "chmod 0755 /usr/local/bin/rabbitmqadmin\n",
                         "/usr/local/bin/rabbitmqadmin -u ", {"Ref":"RabbitUser"}, " -p ", {"Ref":"RabbitPassword"}, " declare exchange  name=mcollective_broadcast type=topic\n",
-                        "/usr/local/bin/rabbitmqadmin -u ", {"Ref":"RabbitUser"}, " -p ", {"Ref":"RabbitPassword"}, " declare exchange  name=mcollective_directed type=direct\n"
+                        "/usr/local/bin/rabbitmqadmin -u ", {"Ref":"RabbitUser"}, " -p ", {"Ref":"RabbitPassword"}, " declare exchange  name=mcollective_directed type=direct\n",
+                        "cfn-signal -e 0 '", {"Ref": "Handle"}, "'"
                      ]
                   ]
                }
