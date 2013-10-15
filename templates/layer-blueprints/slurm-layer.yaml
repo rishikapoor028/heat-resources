@@ -51,6 +51,9 @@ Parameters:
   "xlcloud:brokerPassword":
       Type: "String"
       Description: "RabbitMQ broker password"
+  "xlcloud:monitoringCluster":
+      Type: "String"
+      Description: "Name of the cluster in the monitoring system"
 
 Mappings:
   SlurmParameters: { "m1.small": { "cpus": "1"}, "m1.medium": {"cpus": "2"} }
@@ -213,7 +216,7 @@ Resources:
                         central_monit: false
                         cluster:
                             collector_host: {Ref: "xlcloud:monitorIP"}
-                            name: "slurm"
+                            name: {Ref: "xlcloud:monitoringCluster"}
                   description: "This is a role to install the monitoring agent."
                   run_list:
                     - "recipe[ganglia]"

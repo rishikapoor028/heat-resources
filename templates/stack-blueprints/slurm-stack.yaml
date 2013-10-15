@@ -79,6 +79,12 @@ Parameters:
       Description: "RabbitMQ broker password"
       Default: 'xlcloud'
 
+  "xlcloud:monitoringCluster":
+      Type: "String"
+      Description: "Name of the cluster in the monitoring system"
+      AllowedPattern: '[a-z|A-Z|0-9]*'
+      Default: 'SLURM'
+
 
 Resources:
   Slurm:
@@ -95,6 +101,7 @@ Resources:
                     'xlcloud:brokerUsername' : {Ref: 'xlcloud:brokerUsername'},
                     'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
                     'xlcloud:monitorIP' : {'Fn::GetAtt': ['Monitor', 'Outputs.MonitorIP']},
+                    'xlcloud:monitoringCluster': {Ref: 'xlcloud:monitoringCluster'},
                     'xlcloud:stackId' : {Ref: 'AWS::StackId'},
                     'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml'
@@ -111,6 +118,7 @@ Resources:
                     'xlcloud:brokerPort' : {Ref: 'xlcloud:brokerPort'},
                     'xlcloud:brokerUsername' : {Ref: 'xlcloud:brokerUsername'},
                     'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
+                    'xlcloud:monitoringCluster': {Ref: 'xlcloud:monitoringCluster'},
                     'xlcloud:stackId' : {Ref: 'AWS::StackId'},
                     'MonitorPort' : {Ref: MonitorPort}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/ganglia-f19.yaml'

@@ -26,11 +26,9 @@ Parameters:
       Type: "String"
       Description: "RabbitMQ broker password"
   MonitorPort: {Default: '8649', Type: String, Description: TCP port of monitoring traffic data}
-  stackName:
-    Description: The Stack Name (used in ganglia web console)
+  "xlcloud:monitoringCluster":
+    Description: "Name of the cluster in the monitoring system"
     Type: String
-    Default: 'stack'
-    AllowedPattern: '[a-z|A-Z|0-9]*'
   "xlcloud:stackId":
     Description: "Identifier of the parent stack"
     Type: String
@@ -81,13 +79,6 @@ Resources:
       - {ToPort: {Ref: MonitorPort}, IpProtocol: udp, FromPort: {Ref: MonitorPort}, CidrIp: 0.0.0.0/0}
       GroupDescription: "Firewall rules : SSH, HTTP(s) and Ganglia"
 
-  #CfnUser:
-  #  Type: AWS::IAM::User
-  #CfnUserKey:
-  #  Type: AWS::IAM::AccessKey
-  #  Properties:
-  #    UserName: {Ref: CfnUser}
-
   MonitorNode:
     Type: AWS::EC2::Instance
     Properties:
@@ -111,8 +102,8 @@ Resources:
                 /bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
 
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
-      SecurityGroups:
-      - {Ref: MonitorSecurityGroup}
+      SecurityGroups: [ {Ref: MonitorSecurityGroup} ]
+      #SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
       InstanceType:
           Ref: 'xlcloud:defaultInstanceType'
       ImageId:
@@ -121,46 +112,6 @@ Resources:
       AWS::CloudFormation::Init:
         config:
           files:
-            #/etc/cfn/cfn-credentials: &cfn-credentials-file
-            #  content:
-            #    Fn::Join:
-            #    - ''
-            #    - - AWSAccessKeyId=
-            #      - {Ref: CfnUserKey}
-            #      - '
-
-            #        '
-            #      - AWSSecretKey=
-            #      - Fn::GetAtt: [CfnUserKey, SecretAccessKey]
-            #      - '
-
-            #        '
-            #  owner: root
-            #  group: root
-            #  mode: '000400'
-            #/etc/cfn/cfn-credentials-parent: &cfn-credentials-parent-file
-            #  content:
-            #    Fn::Join:
-            #    - ''
-            #    - - AWSAccessKeyId=
-            #      - {Ref: parentIamAccessyKey}
-            #      - '
-
-            #        '
-            #      - AWSSecretKey=
-            #      - {Ref: parentIamSecretKey}
-            #      - '
-
-            #        '
-            #      - parentStackID=
-            #      - {Ref: parentStackID}
-            #      - '
-
-            #        '
-            #  owner: root
-            #  group: root
-            #  mode: '000400'
-
             /etc/chef/configure-runlist.json:
               content: {}
             /etc/chef/deploy-runlist.json:
@@ -224,7 +175,7 @@ Resources:
                       central_monit: true
                       cluster:
                         collector_host: "127.0.0.1"
-                        name: "slurm"
+                        name: {Ref: "xlcloud:monitoringCluster"}
                   description: "This is a role to install the ganglia service"
                   run_list:
                     - "recipe[ganglia]"
@@ -258,6 +209,12 @@ Resources:
               mode: "00400"
               owner: root
               group: root
+
+            /etc/xlcloud-facts.json:
+                content:
+                    layer_id: {Ref: 'AWS::StackId'}
+                    stack_id: {Ref: 'xlcloud:stackId'}
+                    logical_resource_id: "Head"
 
   NodeIPAddress: {Type: 'AWS::EC2::EIP'}
 
