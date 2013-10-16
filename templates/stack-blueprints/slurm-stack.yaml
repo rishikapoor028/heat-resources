@@ -23,13 +23,11 @@ Parameters:
     Type: String
     ConstraintDescription: Project doesn't have default subnet defined in XLcloud
     Description: Project's default subnet identifier
-    Default: c35b06b4-a7cb-4cc5-8b10-6a2b788ae19
 
   "xlcloud:defaultNetworkUuid":
     Type: String
     ConstraintDescription: Project doesn't have network defined in XLcloud
     Description: Project's network identifier
-    Default: c345f427-e1a6-4bd9-9b0a-a181313a2125
 
   "xlcloud:defaultImageId":
     Type: String

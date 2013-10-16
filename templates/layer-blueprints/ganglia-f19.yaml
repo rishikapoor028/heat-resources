@@ -103,7 +103,7 @@ Resources:
 
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups: [ {Ref: MonitorSecurityGroup} ]
-      #SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
+      SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
       InstanceType:
           Ref: 'xlcloud:defaultInstanceType'
       ImageId:
@@ -146,8 +146,10 @@ Resources:
                   default_attributes: {}
                   override_attributes:
                     mcollective:
+                      enable_puppetlabs_repo: false
                       connector: "rabbitmq"
                       factsource: "ohai"
+                      psk: "supersecret"
                       stomp:
                         hostname: {Ref: "xlcloud:brokerAddress"}
                         port: {Ref: "xlcloud:brokerPort"}
@@ -214,7 +216,7 @@ Resources:
                 content:
                     layer_id: {Ref: 'AWS::StackId'}
                     stack_id: {Ref: 'xlcloud:stackId'}
-                    logical_resource_id: "Head"
+                    logical_resource_id: "MonitorNode"
 
   NodeIPAddress: {Type: 'AWS::EC2::EIP'}
 

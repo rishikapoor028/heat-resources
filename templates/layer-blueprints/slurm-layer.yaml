@@ -233,8 +233,10 @@ Resources:
                   default_attributes: {}
                   override_attributes:
                     mcollective:
+                      enable_puppetlabs_repo: false
                       connector: "rabbitmq"
                       factsource: "ohai"
+                      psk: "supersecret"
                       stomp:
                         hostname: {Ref: "xlcloud:brokerAddress"}
                         port: {Ref: "xlcloud:brokerPort"}
@@ -295,7 +297,7 @@ Resources:
       Tags:
       - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
       SecurityGroups: [default,  {"Ref" : "LayerSecurityGroup"}]
-      #SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
+      SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
       UserData:
         Fn::Base64:
           Fn::Join:
@@ -458,7 +460,7 @@ Resources:
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups: [default,  {"Ref" : "LayerSecurityGroup"}]
-      #SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
+      SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
       UserData:
         Fn::Base64:
           Fn::Join:
