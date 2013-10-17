@@ -25,6 +25,10 @@
          "Default":"F19-x86_64-xlcloud",
          "ConstraintDescription":"must be a valid XLcloud image name."
       },
+      "xlcloud:defaultSubnetUuid":{
+         "Type": "String",
+         "Description": "Project's default subnet identifier"
+      },
       "RabbitPort": {
          "Type": "Number",
          "MinValue": 1,
@@ -217,6 +221,9 @@
             },
             "KeyName":{
                "Ref":"xlcloud:defaultKeyName"
+            },
+            "SubnetId":{
+               "Ref":"xlcloud:defaultSubnetUuid"
             },
             "SecurityGroups":[
             {
