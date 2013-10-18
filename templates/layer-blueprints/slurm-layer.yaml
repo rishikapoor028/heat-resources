@@ -226,6 +226,22 @@ Resources:
               owner: root
               group: root
 
+            /var/chef/chef-repo/roles/xsa-agent.json:
+              content:
+                  chef_type: "role"
+                  default_attributes: {}
+                  override_attributes:
+                    xsa:
+                        application_war_url: "http://toolcloud.ecfrec.xlcloud.org/integ/xlcloud-xsa.war"
+                  description: "This is a role to install the XSA agent."
+                  run_list:
+                    - "recipe[glassfish_ark]"
+                    - "recipe[xsa]"
+                  json_class: "Chef::Role"
+                  name: "xsa-agent"
+              mode: "00400"
+              owner: root
+              group: root
 
             /var/chef/chef-repo/roles/xlc-mco-agent.json: &xlc-mco-agent
               content:
@@ -285,6 +301,15 @@ Resources:
                     - "cookbook 'ganglia',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'ganglia'"
+                    - "cookbook 'jdk_ark',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'jdk_ark'"
+                    - "cookbook 'glassfish_ark',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'glassfish_ark'"
+                    - "cookbook 'xsa',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'xsa'"
               mode: "00400"
               owner: root
               group: root
