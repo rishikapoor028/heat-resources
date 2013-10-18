@@ -3,7 +3,7 @@ HeatTemplateFormatVersion: '2012-12-12'
 Outputs:
   LoginIP:
     Description: "Public address of the login node"
-    Value: {'Fn::GetAtt': ['Slurm', 'Outputs.HeadAddress']}
+    Value: {'Fn::GetAtt': ['Slurm', 'Outputs.LoginAddress']}
   MonitorURL:
     Description: "Public URL of the monitoring node"
     Value: {'Fn::GetAtt': ['Monitor', 'Outputs.PublicURL']}

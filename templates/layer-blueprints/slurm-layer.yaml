@@ -2,13 +2,13 @@
 # - use Cinder volume instead of ephemeral storage
 AWSTemplateFormatVersion: "2010-09-09"
 Description: &template_description
-  "Deploy SLURM cluster with N (default=2) compute nodes + 1 head node to run micro benchmarks of MPI.
+  "Deploy SLURM cluster with N (default=2) compute nodes + 1 login node to run micro benchmarks of MPI.
 
 On each node, run chef-solo:
 
     $ sudo chef-solo -j /etc/chef/configure-runlist.json
 
-Once the cluster is up, login to the head node and run:
+Once the cluster is up, login to the login node and run:
 
     $ salloc -N2 -c<CPUs> mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency\n"
 
@@ -59,13 +59,13 @@ Mappings:
   SlurmParameters: { "m1.small": { "cpus": "1"}, "m1.medium": {"cpus": "2"} }
 
 Resources:
-  HeadIp: { Type: 'AWS::EC2::EIP' }
+  LoginIp: { Type: 'AWS::EC2::EIP' }
 
   IPAssoc:
     Type: AWS::EC2::EIPAssociation
     Properties:
-      InstanceId: {Ref: Head}
-      EIP: {Ref: HeadIp}
+      InstanceId: {Ref: Login}
+      EIP: {Ref: LoginIp}
 
   CfnUser:
     Type: AWS::IAM::User
@@ -98,7 +98,7 @@ Resources:
 
   Computes:
     Type: OS::Heat::InstanceGroup
-    DependsOn: HeadReady
+    DependsOn: LoginReady
     Properties:
       LaunchConfigurationName: {Ref: ComputeConfiguration}
       Size: {Ref: "xlcloud:Computes:size"}
@@ -115,14 +115,14 @@ Resources:
       ImageId: foobar
       InstanceType: foobar
 
-  HeadHandle:
+  LoginHandle:
     Type: AWS::CloudFormation::WaitConditionHandle
 
-  HeadReady:
+  LoginReady:
     Type: AWS::CloudFormation::WaitCondition
-    DependsOn: Head
+    DependsOn: Login
     Properties:
-      Handle: {Ref: HeadHandle}
+      Handle: {Ref: LoginHandle}
       Count: '1'
       Timeout: '2400'
 
@@ -137,7 +137,7 @@ Resources:
       Count: {Ref: "xlcloud:Computes:size"}
       Timeout: '2400'
 
-  Head:
+  Login:
     Type: AWS::EC2::Instance
     Metadata:
       AWS::CloudFormation::Init:
@@ -164,7 +164,7 @@ Resources:
             /etc/chef/setup-runlist.json:
               content:
                 slurm:
-                    role: "head"
+                    master: true
                 run_list:
                     - "role[xlc-mco-agent]"
                     - "recipe[slurm::setup]"
@@ -174,7 +174,7 @@ Resources:
               content:
                 Fn::Join:
                   - ''
-                  - - '{"slurm": {"role": "head","stack":"'
+                  - - '{"slurm": {"master": true,"stack":"'
                     - {Ref: "AWS::StackId"}
                     - '","cpus":'
                     - {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
@@ -187,7 +187,7 @@ Resources:
                 content:
                     layer_id: {Ref: 'AWS::StackId'}
                     stack_id: {Ref: 'xlcloud:stackId'}
-                    logical_resource_id: "Head"
+                    logical_resource_id: "Login"
 
             /etc/cfn/cfn-credentials: &cfn-credentials
               content:
@@ -361,7 +361,7 @@ Resources:
 
               '
             - "cfn-signal -e 0 '"
-            - {Ref: HeadHandle}
+            - {Ref: LoginHandle}
             - "'"
 
 
@@ -449,8 +449,7 @@ Resources:
             /etc/chef/setup-runlist.json:
               content:
                 slurm:
-                  role: compute
-                  nfs_server: {"Fn::GetAtt": [Head, PrivateIp]}
+                  nfs_server: {"Fn::GetAtt": [Login, PrivateIp]}
                 run_list:
                   - "role[xlc-mco-agent]"
                   - "recipe[slurm::setup]"
@@ -459,8 +458,7 @@ Resources:
             /etc/chef/configure-runlist.json:
               content:
                 slurm:
-                  role: compute
-                  nfs_server: {"Fn::GetAtt": [Head, PrivateIp]}
+                  nfs_server: {"Fn::GetAtt": [Login, PrivateIp]}
                 run_list:
                   - "recipe[slurm::configure]"
 
@@ -505,9 +503,9 @@ Resources:
               - "crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
 
 Outputs:
-  HeadAddress:
-    Value: {Ref: HeadIp}
-    Description: IP address of the cluster's head
+  LoginAddress:
+    Value: {Ref: LoginIp}
+    Description: IP address of the cluster's login node
   NodesAddresses:
     Value: {'Fn::GetAtt': [Computes, InstanceList]}
     Description: IP addresses of the cluster's compute nodes
