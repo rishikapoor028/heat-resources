@@ -164,7 +164,7 @@ Resources:
             /etc/chef/setup-runlist.json:
               content:
                 slurm:
-                    master: true
+                    master: "true"
                 run_list:
                     - "role[xlc-mco-agent]"
                     - "recipe[slurm::setup]"
@@ -174,7 +174,7 @@ Resources:
               content:
                 Fn::Join:
                   - ''
-                  - - '{"slurm": {"master": true,"stack":"'
+                  - - '{"slurm": {"master": "true","stack":"'
                     - {Ref: "AWS::StackId"}
                     - '","cpus":'
                     - {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
