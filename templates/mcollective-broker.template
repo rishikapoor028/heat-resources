@@ -30,10 +30,8 @@
          "Description": "Project's default subnet identifier"
       },
       "RabbitPort": {
-         "Type": "Number",
-         "MinValue": 1,
-         "MaxValue": 65535,
-         "Default": 63613,
+         "Type": "String",
+         "Default": "63613",
          "Description": "TCP Port used by the RabbitMQ service"
       },
       "RabbitUser": {
