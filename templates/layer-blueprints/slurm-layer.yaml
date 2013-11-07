@@ -34,7 +34,6 @@ Parameters:
   "xlcloud:defaultInstanceType":
     Type: String
     Default: "m1.medium"
-    AllowedValues: [ 'm1.small', 'm1.medium' ]
   "xlcloud:Computes:size":
     Description: "Number of compute nodes to launch"
     Type: String
