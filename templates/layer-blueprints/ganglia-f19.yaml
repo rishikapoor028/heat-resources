@@ -122,24 +122,6 @@ Resources:
                     - "role[xlc-mco-agent]"
                     - "role[ganglia-server]"
 
-            /etc/chef/solo.rb:
-              content:
-                Fn::Join:
-                  - "\n"
-                  -
-                    - "file_cache_path  '/var/chef/cache'"
-                    - "role_path    [ '/var/chef/chef-repo/roles' ]"
-                    - "cookbook_path    [ '/var/chef/chef-repo/cookbooks' ]"
-                    - "log_level :info"
-                    - "log_location STDOUT"
-                    - "ssl_verify_mode :verify_none"
-                    - "http_proxy 'http://10.197.217.62:3128'"
-                    - "https_proxy 'http://10.197.217.62:3128'"
-                    - "no_proxy '127.0.0.1,localhost'"
-              owner: root
-              group: root
-              mode: '000644'
-
             /var/chef/chef-repo/roles/xlc-mco-agent.json:
               content:
                   chef_type: "role"

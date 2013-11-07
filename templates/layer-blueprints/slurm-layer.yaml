@@ -146,21 +146,6 @@ Resources:
             /etc/motd:
               content: *template_description
 
-            /etc/chef/solo.rb: &chef-solo
-              content:
-                Fn::Join:
-                  - "\n"
-                  - 
-                    - "file_cache_path  '/var/chef/cache'"
-                    - "role_path    [ '/var/chef/chef-repo/roles' ]"
-                    - "cookbook_path    [ '/var/chef/chef-repo/cookbooks' ]"
-                    - "log_level :info"
-                    - "log_location STDOUT"
-                    - "ssl_verify_mode :verify_none"
-                    - "http_proxy 'http://10.197.217.62:3128'"
-                    - "https_proxy 'http://10.197.217.62:3128'"
-                    - "no_proxy '127.0.0.1,localhost'"
-
             /etc/chef/setup-runlist.json:
               content:
                 slurm:
@@ -181,7 +166,7 @@ Resources:
                     - '}, "run_list": [ "recipe[slurm::configure]" ]}'
 
             /etc/chef/deploy-runlist.json:
-              content: {}
+              content: '{"slurm": {"master": "true"}, "run_list": [ "recipe[slurm::deploy]" ]}'
 
             /etc/xlcloud-facts.json:
                 content:
@@ -444,8 +429,6 @@ Resources:
 
                     '
 
-            /etc/chef/solo.rb: *chef-solo
-
             /etc/chef/setup-runlist.json:
               content:
                 slurm:
@@ -463,8 +446,7 @@ Resources:
                   - "recipe[slurm::configure]"
 
             /etc/chef/deploy-runlist.json:
-              content:
-                run_list: [ "recipe[slurm::benchmarks]" ]
+              content: '{"slurm": {"master": "false"}, "run_list": [ "recipe[slurm::deploy]" ]}'
 
             /etc/xlcloud-facts.json:
                 content:
