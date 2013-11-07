@@ -32,6 +32,8 @@ Parameters:
      Description: "The subnet identifier this layer is connected to"
      Type: String
   "xlcloud:defaultInstanceType":
+    # Note: when updating this list, update SlurmParameters mapping too
+    AllowedValues: ["m1.small", "m1.medium", "m1.large", "m1.xlarge"]
     Type: String
     Default: "m1.medium"
   "xlcloud:Computes:size":
@@ -55,7 +57,11 @@ Parameters:
       Description: "Name of the cluster in the monitoring system"
 
 Mappings:
-  SlurmParameters: { "m1.small": { "cpus": "1"}, "m1.medium": {"cpus": "2"} }
+  SlurmParameters:
+    "m1.small": { "cpus": "1"}
+    "m1.medium": {"cpus": "2"}
+    "m1.large": {"cpus": "4"}
+    "m1.xlarge": {"cpus": "8"}
 
 Resources:
   LoginIp: { Type: 'AWS::EC2::EIP' }
