@@ -102,12 +102,14 @@ Resources:
             CidrIp: "0.0.0.0/0"
 
   Computes:
-    Type: OS::Heat::InstanceGroup
+    Type: AWS::AutoScaling::AutoScalingGroup
     DependsOn: LoginReady
     Properties:
       LaunchConfigurationName: {Ref: ComputeConfiguration}
-      Size: {Ref: "xlcloud:Computes:size"}
+      MinSize: {Ref: "xlcloud:Computes:size"}
+      MaxSize: {Ref: "xlcloud:Computes:size"}
       AvailabilityZones: {'Fn::GetAZs': ''}
+      VPCZoneIdentifier: [ {Ref: 'xlcloud:defaultSubnetUuid'} ]
       Tags:
       - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
 
@@ -470,7 +472,6 @@ Resources:
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups: [default,  {"Ref" : "LayerSecurityGroup"}]
-      VpcZoneIdentifier: [ {Ref: 'xlcloud:defaultSubnetUuid'} ]
       UserData:
         Fn::Base64:
           Fn::Join:
