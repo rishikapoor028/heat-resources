@@ -1,0 +1,318 @@
+{
+  "Parameters": {
+    "MonitorPort": {
+      "Default": "8649", 
+      "Type": "String", 
+      "Description": "TCP port of monitoring traffic data"
+    }, 
+    "xlcloud:brokerAddress": {
+      "Type": "String", 
+      "Description": "RabbitMQ broker address"
+    }, 
+    "parentIamAccessyKey": {
+      "Default": "parentIamAccessyKey:", 
+      "Type": "String", 
+      "Description": "parentIamAccessyKey"
+    }, 
+    "xlcloud:brokerPassword": {
+      "Type": "String", 
+      "Description": "RabbitMQ broker password"
+    }, 
+    "xlcloud:defaultInstanceType": {
+      "Default": "m1.small", 
+      "Type": "String", 
+      "ConstraintDescription": "must be a valid XLcloud instance type.", 
+      "Description": "Default instance type (flavor) for instances in this stack"
+    }, 
+    "xlcloud:defaultKeyName": {
+      "Type": "String", 
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access"
+    }, 
+    "xlcloud:stackId": {
+      "Type": "String", 
+      "Description": "Identifier of the parent stack"
+    }, 
+    "xlcloud:brokerUsername": {
+      "Type": "String", 
+      "Description": "RabbitMQ broker username"
+    }, 
+    "xlcloud:defaultImageId": {
+      "Type": "String", 
+      "ConstraintDescription": "must be a valid XLcloud image name.", 
+      "Description": "Default image name for instances in this stack", 
+      "AllowedValues": [
+        "F19-x86_64-xlcloud"
+      ]
+    }, 
+    "xlcloud:defaultSubnetUuid": {
+      "Type": "String", 
+      "Description": "The subnet identifier this layer is connected to"
+    }, 
+    "xlcloud:monitoringCluster": {
+      "Type": "String", 
+      "Description": "Name of the cluster in the monitoring system"
+    }, 
+    "parentIamSecretKey": {
+      "Default": "parentIamSecretKey:", 
+      "Type": "String", 
+      "Description": "parentIamSecretKey"
+    }, 
+    "xlcloud:brokerPort": {
+      "Type": "String", 
+      "Description": "RabbitMQ broker port"
+    }
+  }, 
+  "Outputs": {
+    "MonitorIP": {
+      "Description": "Private IP address of the Ganglia server", 
+      "Value": {
+        "Fn::GetAtt": [
+          "MonitorNode", 
+          "PrivateIp"
+        ]
+      }
+    }, 
+    "PublicURL": {
+      "Description": "Monitoring dashboard URL", 
+      "Value": {
+        "Fn::Join": [
+          "", 
+          [
+            "http://", 
+            {
+              "Ref": "NodeIPAddress"
+            }, 
+            "/ganglia"
+          ]
+        ]
+      }
+    }
+  }, 
+  "HeatTemplateFormatVersion": "2012-12-12", 
+  "Description": "Deploy a monitoring node.", 
+  "Resources": {
+    "MonitorNode": {
+      "Type": "AWS::EC2::Instance", 
+      "Properties": {
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "", 
+              [
+                "#!/bin/bash -v\nexport MY_PUB_IPV4=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/public-ipv4)\nexport MY_HOSTNAME=$(http_proxy= curl -s http://169.254.169.254/latest/meta-data/instance-id)\necho $MY_HOSTNAME > /etc/hostname\nhostname $MY_HOSTNAME\nexport HOME=/root\necho $MY_PUB_IPV4 $MY_HOSTNAME >> /etc/hosts\nsource /etc/profile.d/proxy.sh\npip install --upgrade heat-cfntools\ncfn-init\ncd /var/chef/chef-repo\n/usr/local/bin/librarian-chef install --clean --verbose\n/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
+              ]
+            ]
+          }
+        }, 
+        "KeyName": {
+          "Ref": "xlcloud:defaultKeyName"
+        }, 
+        "SecurityGroups": [
+          {
+            "Ref": "MonitorSecurityGroup"
+          }
+        ], 
+        "SubnetId": {
+          "Ref": "xlcloud:defaultSubnetUuid"
+        }, 
+        "InstanceType": {
+          "Ref": "xlcloud:defaultInstanceType"
+        }, 
+        "ImageId": {
+          "Ref": "xlcloud:defaultImageId"
+        }
+      }, 
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "config": {
+            "files": {
+              "/etc/chef/deploy-runlist.json": {
+                "content": {}
+              }, 
+              "/var/chef/chef-repo/roles/ganglia-server.json": {
+                "content": {
+                  "chef_type": "role", 
+                  "default_attributes": {}, 
+                  "description": "This is a role to install the ganglia service", 
+                  "run_list": [
+                    "recipe[ganglia]", 
+                    "recipe[ganglia::web]", 
+                    "recipe[ganglia::python_rr]"
+                  ], 
+                  "override_attributes": {
+                    "ganglia": {
+                      "cluster": {
+                        "collector_host": "127.0.0.1", 
+                        "name": {
+                          "Ref": "xlcloud:monitoringCluster"
+                        }
+                      }, 
+                      "central_monit": true
+                    }
+                  }, 
+                  "json_class": "Chef::Role", 
+                  "name": "ganglia-server"
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "00400"
+              }, 
+              "/var/chef/chef-repo/roles/xlc-mco-agent.json": {
+                "content": {
+                  "chef_type": "role", 
+                  "default_attributes": {}, 
+                  "description": "This is a role to install ohai + mcollective server + xlcloud agent.", 
+                  "run_list": [
+                    "recipe[ohai]", 
+                    "recipe[mcollective::server]", 
+                    "recipe[xlc-mco-agent]"
+                  ], 
+                  "override_attributes": {
+                    "mcollective": {
+                      "connector": "rabbitmq", 
+                      "psk": "supersecret", 
+                      "stomp": {
+                        "username": {
+                          "Ref": "xlcloud:brokerUsername"
+                        }, 
+                        "password": {
+                          "Ref": "xlcloud:brokerPassword"
+                        }, 
+                        "hostname": {
+                          "Ref": "xlcloud:brokerAddress"
+                        }, 
+                        "port": {
+                          "Ref": "xlcloud:brokerPort"
+                        }
+                      }, 
+                      "factsource": "ohai", 
+                      "enable_puppetlabs_repo": false
+                    }
+                  }, 
+                  "json_class": "Chef::Role", 
+                  "name": "xlc-mco-agent"
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "00400"
+              }, 
+              "/etc/chef/setup-runlist.json": {
+                "content": {
+                  "run_list": [
+                    "role[xlc-mco-agent]", 
+                    "role[ganglia-server]"
+                  ]
+                }
+              }, 
+              "/etc/xlcloud-facts.json": {
+                "content": {
+                  "stack_id": {
+                    "Ref": "xlcloud:stackId"
+                  }, 
+                  "layer_id": {
+                    "Ref": "AWS::StackId"
+                  }, 
+                  "logical_resource_id": "MonitorNode"
+                }
+              }, 
+              "/var/chef/chef-repo/Cheffile": {
+                "content": {
+                  "Fn::Join": [
+                    "\n", 
+                    [
+                      "#!/usr/bin/env ruby", 
+                      "site 'http://community.opscode.com/api/v1'", 
+                      "cookbook 'ohai'", 
+                      "cookbook 'mcollective',", 
+                      "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',", 
+                      "    :path => 'mcollective'", 
+                      "cookbook 'xlc-mco-agent',", 
+                      "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',", 
+                      "    :path => 'xlc-mco-agent'", 
+                      "cookbook 'ganglia',", 
+                      "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',", 
+                      "    :path => 'ganglia'"
+                    ]
+                  ]
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "00400"
+              }, 
+              "/etc/chef/configure-runlist.json": {
+                "content": {}
+              }
+            }
+          }
+        }
+      }
+    }, 
+    "NodeIPAddress": {
+      "Type": "AWS::EC2::EIP"
+    }, 
+    "MonitorSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup", 
+      "Properties": {
+        "SecurityGroupIngress": [
+          {
+            "ToPort": "-1", 
+            "IpProtocol": "icmp", 
+            "CidrIp": "0.0.0.0/0", 
+            "FromPort": "-1"
+          }, 
+          {
+            "ToPort": "80", 
+            "IpProtocol": "tcp", 
+            "FromPort": "80", 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": "443", 
+            "IpProtocol": "tcp", 
+            "FromPort": "443", 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": "22", 
+            "IpProtocol": "tcp", 
+            "FromPort": "22", 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": {
+              "Ref": "MonitorPort"
+            }, 
+            "IpProtocol": "tcp", 
+            "FromPort": {
+              "Ref": "MonitorPort"
+            }, 
+            "CidrIp": "0.0.0.0/0"
+          }, 
+          {
+            "ToPort": {
+              "Ref": "MonitorPort"
+            }, 
+            "IpProtocol": "udp", 
+            "FromPort": {
+              "Ref": "MonitorPort"
+            }, 
+            "CidrIp": "0.0.0.0/0"
+          }
+        ], 
+        "VpcId": "neutron", 
+        "GroupDescription": "Firewall rules : SSH, HTTP(s) and Ganglia"
+      }
+    }, 
+    "NodeIPAssoc": {
+      "Type": "AWS::EC2::EIPAssociation", 
+      "Properties": {
+        "InstanceId": {
+          "Ref": "MonitorNode"
+        }, 
+        "EIP": {
+          "Ref": "NodeIPAddress"
+        }
+      }
+    }
+  }
+}
