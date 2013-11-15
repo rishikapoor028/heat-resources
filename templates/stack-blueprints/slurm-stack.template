@@ -9,11 +9,6 @@
       "Type": "String", 
       "Description": "RabbitMQ broker address"
     }, 
-    "xlcloud:defaultNetworkUuid": {
-      "Type": "String", 
-      "ConstraintDescription": "Project doesn't have network defined in XLcloud", 
-      "Description": "Project's network identifier"
-    }, 
     "xlcloud:brokerPassword": {
       "Default": "xlcloud", 
       "Type": "String", 
@@ -49,11 +44,6 @@
       "AllowedValues": [
         "F19-x86_64-xlcloud"
       ]
-    }, 
-    "xlcloud:defaultSubnetUuid": {
-      "Type": "String", 
-      "ConstraintDescription": "Project doesn't have default subnet defined in XLcloud", 
-      "Description": "Project's default subnet identifier"
     }, 
     "xlcloud:monitoringCluster": {
       "AllowedPattern": "[a-z|A-Z|0-9]*", 
@@ -121,9 +111,6 @@
           }, 
           "xlcloud:defaultImageId": {
             "Ref": "xlcloud:defaultImageId"
-          }, 
-          "xlcloud:defaultSubnetUuid": {
-            "Ref": "xlcloud:defaultSubnetUuid"
           }, 
           "xlcloud:monitorIP": {
             "Fn::GetAtt": [
