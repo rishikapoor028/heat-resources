@@ -51,11 +51,6 @@
       "Type": "String", 
       "Description": "Name of the cluster in the monitoring system"
     }, 
-    "xlcloud:Computes:size": {
-      "Default": "2", 
-      "Type": "String", 
-      "Description": "Number of compute nodes to launch"
-    }, 
     "xlcloud:brokerPort": {
       "Default": "63613", 
       "Type": "String", 
@@ -120,9 +115,6 @@
           }, 
           "xlcloud:monitoringCluster": {
             "Ref": "xlcloud:monitoringCluster"
-          }, 
-          "xlcloud:Computes:size": {
-            "Ref": "xlcloud:Computes:size"
           }, 
           "xlcloud:brokerPort": {
             "Ref": "xlcloud:brokerPort"
