@@ -220,6 +220,7 @@ Resources:
                   description: "This is a role to install the monitoring agent."
                   run_list:
                     - "recipe[ganglia]"
+                    - "recipe[ganglia::xlcloud_facts]"
                   json_class: "Chef::Role"
                   name: "ganglia-agent"
               mode: "00400"
