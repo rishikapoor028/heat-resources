@@ -40,7 +40,7 @@ Parameters:
   "xlcloud:defaultInstanceType":
     Type: String
     ConstraintDescription: must be a valid XLcloud instance type.
-    AllowedValues: 
+    AllowedValues:
     - m1.tiny
     - m1.small
     - m1.medium

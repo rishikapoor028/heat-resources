@@ -52,15 +52,9 @@ Parameters:
   xlcloud:defaultInstanceType:
     Type: String
     ConstraintDescription: must be a valid XLcloud instance type.
-    AllowedValues: 
-    - m1.tiny
-    - m1.small
-    - m1.medium
-    - m1.large
-    - m1.xlarge
     Description: Default instance type (flavor) for instances in this stack
     Default: m1.small
-  xlcloud:defaultKeyName: 
+  xlcloud:defaultKeyName:
     Type: String
     Description: Name of an existing EC2 KeyPair to enable SSH access
 
@@ -121,24 +115,6 @@ Resources:
                 run_list:
                     - "role[xlc-mco-agent]"
                     - "role[ganglia-server]"
-
-            /etc/chef/solo.rb:
-              content:
-                Fn::Join:
-                  - "\n"
-                  -
-                    - "file_cache_path  '/var/chef/cache'"
-                    - "role_path    [ '/var/chef/chef-repo/roles' ]"
-                    - "cookbook_path    [ '/var/chef/chef-repo/cookbooks' ]"
-                    - "log_level :info"
-                    - "log_location STDOUT"
-                    - "ssl_verify_mode :verify_none"
-                    - "http_proxy 'http://10.197.217.62:3128'"
-                    - "https_proxy 'http://10.197.217.62:3128'"
-                    - "no_proxy '127.0.0.1,localhost'"
-              owner: root
-              group: root
-              mode: '000644'
 
             /var/chef/chef-repo/roles/xlc-mco-agent.json:
               content:
