@@ -123,7 +123,7 @@
           {
             "Key": "metering.StackId", 
             "Value": {
-              "Ref": "AWS::StackId"
+              "Ref": "xlcloud::stackId"
             }
           }
         ], 
@@ -248,7 +248,7 @@
                       "[main]\n", 
                       "stack=", 
                       {
-                        "Ref": "AWS::StackId"
+                        "Ref": "xlcloud:stackId"
                       }, 
                       "\n", 
                       "credential-file=/etc/cfn/cfn-credentials\n"
@@ -543,7 +543,7 @@
           {
             "Key": "metering.StackId", 
             "Value": {
-              "Ref": "AWS::StackId"
+              "Ref": "xlcloud:stackId"
             }
           }
         ], 
@@ -647,7 +647,7 @@
                     [
                       "{\"slurm\": {\"master\": \"true\",\"stack\":\"", 
                       {
-                        "Ref": "AWS::StackId"
+                        "Ref": "xlcloud:stackId"
                       }, 
                       "\",\"cpus\":", 
                       {
