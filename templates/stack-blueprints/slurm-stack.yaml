@@ -1,6 +1,9 @@
 Description: XLcloud Slurm Stack
 HeatTemplateFormatVersion: '2012-12-12'
 Outputs:
+  "xlcloud:xsaIp":
+    Description: "XSA endpoint"
+    Value: {'Fn::GetAtt': ['Slurm', 'Outputs.xsaIp']}
   LoginIP:
     Description: "Public address of the login node"
     Value: {'Fn::GetAtt': ['Slurm', 'Outputs.LoginAddress']}
@@ -18,16 +21,6 @@ Parameters:
     Description: "Number of compute nodes to launch"
     Type: String
     Default: '2'
-
-  "xlcloud:defaultSubnetUuid":
-    Type: String
-    ConstraintDescription: Project doesn't have default subnet defined in XLcloud
-    Description: Project's default subnet identifier
-
-  "xlcloud:defaultNetworkUuid":
-    Type: String
-    ConstraintDescription: Project doesn't have network defined in XLcloud
-    Description: Project's network identifier
 
   "xlcloud:defaultImageId":
     Type: String
@@ -92,7 +85,6 @@ Resources:
       Parameters: {
                     'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
                     'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
-                    'xlcloud:defaultSubnetUuid' : {Ref: 'xlcloud:defaultSubnetUuid'},
                     'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
                     'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
                     'xlcloud:brokerPort' : {Ref: 'xlcloud:brokerPort'},
@@ -103,7 +95,7 @@ Resources:
                     'xlcloud:stackId' : {Ref: 'AWS::StackId'},
                     'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml'
-      TimeoutInMinutes: 20
+      TimeoutInMinutes: 40
 
   Monitor:
     Type: AWS::CloudFormation::Stack
