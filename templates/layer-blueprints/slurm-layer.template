@@ -248,7 +248,7 @@
                       "[main]\n", 
                       "stack=", 
                       {
-                        "Ref": "xlcloud:stackId"
+                        "Ref": "AWS::StackId"
                       }, 
                       "\n", 
                       "credential-file=/etc/cfn/cfn-credentials\n"
@@ -647,7 +647,7 @@
                     [
                       "{\"slurm\": {\"master\": \"true\",\"stack\":\"", 
                       {
-                        "Ref": "xlcloud:stackId"
+                        "Ref": "AWS::StackId"
                       }, 
                       "\",\"cpus\":", 
                       {
