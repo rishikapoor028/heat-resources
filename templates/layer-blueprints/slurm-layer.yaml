@@ -1,16 +1,7 @@
 # TODO(pasquier-s):
 # - use Cinder volume instead of ephemeral storage
 AWSTemplateFormatVersion: "2010-09-09"
-Description: &template_description
-  "Deploy SLURM cluster with N (default=2) compute nodes + 1 login node to run micro benchmarks of MPI.
-
-On each node, run chef-solo:
-
-    $ sudo chef-solo -j /etc/chef/configure-runlist.json
-
-Once the cluster is up, login to the login node and run:
-
-    $ salloc -N2 -c<CPUs> mpirun /usr/local/libexec/osu-micro-benchmarks/mpi/pt2pt/osu_latency\n"
+Description: Deploy SLURM cluster with N (default=2) compute nodes + 1 login node.
 
 Parameters:
   "xlcloud:monitorIP":
@@ -28,7 +19,7 @@ Parameters:
   "xlcloud:stackId":
      Description: "The identifier of the parent stack"
      Type: String
-  "xlcloud:defaultSubnetUuid":
+  "xlcloud:layerSubnetUuid":
      Description: "The subnet identifier this layer is connected to"
      Type: String
   "xlcloud:defaultInstanceType":
@@ -109,7 +100,7 @@ Resources:
       MinSize: {Ref: "xlcloud:Computes:size"}
       MaxSize: {Ref: "xlcloud:Computes:size"}
       AvailabilityZones: {'Fn::GetAZs': ''}
-      VPCZoneIdentifier: [ {Ref: 'xlcloud:defaultSubnetUuid'} ]
+      VPCZoneIdentifier: [ {Ref: 'xlcloud:layerSubnetUuid'} ]
       Tags:
       - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
 
@@ -150,15 +141,13 @@ Resources:
       AWS::CloudFormation::Init:
         config:
           files:
-            /etc/motd:
-              content: *template_description
-
             /etc/chef/setup-runlist.json:
               content:
                 slurm:
                     master: "true"
                 run_list:
                     - "role[xlc-mco-agent]"
+                    - "role[xsa]"
                     - "recipe[slurm::setup]"
                     - "role[ganglia-agent]"
 
@@ -218,7 +207,7 @@ Resources:
               owner: root
               group: root
 
-            /var/chef/chef-repo/roles/xsa-agent.json:
+            /var/chef/chef-repo/roles/xsa.json:
               content:
                   chef_type: "role"
                   default_attributes: {}
@@ -230,7 +219,7 @@ Resources:
                     - "recipe[glassfish_ark]"
                     - "recipe[xsa]"
                   json_class: "Chef::Role"
-                  name: "xsa-agent"
+                  name: "xsa"
               mode: "00400"
               owner: root
               group: root
@@ -314,7 +303,7 @@ Resources:
       Tags:
       - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
       SecurityGroups: [default,  {"Ref" : "LayerSecurityGroup"}]
-      SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
+      SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
       UserData:
         Fn::Base64:
           Fn::Join:
@@ -498,3 +487,6 @@ Outputs:
   NodesAddresses:
     Value: {'Fn::GetAtt': [Computes, InstanceList]}
     Description: IP addresses of the cluster's compute nodes
+  xsaIp:
+    Value: {Ref: LoginIp}
+    Description: IP address of XSA endpoint

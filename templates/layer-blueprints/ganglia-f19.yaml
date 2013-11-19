@@ -40,7 +40,7 @@ Parameters:
     Description: parentIamSecretKey
     Type: String
     Default: 'parentIamSecretKey:'
-  xlcloud:defaultSubnetUuid:
+  xlcloud:layerSubnetUuid:
     Description: "The subnet identifier this layer is connected to"
     Type: String
   xlcloud:defaultImageId:
@@ -97,7 +97,7 @@ Resources:
 
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups: [ {Ref: MonitorSecurityGroup} ]
-      SubnetId: {Ref: 'xlcloud:defaultSubnetUuid'}
+      SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
       InstanceType:
           Ref: 'xlcloud:defaultInstanceType'
       ImageId:
