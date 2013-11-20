@@ -201,6 +201,7 @@ Resources:
                   description: "This is a role to install the monitoring agent."
                   run_list:
                     - "recipe[ganglia]"
+                    - "recipe[ganglia::stack]"
                   json_class: "Chef::Role"
                   name: "ganglia-agent"
               mode: "00400"
@@ -433,7 +434,6 @@ Resources:
                   - "role[xlc-mco-agent]"
                   - "recipe[slurm::setup]"
                   - "role[ganglia-agent]"
-                  - "recipe[ganglia::xlcloud_facts]"
 
             /etc/chef/configure-runlist.json:
               content:
