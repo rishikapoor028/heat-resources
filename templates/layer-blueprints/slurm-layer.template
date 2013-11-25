@@ -123,7 +123,7 @@
           {
             "Key": "metering.StackId", 
             "Value": {
-              "Ref": "xlcloud::stackId"
+              "Ref": "xlcloud:stackId"
             }
           }
         ], 
