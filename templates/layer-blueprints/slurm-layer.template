@@ -77,6 +77,21 @@
           "InstanceList"
         ]
       }
+    },
+    "XsaAddress": {
+      "Description": "XSA endpoint",
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "http://",
+            {
+              "Ref": "XsaIp"
+            },
+            ":8080/xsa"
+          ]
+        ]
+      }
     }
   }, 
   "Resources": {
@@ -123,7 +138,7 @@
           {
             "Key": "metering.StackId", 
             "Value": {
-              "Ref": "xlcloud::stackId"
+              "Ref": "xlcloud:stackId"
             }
           }
         ], 
