@@ -81,6 +81,20 @@
         "GroupDescription": "Enable SSH access + ICMP"
       }
     }, 
+    "LoginHandle": {
+      "Type": "AWS::CloudFormation::WaitConditionHandle"
+    },
+    "LoginReady": {
+      "Type": "AWS::CloudFormation::WaitCondition", 
+      "Properties": {
+        "Count": "1", 
+        "Handle": {
+          "Ref": "LoginHandle"
+        }, 
+        "Timeout": "2400"
+      }, 
+      "DependsOn": "LoginNode"
+    },
     "LoginNode": {
       "Type": "AWS::EC2::Instance", 
       "Properties": {
@@ -99,7 +113,13 @@
                 "cfn-init\n", 
                 "cd /var/chef/chef-repo\n", 
                 "/usr/local/bin/librarian-chef install --clean --verbose\n", 
-                "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log\n"
+                "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log\n",
+                "cfn-signal -e 0 '", 
+
+                {
+                  "Ref": "LoginHandle"
+                }, 
+                "'"
               ]
             ]
           }
@@ -135,6 +155,45 @@
         "AWS::CloudFormation::Init": {
           "config": {
             "files": {
+              "/var/chef/chef-repo/roles/xlc-mco-agent.json": {
+                "content": {
+                  "chef_type": "role", 
+                  "default_attributes": {}, 
+                  "description": "This is a role to install ohai + mcollective server + xlcloud agent.", 
+                  "run_list": [
+                    "recipe[ohai]", 
+                    "recipe[mcollective::server]", 
+                    "recipe[xlc-mco-agent]"
+                  ], 
+                  "override_attributes": {
+                    "mcollective": {
+                      "connector": "rabbitmq", 
+                      "psk": "supersecret", 
+                      "stomp": {
+                        "username": {
+                          "Ref": "xlcloud:brokerUsername"
+                        }, 
+                        "password": {
+                          "Ref": "xlcloud:brokerPassword"
+                        }, 
+                        "hostname": {
+                          "Ref": "xlcloud:brokerAddress"
+                        }, 
+                        "port": {
+                          "Ref": "xlcloud:brokerPort"
+                        }
+                      }, 
+                      "factsource": "ohai", 
+                      "enable_puppetlabs_repo": false
+                    }
+                  }, 
+                  "json_class": "Chef::Role", 
+                  "name": "xlc-mco-agent"
+                }, 
+                "owner": "root", 
+                "group": "root", 
+                "mode": "00400"
+              },
               "/etc/chef/setup-runlist.json": {
                 "content": {
                   "run_list": [
