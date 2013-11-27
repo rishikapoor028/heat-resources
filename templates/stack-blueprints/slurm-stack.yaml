@@ -4,6 +4,9 @@ Outputs:
   "xlcloud:xsaIp":
     Description: "XSA endpoint"
     Value: {'Fn::GetAtt': ['Slurm', 'Outputs.xsaIp']}
+  "xlcloud:xsaAddress":
+    Description: "XSA URL"
+    Value: {'Fn::Join': ['', ['http://', {'Fn::GetAtt': ['Slurm', 'Outputs.xsaIp']}, ':8080/xsa']]}
   LoginIP:
     Description: "Public address of the login node"
     Value: {'Fn::GetAtt': ['Slurm', 'Outputs.LoginAddress']}
