@@ -230,6 +230,7 @@ Resources:
                       cpus: {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
                     xsa:
                       application_war_url: "http://toolcloud.ecfrec.xlcloud.org/integ/xlcloud-xsa.war"
+                      public_ip_address: {Ref: LoginIp}
                   description: "This is a role to install HPC VC."
                   run_list: []
                   json_class: "Chef::Role"
