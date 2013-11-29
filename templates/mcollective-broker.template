@@ -256,6 +256,7 @@
                         "cd /var/chef/chef-repo\n",
                         "/usr/local/bin/librarian-chef install --clean --verbose\n",
                         "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/runlist-setup.json -L /var/log/chef-solo.log\n",
+                        "sleep 10\n",
                         "curl -s http://127.0.0.1:15672/cli/rabbitmqadmin > /usr/local/bin/rabbitmqadmin\n",
                         "chmod 0755 /usr/local/bin/rabbitmqadmin\n",
                         "/usr/local/bin/rabbitmqadmin -u ", {"Ref":"RabbitUser"}, " -p ", {"Ref":"RabbitPassword"}, " declare exchange  name=mcollective_broadcast type=topic\n",
