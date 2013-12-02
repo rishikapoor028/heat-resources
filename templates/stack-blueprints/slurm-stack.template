@@ -90,15 +90,6 @@
         ]
       }
     }, 
-    "xlcloud:xsaIp": {
-      "Description": "XSA endpoint", 
-      "Value": {
-        "Fn::GetAtt": [
-          "Slurm", 
-          "Outputs.xsaIp"
-        ]
-      }
-    }, 
     "MonitorURL": {
       "Description": "Public URL of the monitoring node", 
       "Value": {
