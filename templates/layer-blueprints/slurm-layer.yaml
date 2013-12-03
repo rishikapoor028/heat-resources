@@ -57,7 +57,7 @@ Mappings:
 Resources:
   LoginIp: { Type: 'AWS::EC2::EIP' }
 
-  IPAssoc:
+  LoginIpAssoc:
     Type: AWS::EC2::EIPAssociation
     Properties:
       InstanceId: {Ref: Login}
@@ -70,27 +70,52 @@ Resources:
     Properties:
       UserName: {Ref: CfnUser}
 
-  LayerSecurityGroup:
-      Type: "AWS::EC2::SecurityGroup"
-      Properties:
-        GroupDescription: "Enable Stomp protocol + SSH access + ICMP"
-        VpcId: neutron
-        SecurityGroupIngress:
-          -
-            IpProtocol: "icmp"
-            FromPort: "-1"
-            ToPort: "-1"
-            CidrIp: "0.0.0.0/0"
-          -
-            IpProtocol: "tcp"
-            FromPort: {Ref: "xlcloud:brokerPort"}
-            ToPort: {Ref: "xlcloud:brokerPort"}
-            CidrIp: "0.0.0.0/0"
-          -
-            IpProtocol: "tcp"
-            FromPort: "22"
-            ToPort: "22"
-            CidrIp: "0.0.0.0/0"
+  LoginNodeSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Allow access to XSA service from anywhere"
+      VpcId: neutron
+      SecurityGroupIngress:
+        -
+          IpProtocol: "tcp"
+          FromPort: "8080"
+          ToPort: "8080"
+          CidrIp: "0.0.0.0/0"
+
+  PublicLayerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Allow SSH access + ICMP from anywhere"
+      VpcId: neutron
+      SecurityGroupIngress:
+        -
+          IpProtocol: "icmp"
+          FromPort: "-1"
+          ToPort: "-1"
+          CidrIp: "0.0.0.0/0"
+        -
+          IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+
+  PrivateLayerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Allow any traffic from all instances of the layer"
+      VpcId: neutron
+      SecurityGroupIngress:
+        -
+          SourceSecurityGroupId: {Ref: 'PublicLayerSecurityGroup' }
+
+  LoginNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
+      GroupSet:
+        - {Ref: LoginNodeSecurityGroup }
+        - {Ref: PublicLayerSecurityGroup }
+        - {Ref: PrivateLayerSecurityGroup}
 
   Computes:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -103,15 +128,6 @@ Resources:
       VPCZoneIdentifier: [ {Ref: 'xlcloud:layerSubnetUuid'} ]
       Tags:
       - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
-
-  ClusterMetaData:
-    Type: AWS::AutoScaling::LaunchConfiguration
-    Metadata:
-      IpAddresses: {'Fn::GetAtt': [Computes, InstanceList]}
-      Size: {Ref: "xlcloud:Computes:size"}
-    Properties:
-      ImageId: foobar
-      InstanceType: foobar
 
   LoginHandle:
     Type: AWS::CloudFormation::WaitConditionHandle
@@ -141,28 +157,24 @@ Resources:
       AWS::CloudFormation::Init:
         config:
           files:
-            /etc/chef/setup-runlist.json:
+            /etc/chef/setup-runlist.json: &setup-runlist
               content:
-                slurm:
-                    master: "true"
                 run_list:
-                    - "role[xlc-mco-agent]"
-                    - "role[xsa]"
-                    - "recipe[slurm::setup]"
                     - "role[ganglia-agent]"
+                    - "role[hpc-vc]"
+                    - "recipe[hpc-vc::setup]"
 
-            /etc/chef/configure-runlist.json:
+            /etc/chef/configure-runlist.json: &configure-runlist
               content:
-                Fn::Join:
-                  - ''
-                  - - '{"slurm": {"master": "true","stack":"'
-                    - {Ref: "AWS::StackId"}
-                    - '","cpus":'
-                    - {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
-                    - '}, "run_list": [ "recipe[slurm::configure]" ]}'
+                run_list:
+                    - "role[hpc-vc]"
+                    - "recipe[hpc-vc::configure]"
 
-            /etc/chef/deploy-runlist.json:
-              content: '{"slurm": {"master": "true"}, "run_list": [ "recipe[slurm::deploy]" ]}'
+            /etc/chef/deploy-runlist.json: &deploy-runlist
+              content:
+                run_list:
+                    - "role[hpc-vc]"
+                    - "recipe[hpc-vc::deploy]"
 
             /etc/xlcloud-facts.json:
                 content:
@@ -208,19 +220,21 @@ Resources:
               owner: root
               group: root
 
-            /var/chef/chef-repo/roles/xsa.json:
+            /var/chef/chef-repo/roles/hpc-vc.json: &hpc-vc
               content:
                   chef_type: "role"
                   default_attributes: {}
                   override_attributes:
+                    slurm:
+                      master_ip: {'Fn::GetAtt': ['LoginNetworkInterface', 'PrivateIpAddress']}
+                      cpus: {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
                     xsa:
-                        application_war_url: "http://toolcloud.ecfrec.xlcloud.org/integ/xlcloud-xsa.war"
-                  description: "This is a role to install the XSA agent."
-                  run_list:
-                    - "recipe[glassfish_ark]"
-                    - "recipe[xsa]"
+                      application_war_url: "http://toolcloud.ecfrec.xlcloud.org/integ/xlcloud-xsa.war"
+                      public_ip_address: {Ref: LoginIp}
+                  description: "This is a role to install HPC VC."
+                  run_list: []
                   json_class: "Chef::Role"
-                  name: "xsa"
+                  name: "hpc-vc"
               mode: "00400"
               owner: root
               group: root
@@ -265,6 +279,9 @@ Resources:
                     - "cookbook 'xlc-mco-agent',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'xlc-mco-agent'"
+                    - "cookbook 'hpc-vc',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'hpc-vc'"
                     - "cookbook 'slurm',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'slurm'"
@@ -303,8 +320,7 @@ Resources:
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       Tags:
       - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
-      SecurityGroups: [default,  {"Ref" : "LayerSecurityGroup"}]
-      SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
+      NetworkInterfaces: [{NetworkInterfaceId: {Ref: 'LoginNetworkInterface'}, DeviceIndex: '0'}]
       UserData:
         Fn::Base64:
           Fn::Join:
@@ -339,6 +355,14 @@ Resources:
             - '/usr/local/bin/librarian-chef install --clean --verbose
 
             '
+            # TODO(pasquier-s): remove this line after the base image is updated
+            # with the proper chef-solo configuration
+            - "echo 'Ohai::Config[:plugin_path] << \"/etc/chef/ohai_plugins\"' >> /etc/chef/solo.rb
+
+              "
+            - '/bin/chef-solo -c /etc/chef/solo.rb -o "role[xlc-mco-agent]" -L /var/log/chef-solo.log
+
+              '
             - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
 
               '
@@ -354,8 +378,6 @@ Resources:
         config:
           files:
             /etc/cfn/cfn-credentials: *cfn-credentials
-            /var/chef/chef-repo/roles/xlc-mco-agent.json: *xlc-mco-agent
-            /var/chef/chef-repo/Cheffile: *Cheffile
 
             /etc/cfn/cfn-hup.conf:
               content:
@@ -390,7 +412,7 @@ Resources:
                     "
                   - 'echo "cfn-signal executed"
 
-                    ' 
+                    '
               mode: "000750"
               owner: "root"
               group: "root"
@@ -426,24 +448,9 @@ Resources:
 
                     '
 
-            /etc/chef/setup-runlist.json:
-              content:
-                slurm:
-                  nfs_server: {"Fn::GetAtt": [Login, PrivateIp]}
-                run_list:
-                  - "role[xlc-mco-agent]"
-                  - "recipe[slurm::setup]"
-                  - "role[ganglia-agent]"
-
-            /etc/chef/configure-runlist.json:
-              content:
-                slurm:
-                  nfs_server: {"Fn::GetAtt": [Login, PrivateIp]}
-                run_list:
-                  - "recipe[slurm::configure]"
-
-            /etc/chef/deploy-runlist.json:
-              content: '{"slurm": {"master": "false"}, "run_list": [ "recipe[slurm::deploy]" ]}'
+            /etc/chef/setup-runlist.json: *setup-runlist
+            /etc/chef/configure-runlist.json: *configure-runlist
+            /etc/chef/deploy-runlist.json: *deploy-runlist
 
             /etc/xlcloud-facts.json:
                 content:
@@ -452,8 +459,8 @@ Resources:
                     logical_resource_id: "Computes"
 
             /var/chef/chef-repo/roles/xlc-mco-agent.json: *xlc-mco-agent
-
             /var/chef/chef-repo/roles/ganglia-agent.json: *ganglia-agent
+            /var/chef/chef-repo/roles/hpc-vc.json: *hpc-vc
 
             /var/chef/chef-repo/Cheffile: *Cheffile
 
@@ -461,7 +468,7 @@ Resources:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
-      SecurityGroups: [default,  {"Ref" : "LayerSecurityGroup"}]
+      SecurityGroups: [{"Ref" : "PublicLayerSecurityGroup"}, {"Ref" : "PrivateLayerSecurityGroup"}]
       UserData:
         Fn::Base64:
           Fn::Join:
@@ -477,8 +484,24 @@ Resources:
               - "cfn-init"
               - "cd /var/chef/chef-repo"
               - "/usr/local/bin/librarian-chef install --clean --verbose"
+              - "/bin/chef-solo -c /etc/chef/solo.rb -o 'role[xlc-mco-agent]' -L /var/log/chef-solo.log"
               - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
               - "crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
+
+  ClusterMetaData:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Metadata:
+      IpAddresses: {'Fn::GetAtt': [Computes, InstanceList]}
+      Size: {Ref: "xlcloud:Computes:size"}
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /etc/chef/setup-runlist.json: *setup-runlist
+            /etc/chef/configure-runlist.json: *configure-runlist
+            /etc/chef/deploy-runlist.json: *deploy-runlist
+    Properties:
+      ImageId: foobar
+      InstanceType: foobar
 
 Outputs:
   LoginAddress:

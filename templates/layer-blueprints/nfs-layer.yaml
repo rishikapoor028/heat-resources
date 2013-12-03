@@ -1,0 +1,253 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploy a NFS service
+
+Parameters:
+  "xlcloud:defaultKeyName":
+    Description: "Name of an existing EC2 KeyPair to enable SSH access to the NFS server"
+    Type: String
+  "xlcloud:defaultImageId":
+    Type: String
+    ConstraintDescription: must be a valid XLcloud image name.
+    Description: Cloud image Id for instances in this stack
+  "xlcloud:stackId":
+     Description: "The identifier of the parent stack"
+     Type: String
+  "xlcloud:layerSubnetUuid":
+     Description: "The subnet identifier this layer is connected to"
+     Type: String
+  "xlcloud:defaultInstanceType":
+    AllowedValues: ["m1.small", "m1.medium", "m1.large", "m1.xlarge"]
+    Type: String
+    Default: "m1.medium"
+  "xlcloud:brokerAddress":
+      Type: "String"
+      Description: "RabbitMQ broker address"
+  "xlcloud:brokerPort":
+      Type: "String"
+      Description: "RabbitMQ broker port"
+  "xlcloud:brokerUsername":
+      Type: "String"
+      Description: "RabbitMQ broker username"
+  "xlcloud:brokerPassword":
+      Type: "String"
+      Description: "RabbitMQ broker password"
+  "volumeSize":
+      Type: "Number"
+      Default: 1
+      MinValue: 1
+      MaxValue: 1024
+      Description: "Size of the NFS volume (in Gb)"
+  "mountPoint":
+      Type: "String"
+      Default: "/dev/vdc"
+      AllowedPattern: '/dev/vd[b-z]'
+      Description: "The volume device exposed to the instance"
+
+Resources:
+  NfsIp: { Type: 'AWS::EC2::EIP' }
+
+  NfsIpAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: {Ref: NfsNode}
+      EIP: {Ref: NfsIp}
+
+  PublicNfsSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Allow access to NFS service from anywhere"
+      VpcId: neutron
+      SecurityGroupIngress:
+        -
+          IpProtocol: "tcp"
+          FromPort: "2049"
+          ToPort: "2049"
+          CidrIp: "0.0.0.0/0"
+        -
+          IpProtocol: "icmp"
+          FromPort: "-1"
+          ToPort: "-1"
+          CidrIp: "0.0.0.0/0"
+        -
+          IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+
+  NfsHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  NfsReady:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: NfsNode
+    Properties:
+      Handle: {Ref: NfsHandle}
+      Count: '1'
+      Timeout: '600'
+
+  NfsVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: { "Fn::GetAtt": [ NfsNode, AvailabilityZone ] }
+      Size: {Ref: volumeSize}
+
+  NfsVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      InstanceId: {Ref: NfsNode}
+      VolumeId: {Ref: NfsVolume}
+      Device: {Ref: mountPoint}
+
+  NfsNode:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /etc/chef/setup-runlist.json:
+              content:
+                run_list:
+                  "role[nfs-server]"
+
+            /etc/chef/configure-runlist.json: {content: '{}'}
+            /etc/chef/deploy-runlist.json: {content: '{}'}
+
+            /etc/xlcloud-facts.json:
+                content:
+                    layer_id: {Ref: 'AWS::StackId'}
+                    stack_id: {Ref: 'xlcloud:stackId'}
+                    logical_resource_id: "NfsNode"
+
+            /var/chef/chef-repo/roles/xlc-mco-agent.json: &xlc-mco-agent
+              content:
+                  chef_type: "role"
+                  default_attributes: {}
+                  override_attributes:
+                    mcollective:
+                      enable_puppetlabs_repo: false
+                      connector: "rabbitmq"
+                      factsource: "ohai"
+                      psk: "supersecret"
+                      stomp:
+                        hostname: {Ref: "xlcloud:brokerAddress"}
+                        port: {Ref: "xlcloud:brokerPort"}
+                        username: {Ref: "xlcloud:brokerUsername"}
+                        password: {Ref: "xlcloud:brokerPassword"}
+                  description: "This is a role to install ohai + mcollective server + xlcloud agent."
+                  run_list:
+                    - "recipe[ohai]"
+                    - "recipe[mcollective::server]"
+                    - "recipe[xlc-mco-agent]"
+                  json_class: "Chef::Role"
+                  name: "xlc-mco-agent"
+              mode: "00400"
+              owner: root
+              group: root
+
+            /var/chef/chef-repo/roles/nfs-server.json:
+              content:
+                  chef_type: "role"
+                  default_attributes: {}
+                  override_attributes:
+                    nfs-server:
+                      volumes:
+                        -
+                          mount_point: {Ref: mountPoint}
+                          allowed_net: "*"
+                  description: "This is a role to install the NFS service"
+                  run_list:
+                    - "recipe[nfs-server]"
+                  json_class: "Chef::Role"
+                  name: "nfs-server"
+              mode: "00400"
+              owner: root
+              group: root
+
+            /var/chef/chef-repo/Cheffile: &Cheffile
+              content:
+                Fn::Join:
+                  - "\n"
+                  -
+                    - "#!/usr/bin/env ruby"
+                    - "site 'http://community.opscode.com/api/v1'"
+                    - "cookbook 'ohai'"
+                    - "cookbook 'mcollective',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'mcollective'"
+                    - "cookbook 'xlc-mco-agent',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'xlc-mco-agent'"
+                    - "cookbook 'hostsfile',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'hostsfile'"
+                    - "cookbook 'line',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'line'"
+                    - "cookbook 'nfs',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'nfs'"
+                    - "cookbook 'nfs-server',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'nfs-server'"
+                    - "cookbook 'nfs_export',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'nfs_export'"
+              mode: "00400"
+              owner: root
+              group: root
+
+    Properties:
+      ImageId: {Ref: 'xlcloud:defaultImageId'}
+      InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
+      KeyName: {Ref: 'xlcloud:defaultKeyName'}
+      Tags:
+      - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
+      SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
+      SecurityGroups: [{Ref: PublicNfsSecurityGroup}]
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - '#!/bin/bash -ve
+
+            '
+            - '# HOME is required by librarian
+
+            '
+            - 'export HOME=/root
+
+            '
+            - 'source /etc/profile.d/proxy.sh
+
+            '
+            - 'echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
+
+            '
+            - 'hostname `cat /etc/hostname`
+
+            '
+            - 'pip install --upgrade heat-cfntools
+
+            '
+            - 'cfn-init
+
+            '
+            - 'cd /var/chef/chef-repo
+
+            '
+            - '/usr/local/bin/librarian-chef install --clean --verbose
+
+            '
+            - '/bin/chef-solo -c /etc/chef/solo.rb -o "role[xlc-mco-agent]" -L /var/log/chef-solo.log
+
+              '
+            - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
+
+              '
+            - "cfn-signal -e 0 '"
+            - {Ref: NfsHandle}
+            - "'"
+Outputs:
+  NfsAddress:
+    Value: {Ref: NfsIp}
+    Description: Public IP address of the NFS server

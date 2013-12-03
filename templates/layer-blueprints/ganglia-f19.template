@@ -36,6 +36,10 @@
       "Type": "String", 
       "Description": "RabbitMQ broker username"
     }, 
+    "xlcloud:layerSubnetUuid": {
+      "Type": "String", 
+      "Description": "The subnet identifier this layer is connected to"
+    }, 
     "xlcloud:defaultImageId": {
       "Type": "String", 
       "ConstraintDescription": "must be a valid XLcloud image name.", 
@@ -43,10 +47,6 @@
       "AllowedValues": [
         "F19-x86_64-xlcloud"
       ]
-    }, 
-    "xlcloud:layerSubnetUuid": {
-      "Type": "String", 
-      "Description": "The subnet identifier this layer is connected to"
     }, 
     "xlcloud:monitoringCluster": {
       "Type": "String", 
