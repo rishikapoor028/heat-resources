@@ -42,6 +42,10 @@
     "xlcloud_brokerPort": {
       "Type": "String", 
       "Description": "RabbitMQ broker port"
+    },
+    "xlcloud_defaultSubnetUuid": {
+      "Type": "String", 
+      "Description": "Project's default subnet Id"
     }
   }, 
 
@@ -57,6 +61,7 @@
         "KeyName": { "Ref": "xlcloud_defaultKeyName" }, 
         "StackId": { "Ref": "AWS::StackId" }, 
         "ImageId": { "Ref": "xlcloud_defaultImageId" }, 
+        "LayerSubnetUuid": { "Ref": "xlcloud_defaultSubnetUuid" }, 
         "InstanceType": { "Ref": "xlcloud_defaultInstanceType" }
       }
     }
