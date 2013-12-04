@@ -36,6 +36,10 @@
       "Type": "String", 
       "Description": "RabbitMQ broker username"
     }, 
+    "xlcloud:layerSubnetUuid": {
+      "Type": "String", 
+      "Description": "The subnet identifier this layer is connected to"
+    }, 
     "xlcloud:defaultImageId": {
       "Type": "String", 
       "ConstraintDescription": "must be a valid XLcloud image name.", 
@@ -43,10 +47,6 @@
       "AllowedValues": [
         "F19-x86_64-xlcloud"
       ]
-    }, 
-    "xlcloud:layerSubnetUuid": {
-      "Type": "String", 
-      "Description": "The subnet identifier this layer is connected to"
     }, 
     "xlcloud:monitoringCluster": {
       "Type": "String", 
@@ -126,7 +126,7 @@
         "AWS::CloudFormation::Init": {
           "config": {
             "files": {
-              "/etc/chef/deploy-runlist.json": {
+              "/etc/chef/resume-runlist.json": {
                 "content": {}
               }, 
               "/var/chef/chef-repo/roles/ganglia-server.json": {
@@ -204,6 +204,15 @@
                   ]
                 }
               }, 
+              "/etc/chef/suspend-runlist.json": {
+                "content": {}
+              }, 
+              "/etc/chef/configure-runlist.json": {
+                "content": {}
+              }, 
+              "/etc/chef/undeploy-runlist.json": {
+                "content": {}
+              }, 
               "/etc/xlcloud-facts.json": {
                 "content": {
                   "stack_id": {
@@ -239,7 +248,10 @@
                 "group": "root", 
                 "mode": "00400"
               }, 
-              "/etc/chef/configure-runlist.json": {
+              "/etc/chef/shutdown-runlist.json": {
+                "content": {}
+              }, 
+              "/etc/chef/deploy-runlist.json": {
                 "content": {}
               }
             }

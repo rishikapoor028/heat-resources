@@ -115,6 +115,14 @@ Resources:
                 run_list:
                     - "role[xlc-mco-agent]"
                     - "role[ganglia-server]"
+            /etc/chef/undeploy-runlist.json: &undeploy-runlist
+              content: {}
+            /etc/chef/suspend-runlist.json:
+              content: {} 
+            /etc/chef/resume-runlist.json:
+              content: {}
+            /etc/chef/shutdown-runlist.json:
+              content: {}
 
             /var/chef/chef-repo/roles/xlc-mco-agent.json:
               content:

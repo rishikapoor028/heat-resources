@@ -176,6 +176,18 @@ Resources:
                     - "role[hpc-vc]"
                     - "recipe[hpc-vc::deploy]"
 
+            /etc/chef/undeploy-runlist.json: &undeploy-runlist
+              content: {}
+
+            /etc/chef/suspend-runlist.json: &suspend-runlist
+              content: {} 
+
+            /etc/chef/resume-runlist.json: &resume-runlist
+              content: {}
+    
+            /etc/chef/shutdown-runlist.json: &shutdown-runlist
+              content: {}
+
             /etc/xlcloud-facts.json:
                 content:
                     layer_id: {Ref: 'AWS::StackId'}
@@ -451,6 +463,10 @@ Resources:
             /etc/chef/setup-runlist.json: *setup-runlist
             /etc/chef/configure-runlist.json: *configure-runlist
             /etc/chef/deploy-runlist.json: *deploy-runlist
+            /etc/chef/undeploy-runlist.json: *undeploy-runlist
+            /etc/chef/suspend-runlist.json: *suspend-runlist
+            /etc/chef/resume-runlist.json: *resume-runlist
+            /etc/chef/shutdown-runlist.json: *shutdown-runlist
 
             /etc/xlcloud-facts.json:
                 content:
@@ -499,6 +515,10 @@ Resources:
             /etc/chef/setup-runlist.json: *setup-runlist
             /etc/chef/configure-runlist.json: *configure-runlist
             /etc/chef/deploy-runlist.json: *deploy-runlist
+            /etc/chef/undeploy-runlist.json: *undeploy-runlist
+            /etc/chef/suspend-runlist.json: *suspend-runlist
+            /etc/chef/resume-runlist.json: *resume-runlist
+            /etc/chef/shutdown-runlist.json: *shutdown-runlist
             /var/chef/chef-repo/Cheffile: *Cheffile
     Properties:
       ImageId: foobar
