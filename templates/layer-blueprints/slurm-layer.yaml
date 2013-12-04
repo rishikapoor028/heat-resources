@@ -499,6 +499,7 @@ Resources:
             /etc/chef/setup-runlist.json: *setup-runlist
             /etc/chef/configure-runlist.json: *configure-runlist
             /etc/chef/deploy-runlist.json: *deploy-runlist
+            /var/chef/chef-repo/Cheffile: *Cheffile
     Properties:
       ImageId: foobar
       InstanceType: foobar
