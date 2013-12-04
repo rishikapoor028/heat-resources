@@ -51,6 +51,11 @@
       "Type": "String", 
       "Description": "Name of the cluster in the monitoring system"
     }, 
+    "xlcloud:Computes:size": {
+      "Default": "2", 
+      "Type": "String", 
+      "Description": "Number of compute nodes to launch"
+    }, 
     "xlcloud:brokerPort": {
       "Default": "63613", 
       "Type": "String", 
@@ -67,21 +72,30 @@
         ]
       }
     }, 
+    "xlcloud:xsaAddress": {
+      "Description": "XSA URL", 
+      "Value": {
+        "Fn::Join": [
+          "", 
+          [
+            "http://", 
+            {
+              "Fn::GetAtt": [
+                "Slurm", 
+                "Outputs.xsaIp"
+              ]
+            }, 
+            ":8080/xsa"
+          ]
+        ]
+      }
+    }, 
     "MonitorURL": {
       "Description": "Public URL of the monitoring node", 
       "Value": {
         "Fn::GetAtt": [
           "Monitor", 
           "Outputs.PublicURL"
-        ]
-      }
-    },
-    "xlcloud:xsaAddress": {
-      "Description": "Public URL of the XSA node", 
-      "Value": {
-        "Fn::GetAtt": [
-          "Slurm", 
-          "Outputs.XsaAddress"
         ]
       }
     }
@@ -93,7 +107,7 @@
       "Type": "AWS::CloudFormation::Stack", 
       "Properties": {
         "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/slurm-layer.template", 
-        "TimeoutInMinutes": 20, 
+        "TimeoutInMinutes": 40, 
         "Parameters": {
           "xlcloud:brokerAddress": {
             "Ref": "xlcloud:brokerAddress"
@@ -124,6 +138,9 @@
           }, 
           "xlcloud:monitoringCluster": {
             "Ref": "xlcloud:monitoringCluster"
+          }, 
+          "xlcloud:Computes:size": {
+            "Ref": "xlcloud:Computes:size"
           }, 
           "xlcloud:brokerPort": {
             "Ref": "xlcloud:brokerPort"

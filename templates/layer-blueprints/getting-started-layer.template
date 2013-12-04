@@ -1,31 +1,31 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09", 
   "Parameters": {
-    "xlcloud:brokerAddress": {
+    "BrokerAddress": {
       "Type": "String", 
       "Description": "RabbitMQ broker address"
     }, 
-    "xlcloud:brokerPassword": {
+    "BrokerPassword": {
       "Type": "String", 
       "Description": "RabbitMQ broker password"
     }, 
-    "xlcloud:defaultKeyName": {
+    "KeyName": {
       "Type": "String", 
       "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances"
     }, 
-    "xlcloud:stackId": {
+    "StackId": {
       "Type": "String", 
       "Description": "The identifier of the parent stack"
     }, 
-    "xlcloud:brokerUsername": {
+    "BrokerUsername": {
       "Type": "String", 
       "Description": "RabbitMQ broker username"
     }, 
-    "xlcloud:layerSubnetUuid": {
+    "LayerSubnetUuid": {
       "Type": "String", 
       "Description": "The subnet identifier this layer is connected to"
     }, 
-    "xlcloud:defaultImageId": {
+    "ImageId": {
       "Type": "String", 
       "ConstraintDescription": "must be a valid XLcloud image name.", 
       "Description": "Cloud image Id for instances in this stack", 
@@ -33,7 +33,7 @@
         "F19-x86_64-xlcloud"
       ]
     }, 
-    "xlcloud:defaultInstanceType": {
+    "InstanceType": {
       "Default": "m1.small", 
       "Type": "String", 
       "AllowedValues": [
@@ -43,7 +43,7 @@
         "m1.xlarge"
       ]
     }, 
-    "xlcloud:brokerPort": {
+    "BrokerPort": {
       "Type": "String", 
       "Description": "RabbitMQ broker port"
     }
