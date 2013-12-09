@@ -32,14 +32,6 @@ Parameters:
   "xlcloud:stackId":
     Description: "Identifier of the parent stack"
     Type: String
-  parentIamAccessyKey:
-    Description: parentIamAccessyKey
-    Type: String
-    Default: 'parentIamAccessyKey:'
-  parentIamSecretKey:
-    Description: parentIamSecretKey
-    Type: String
-    Default: 'parentIamSecretKey:'
   xlcloud:layerSubnetUuid:
     Description: "The subnet identifier this layer is connected to"
     Type: String
