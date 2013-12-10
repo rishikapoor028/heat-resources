@@ -9,11 +9,6 @@
       "Type": "String", 
       "Description": "RabbitMQ broker address"
     }, 
-    "parentIamAccessyKey": {
-      "Default": "parentIamAccessyKey:", 
-      "Type": "String", 
-      "Description": "parentIamAccessyKey"
-    }, 
     "xlcloud:brokerPassword": {
       "Type": "String", 
       "Description": "RabbitMQ broker password"
@@ -51,11 +46,6 @@
     "xlcloud:monitoringCluster": {
       "Type": "String", 
       "Description": "Name of the cluster in the monitoring system"
-    }, 
-    "parentIamSecretKey": {
-      "Default": "parentIamSecretKey:", 
-      "Type": "String", 
-      "Description": "parentIamSecretKey"
     }, 
     "xlcloud:brokerPort": {
       "Type": "String", 
