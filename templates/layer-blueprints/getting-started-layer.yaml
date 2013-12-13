@@ -48,16 +48,11 @@ Resources:
             CidrIp: "0.0.0.0/0"
           -
             IpProtocol: "tcp"
-            FromPort: {Ref: "xlcloud:brokerPort"}
-            ToPort: {Ref: "xlcloud:brokerPort"}
-            CidrIp: "0.0.0.0/0"
-          -
-            IpProtocol: "tcp"
             FromPort: "22"
             ToPort: "22"
             CidrIp: "0.0.0.0/0"
 
-  LoginNode:
+  GettingStarted:
     Type: AWS::EC2::Instance
     Metadata:
       AWS::CloudFormation::Init:
@@ -67,14 +62,52 @@ Resources:
               content:
                 run_list:
                     - "recipe[getting-started]"
+            /etc/chef/configure-runlist.json:
+              content: {}
+            /etc/chef/deploy-runlist.json:
+              content: {}
+            /etc/chef/undeploy-runlist.json:
+              content: {}
+            /etc/chef/suspend-runlist.json:
+              content: {}
+            /etc/chef/resume-runlist.json:
+              content: {}
+            /etc/chef/shutdown-runlist.json:
+              content: {}
 
             /etc/xlcloud-facts.json:
                 content:
                     layer_id: {Ref: 'AWS::StackId'}
                     stack_id: {Ref: 'xlcloud:stackId'}
-                    logical_resource_id: "LoginNode"
+                    logical_resource_id: "GettingStarted"
 
-            /var/chef/chef-repo/Cheffile: &Cheffile
+            /var/chef/chef-repo/roles/xlc-mco-agent.json:
+              content:
+                  chef_type: "role"
+                  default_attributes: {}
+                  override_attributes:
+                    mcollective:
+                      enable_puppetlabs_repo: false
+                      connector: "rabbitmq"
+                      factsource: "ohai"
+                      psk: "supersecret"
+                      stomp:
+                        hostname: {Ref: "xlcloud:brokerAddress"}
+                        port: {Ref: "xlcloud:brokerPort"}
+                        username: {Ref: "xlcloud:brokerUsername"}
+                        password: {Ref: "xlcloud:brokerPassword"}
+                  description: "This is a role to install ohai + mcollective server + xlcloud agent."
+                  run_list:
+                    - "recipe[ohai]"
+                    - "recipe[mcollective::server]"
+                    - "recipe[xlc-mco-agent]"
+                  json_class: "Chef::Role"
+                  name: "xlc-mco-agent"
+              mode: "00400"
+              owner: root
+              group: root
+
+            /var/chef/chef-repo/Cheffile:
               content:
                 Fn::Join:
                   - "\n"
@@ -99,7 +132,7 @@ Resources:
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       Tags:
       - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
-      SecurityGroups: [default,  {"Ref" : "LayerSecurityGroup"}]
+      SecurityGroups: [{"Ref" : "LayerSecurityGroup"}]
       SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
       UserData:
         Fn::Base64:
@@ -135,10 +168,18 @@ Resources:
             - '/usr/local/bin/librarian-chef install --clean --verbose
 
             '
+            # TODO(pasquier-s): remove this line after the base image is updated
+            # with the proper chef-solo configuration
+            - "echo 'Ohai::Config[:plugin_path] << \"/etc/chef/ohai_plugins\"' >> /etc/chef/solo.rb
+
+              "
+            - '/bin/chef-solo -c /etc/chef/solo.rb -o "role[xlc-mco-agent]" -L /var/log/chef-solo.log
+
+              '
             - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
 
               '
 Outputs:
   InstanceIp:
-    Value: {"Fn::Join" : ["", ["ssh ec2-user@", {"Fn::GetAtt": ["LoginNode", "PublicIp"]}]]}
-    Description: My ssh command 
+    Value: {"Fn::Join" : ["", ["ssh ec2-user@", {"Fn::GetAtt": ["GettingStarted", "PublicIp"]}]]}
+    Description: ssh command to login to the node

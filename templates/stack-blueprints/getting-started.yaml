@@ -1,10 +1,10 @@
 HeatTemplateFormatVersion: '2012-12-12'
-Description: Getting Started Stack 
+Description: Getting Started Stack
 Parameters:
   "xlcloud:defaultImageId":
     Type: String
     ConstraintDescription: Must be a valid XLcloud image name.
-    AllowedValues: 
+    AllowedValues:
     - F19-x86_64-xlcloud
     Description: Default image name for instances in this stack
     Default: F19-x86_64-xlcloud
@@ -58,7 +58,7 @@ Resources:
                     'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
                     'xlcloud:stackId' : {Ref: 'AWS::StackId'}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/getting-started-layer.yaml'
-      TimeoutInMinutes: 40
+      TimeoutInMinutes: 10
 
 Outputs:
   LoginIP:
