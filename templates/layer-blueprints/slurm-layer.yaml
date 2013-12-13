@@ -180,11 +180,11 @@ Resources:
               content: {}
 
             /etc/chef/suspend-runlist.json: &suspend-runlist
-              content: {} 
+              content: {}
 
             /etc/chef/resume-runlist.json: &resume-runlist
               content: {}
-    
+
             /etc/chef/shutdown-runlist.json: &shutdown-runlist
               content: {}
 
