@@ -10,6 +10,7 @@ Parameters:
     ConstraintDescription: must be a valid XLcloud image name.
     AllowedValues:
     - F19-x86_64-xlcloud
+    - ubuntu-12_04-x86_64-xlcloud
     Description: Cloud image Id for instances in this stack
   "xlcloud:stackId":
      Description: "The identifier of the parent stack"
@@ -168,11 +169,6 @@ Resources:
             - '/usr/local/bin/librarian-chef install --clean --verbose
 
             '
-            # TODO(pasquier-s): remove this line after the base image is updated
-            # with the proper chef-solo configuration
-            - "echo 'Ohai::Config[:plugin_path] << \"/etc/chef/ohai_plugins\"' >> /etc/chef/solo.rb
-
-              "
             - '/bin/chef-solo -c /etc/chef/solo.rb -o "role[xlc-mco-agent]" -L /var/log/chef-solo.log
 
               '

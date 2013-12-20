@@ -6,8 +6,8 @@ Parameters:
     ConstraintDescription: Must be a valid XLcloud image name.
     AllowedValues:
     - F19-x86_64-xlcloud
+    - ubuntu-12_04-x86_64-xlcloud
     Description: Default image name for instances in this stack
-    Default: F19-x86_64-xlcloud
 
   "xlcloud:defaultInstanceType":
     Type: String
