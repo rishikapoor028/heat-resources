@@ -386,75 +386,6 @@ Resources:
           files:
             /etc/cfn/cfn-credentials: *cfn-credentials
 
-            /etc/cfn/cfn-hup.conf:
-              content:
-                Fn::Join:
-                - ''
-                - - '[main]
-
-                    '
-                  - 'stack='
-                  - {Ref: 'AWS::StackId'}
-                  - '
-
-                    '
-                  - 'credential-file=/etc/cfn/cfn-credentials
-
-                    '
-              mode: "000400"
-              owner: "root"
-              group: "root"
-
-            /etc/cfn/waitcondition-signal:
-              content:
-                Fn::Join:
-                - ''
-                - - '#!/bin/bash -ve
-
-                    '
-                  - "/usr/bin/cfn-signal -e 0 -i $(hostname) '"
-                  - {Ref: ComputeHandle}
-                  - "'
-
-                    "
-                  - 'echo "cfn-signal executed"
-
-                    '
-              mode: "000750"
-              owner: "root"
-              group: "root"
-
-            /etc/cfn/hooks.conf:
-              content:
-                Fn::Join:
-                - ''
-                - - '[waitcondition-wakeup]
-
-                    '
-                  - 'triggers=post.update
-
-                    '
-                  - 'path=Resources.ClusterMetaData
-
-                    '
-                  - 'action=/etc/cfn/waitcondition-signal
-
-                    '
-                  - 'runas=root
-
-                    '
-
-            /tmp/cfn-hup-crontab.txt:
-              content:
-                Fn::Join:
-                - ''
-                - - 'MAIL=""
-
-                    '
-                  - '* * * * * /usr/bin/cfn-hup -f
-
-                    '
-
             /etc/chef/setup-runlist.json: *setup-runlist
             /etc/chef/configure-runlist.json: *configure-runlist
             /etc/chef/deploy-runlist.json: *deploy-runlist
@@ -483,21 +414,47 @@ Resources:
       UserData:
         Fn::Base64:
           Fn::Join:
-            - "\n"
+            - ""
             -
-              - "#!/bin/bash -ve"
-              - "#HOME is required by librarian"
-              - "export HOME=/root"
-              - "source /etc/profile.d/proxy.sh"
-              - "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname"
-              - "hostname `cat /etc/hostname`"
-              - "pip install --upgrade heat-cfntools"
-              - "cfn-init"
-              - "cd /var/chef/chef-repo"
-              - "/usr/local/bin/librarian-chef install --clean --verbose"
-              - "/bin/chef-solo -c /etc/chef/solo.rb -o 'role[xlc-mco-agent]' -L /var/log/chef-solo.log"
-              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log"
-              - "crontab /tmp/cfn-hup-crontab.txt && rm -f /tmp/cfn-hup-crontab.txt"
+              - "#!/bin/bash -ve
+
+                "
+              - "#HOME is required by librarian
+
+                "
+              - "export HOME=/root
+
+                "
+              - "source /etc/profile.d/proxy.sh
+
+                "
+              - "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
+
+                "
+              - "hostname `cat /etc/hostname`
+
+                "
+              - "pip install --upgrade heat-cfntools
+
+                "
+              - "cfn-init
+
+                "
+              - "cd /var/chef/chef-repo
+
+                "
+              - "/usr/local/bin/librarian-chef install --clean --verbose
+
+                "
+              - "/bin/chef-solo -c /etc/chef/solo.rb -o 'role[xlc-mco-agent]' -L /var/log/chef-solo.log
+
+                "
+              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
+
+                "
+              - "cfn-signal -e 0 -i $(hostname) '"
+              - {Ref: ComputeHandle}
+              - "'"
 
   ClusterMetaData:
     Type: AWS::AutoScaling::LaunchConfiguration
