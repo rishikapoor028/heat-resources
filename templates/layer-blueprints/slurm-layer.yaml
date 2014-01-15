@@ -155,46 +155,133 @@ Resources:
     Type: AWS::EC2::Instance
     Metadata:
       AWS::CloudFormation::Init:
-        config:
+        configSets: &config-sets
+          default: [ "xlcloud-facts", "xlcloud-agent", "monitoring-agent", "hpc-vc", "userdata" ]
+
+        xlcloud-facts:
           files:
-            /etc/chef/setup-runlist.json: &setup-runlist
+            /etc/xlcloud-facts.json:
+              content:
+                layer_id: {Ref: 'AWS::StackId'}
+                stack_id: {Ref: 'xlcloud:stackId'}
+                logical_resource_id: "Login"
+              mode: "00400"
+              owner: root
+              group: root
+
+        xlcloud-agent: &xlcloud-agent
+          files:
+            /etc/chef/xlcloud-agent-runlist.json:
+              content:
+                mcollective:
+                  enable_puppetlabs_repo: false
+                  connector: "rabbitmq"
+                  factsource: "ohai"
+                  psk: "supersecret"
+                  stomp:
+                    hostname: {Ref: "xlcloud:brokerAddress"}
+                    port: {Ref: "xlcloud:brokerPort"}
+                    username: {Ref: "xlcloud:brokerUsername"}
+                    password: {Ref: "xlcloud:brokerPassword"}
+                run_list:
+                  - "recipe[ohai]"
+                  - "recipe[mcollective::server]"
+                  - "recipe[xlc-mco-agent]"
+              mode: "00400"
+              owner: root
+              group: root
+
+            /var/chef/chef-repo/Cheffile:
+              content:
+                Fn::Join:
+                  - "\n"
+                  -
+                    - "#!/usr/bin/env ruby"
+                    - "site 'http://community.opscode.com/api/v1'"
+                    - "cookbook 'ohai'"
+                    - "cookbook 'mcollective',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'mcollective'"
+                    - "cookbook 'xlc-mco-agent',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'xlc-mco-agent'"
+
+          commands:
+            00_librarian_chef: &00_librarian_chef
+              env: { HOME: "/root" }
+              command: "source /etc/profile; cd /var/chef/chef-repo && /usr/local/bin/librarian-chef install"
+
+            01_chef_solo:
+                command: "source /etc/profile; /bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/xlcloud-agent-runlist.json"
+
+        monitoring-agent: &monitoring-agent
+          files:
+            /etc/chef/monitoring-agent-runlist.json:
+              content:
+                ganglia:
+                  central_monit: false
+                  cluster:
+                    collector_host: {Ref: "xlcloud:monitorIP"}
+                    name: {Ref: "xlcloud:monitoringCluster"}
+                run_list:
+                  - "recipe[ganglia]"
+                  - "recipe[ganglia::stack]"
+              mode: "00400"
+              owner: root
+              group: root
+
+            /var/chef/chef-repo/Cheffile:
+              content:
+                Fn::Join:
+                  - "\n"
+                  - - "#!/usr/bin/env ruby"
+                    - "site 'http://community.opscode.com/api/v1'"
+                    - "cookbook 'ganglia',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'ganglia'"
+              mode: "00400"
+              owner: root
+              group: root
+
+          commands:
+            00_librarian_chef: *00_librarian_chef
+
+            01_chef_solo:
+                command: "/bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/monitoring-agent-runlist.json"
+
+        hpc-vc: &hpc-vc
+          files:
+            /etc/chef/setup-runlist.json:
               content:
                 run_list:
-                    - "role[ganglia-agent]"
                     - "role[hpc-vc]"
                     - "recipe[hpc-vc::setup]"
 
-            /etc/chef/configure-runlist.json: &configure-runlist
+            /etc/chef/configure-runlist.json:
               content:
                 run_list:
                     - "role[hpc-vc]"
                     - "recipe[hpc-vc::configure]"
 
-            /etc/chef/deploy-runlist.json: &deploy-runlist
+            /etc/chef/deploy-runlist.json:
               content:
                 run_list:
                     - "role[hpc-vc]"
                     - "recipe[hpc-vc::deploy]"
 
-            /etc/chef/undeploy-runlist.json: &undeploy-runlist
+            /etc/chef/undeploy-runlist.json:
               content: {}
 
-            /etc/chef/suspend-runlist.json: &suspend-runlist
+            /etc/chef/suspend-runlist.json:
               content: {}
 
-            /etc/chef/resume-runlist.json: &resume-runlist
+            /etc/chef/resume-runlist.json:
               content: {}
 
-            /etc/chef/shutdown-runlist.json: &shutdown-runlist
+            /etc/chef/shutdown-runlist.json:
               content: {}
 
-            /etc/xlcloud-facts.json:
-                content:
-                    layer_id: {Ref: 'AWS::StackId'}
-                    stack_id: {Ref: 'xlcloud:stackId'}
-                    logical_resource_id: "Login"
-
-            /etc/cfn/cfn-credentials: &cfn-credentials
+            /etc/cfn/cfn-credentials:
               content:
                 Fn::Join:
                   - ''
@@ -212,27 +299,7 @@ Resources:
               owner: root
               group: root
 
-            /var/chef/chef-repo/roles/ganglia-agent.json: &ganglia-agent
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    ganglia:
-                        central_monit: false
-                        cluster:
-                            collector_host: {Ref: "xlcloud:monitorIP"}
-                            name: {Ref: "xlcloud:monitoringCluster"}
-                  description: "This is a role to install the monitoring agent."
-                  run_list:
-                    - "recipe[ganglia]"
-                    - "recipe[ganglia::stack]"
-                  json_class: "Chef::Role"
-                  name: "ganglia-agent"
-              mode: "00400"
-              owner: root
-              group: root
-
-            /var/chef/chef-repo/roles/hpc-vc.json: &hpc-vc
+            /var/chef/chef-repo/roles/hpc-vc.json:
               content:
                   chef_type: "role"
                   default_attributes: {}
@@ -251,46 +318,13 @@ Resources:
               owner: root
               group: root
 
-            /var/chef/chef-repo/roles/xlc-mco-agent.json: &xlc-mco-agent
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    mcollective:
-                      enable_puppetlabs_repo: false
-                      connector: "rabbitmq"
-                      factsource: "ohai"
-                      psk: "supersecret"
-                      stomp:
-                        hostname: {Ref: "xlcloud:brokerAddress"}
-                        port: {Ref: "xlcloud:brokerPort"}
-                        username: {Ref: "xlcloud:brokerUsername"}
-                        password: {Ref: "xlcloud:brokerPassword"}
-                  description: "This is a role to install ohai + mcollective server + xlcloud agent."
-                  run_list:
-                    - "recipe[ohai]"
-                    - "recipe[mcollective::server]"
-                    - "recipe[xlc-mco-agent]"
-                  json_class: "Chef::Role"
-                  name: "xlc-mco-agent"
-              mode: "00400"
-              owner: root
-              group: root
-
-            /var/chef/chef-repo/Cheffile: &Cheffile
+            /var/chef/chef-repo/Cheffile:
               content:
                 Fn::Join:
                   - "\n"
                   -
                     - "#!/usr/bin/env ruby"
                     - "site 'http://community.opscode.com/api/v1'"
-                    - "cookbook 'ohai'"
-                    - "cookbook 'mcollective',"
-                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
-                    - "    :path => 'mcollective'"
-                    - "cookbook 'xlc-mco-agent',"
-                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
-                    - "    :path => 'xlc-mco-agent'"
                     - "cookbook 'hpc-vc',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'hpc-vc'"
@@ -309,9 +343,6 @@ Resources:
                     - "cookbook 'nfs_export',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'nfs_export'"
-                    - "cookbook 'ganglia',"
-                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
-                    - "    :path => 'ganglia'"
                     - "cookbook 'jdk_ark',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'jdk_ark'"
@@ -325,6 +356,29 @@ Resources:
               owner: root
               group: root
 
+          commands:
+            00_librarian_chef: *00_librarian_chef
+
+            01_chef_solo:
+                command: "/bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/setup-runlist.json"
+
+        userdata:
+          files:
+            /tmp/userdata:
+              content:
+                Fn::Join:
+                - ''
+                - - '#!/bin/bash -ve
+
+                  '
+                  - 'echo 42 | logger -t userdata'
+              mode: "00500"
+              owner: root
+              group: root
+
+          commands:
+            00_run_userdata:
+                command: "/tmp/userdata"
 
     Properties:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
@@ -340,39 +394,15 @@ Resources:
           - - '#!/bin/bash -ve
 
             '
-            - '# HOME is required by librarian
-
-            '
-            - 'export HOME=/root
-
-            '
             - 'source /etc/profile.d/proxy.sh
-
-            '
-            - 'echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
-
-            '
-            - 'hostname `cat /etc/hostname`
 
             '
             - 'pip install --upgrade heat-cfntools
 
             '
-            - 'cfn-init
+            - 'cfn-init -c default
 
             '
-            - 'cd /var/chef/chef-repo
-
-            '
-            - '/usr/local/bin/librarian-chef install --clean --verbose
-
-            '
-            - '/bin/chef-solo -c /etc/chef/solo.rb -o "role[xlc-mco-agent]" -L /var/log/chef-solo.log
-
-              '
-            - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
-
-              '
             - "cfn-signal -e 0 '"
             - {Ref: LoginHandle}
             - "'"
@@ -382,29 +412,40 @@ Resources:
     Type: AWS::AutoScaling::LaunchConfiguration
     Metadata:
       AWS::CloudFormation::Init:
-        config:
+        configSets: *config-sets
+
+        xlcloud-facts:
           files:
-            /etc/cfn/cfn-credentials: *cfn-credentials
-
-            /etc/chef/setup-runlist.json: *setup-runlist
-            /etc/chef/configure-runlist.json: *configure-runlist
-            /etc/chef/deploy-runlist.json: *deploy-runlist
-            /etc/chef/undeploy-runlist.json: *undeploy-runlist
-            /etc/chef/suspend-runlist.json: *suspend-runlist
-            /etc/chef/resume-runlist.json: *resume-runlist
-            /etc/chef/shutdown-runlist.json: *shutdown-runlist
-
             /etc/xlcloud-facts.json:
-                content:
-                    layer_id: {Ref: 'AWS::StackId'}
-                    stack_id: {Ref: 'xlcloud:stackId'}
-                    logical_resource_id: "Computes"
+              content:
+                layer_id: {Ref: 'AWS::StackId'}
+                stack_id: {Ref: 'xlcloud:stackId'}
+                logical_resource_id: "Computes"
+              mode: "00400"
+              owner: root
+              group: root
 
-            /var/chef/chef-repo/roles/xlc-mco-agent.json: *xlc-mco-agent
-            /var/chef/chef-repo/roles/ganglia-agent.json: *ganglia-agent
-            /var/chef/chef-repo/roles/hpc-vc.json: *hpc-vc
+        xlcloud-agent: *xlcloud-agent
+        monitoring-agent: *monitoring-agent
+        hpc-vc: *hpc-vc
 
-            /var/chef/chef-repo/Cheffile: *Cheffile
+        userdata:
+          files:
+            /tmp/userdata:
+              content:
+                Fn::Join:
+                - ''
+                - - '#!/bin/bash -ve
+
+                  '
+                  - 'echo 42 | logger -t userdata'
+              mode: "00500"
+              owner: root
+              group: root
+
+          commands:
+            00_run_userdata:
+                command: "/tmp/userdata"
 
     Properties:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
@@ -419,37 +460,13 @@ Resources:
               - "#!/bin/bash -ve
 
                 "
-              - "#HOME is required by librarian
-
-                "
-              - "export HOME=/root
-
-                "
               - "source /etc/profile.d/proxy.sh
-
-                "
-              - "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
-
-                "
-              - "hostname `cat /etc/hostname`
 
                 "
               - "pip install --upgrade heat-cfntools
 
                 "
-              - "cfn-init
-
-                "
-              - "cd /var/chef/chef-repo
-
-                "
-              - "/usr/local/bin/librarian-chef install --clean --verbose
-
-                "
-              - "/bin/chef-solo -c /etc/chef/solo.rb -o 'role[xlc-mco-agent]' -L /var/log/chef-solo.log
-
-                "
-              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
+              - "cfn-init -c default
 
                 "
               - "cfn-signal -e 0 -i $(hostname) '"
@@ -461,17 +478,6 @@ Resources:
     Metadata:
       IpAddresses: {'Fn::GetAtt': [Computes, InstanceList]}
       Size: {Ref: "xlcloud:Computes:size"}
-      AWS::CloudFormation::Init:
-        config:
-          files:
-            /etc/chef/setup-runlist.json: *setup-runlist
-            /etc/chef/configure-runlist.json: *configure-runlist
-            /etc/chef/deploy-runlist.json: *deploy-runlist
-            /etc/chef/undeploy-runlist.json: *undeploy-runlist
-            /etc/chef/suspend-runlist.json: *suspend-runlist
-            /etc/chef/resume-runlist.json: *resume-runlist
-            /etc/chef/shutdown-runlist.json: *shutdown-runlist
-            /var/chef/chef-repo/Cheffile: *Cheffile
     Properties:
       ImageId: foobar
       InstanceType: foobar
