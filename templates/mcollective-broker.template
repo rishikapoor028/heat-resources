@@ -150,6 +150,8 @@
                            "name":"rabbitmq-for-mcollective",
                            "default_attributes":{
                               "rabbitmq":{
+                                 "use_distro_version": false,
+                                 "policies": [],
                                  "port":{"Ref": "RabbitPort"},
                                  "virtualhosts":[
                                     "/"
