@@ -91,10 +91,7 @@ Resources:
     Type: AWS::EC2::Instance
     Metadata:
       AWS::CloudFormation::Init:
-        configSets:
-          default: [ "xlcloud-facts", "xlcloud-agent", "main" ]
-
-        xlcloud-facts:
+        config:
           files:
             /etc/xlcloud/facts.json:
               content:
@@ -105,8 +102,6 @@ Resources:
               owner: root
               group: root
 
-        xlcloud-agent:
-          files:
             /etc/chef/xlcloud-agent-runlist.json:
               content:
                 mcollective:
@@ -127,31 +122,6 @@ Resources:
               owner: root
               group: root
 
-            /var/chef/chef-repo/Cheffile:
-              content:
-                Fn::Join:
-                  - "\n"
-                  -
-                    - "#!/usr/bin/env ruby"
-                    - "site 'http://community.opscode.com/api/v1'"
-                    - "cookbook 'ohai'"
-                    - "cookbook 'mcollective',"
-                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
-                    - "    :path => 'mcollective'"
-                    - "cookbook 'xlc-mco-agent',"
-                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
-                    - "    :path => 'xlc-mco-agent'"
-
-          commands:
-            00_librarian_chef:
-              env: { HOME: "/root" }
-              command: "source /etc/profile; cd /var/chef/chef-repo && /usr/local/bin/librarian-chef install"
-
-            01_chef_solo:
-                command: "source /etc/profile; /bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/xlcloud-agent-runlist.json"
-
-        main:
-          files:
             /etc/chef/setup-runlist.json:
               content:
                 xlc-db:
@@ -186,6 +156,13 @@ Resources:
                   -
                     - "#!/usr/bin/env ruby"
                     - "site 'http://community.opscode.com/api/v1'"
+                    - "cookbook 'ohai'"
+                    - "cookbook 'mcollective',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'mcollective'"
+                    - "cookbook 'xlc-mco-agent',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'xlc-mco-agent'"
                     - "cookbook 'xlc-db',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'xlc-db'"
@@ -198,8 +175,11 @@ Resources:
               env: { HOME: "/root" }
               command: "source /etc/profile; cd /var/chef/chef-repo && /usr/local/bin/librarian-chef install"
 
-            01_chef_solo:
-                command: "/bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/setup-runlist.json"
+            01_install_agent:
+                command: "source /etc/profile; /bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/xlcloud-agent-runlist.json"
+
+            02_setup:
+                command: "source /etc/profile; /bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/setup-runlist.json"
 
     Properties:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
@@ -221,7 +201,7 @@ Resources:
             - 'pip install --upgrade heat-cfntools
 
             '
-            - 'cfn-init -c default
+            - 'cfn-init
 
             '
             - "cfn-signal -e 0 '"
