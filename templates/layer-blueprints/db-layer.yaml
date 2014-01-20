@@ -32,7 +32,7 @@ Parameters:
     Type: "String"
     Description: "RabbitMQ broker password"
   "xlcloud:dbType":
-    AllowedValues: ["mysql", "postgres"]
+    AllowedValues: ["mysql", "postgresql"]
     Type: String
     Description: "DB service type"
   "xlcloud:dbPassword":
