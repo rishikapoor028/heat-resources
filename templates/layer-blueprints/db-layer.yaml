@@ -236,5 +236,5 @@ Outputs:
     Value: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : "xlcloud:dbType" }, "port"]}
     Description: TCP port where the DB service is running
   DbAdminUser:
-    Value: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : "xlcloud:dbType" }, "admin"]}
+    Value: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : "xlcloud:dbType" }, "admin_user"]}
     Description: Administrator username
