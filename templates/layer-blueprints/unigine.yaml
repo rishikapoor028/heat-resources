@@ -1,0 +1,121 @@
+# heat stack-create -f unigine.yaml stackgpu
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Start an instance, install nvidia drivers and Unigine benchmarks
+
+Parameters:
+    "xlcloud:defaultKeyName":
+        Type: String
+        Default: "mykey"
+    "xlcloud:defaultInstanceType":
+        Type: String
+        Default: m1.small
+    "xlcloud:defaultImageId":
+        Type: String
+        Default: "centos6"
+
+Resources:
+  LayerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Enable SSH access, ICMP and VNC"
+      SecurityGroupIngress:
+        -
+          IpProtocol: "icmp"
+          FromPort: "-1"
+          ToPort: "-1"
+          CidrIp: "0.0.0.0/0"
+        -
+          IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+        -
+          IpProtocol: "tcp"
+          FromPort: "5900"
+          ToPort: "5910"
+          CidrIp: "0.0.0.0/0"
+
+  IReadyHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  InstanceReady:
+    Type: AWS::CloudFormation::WaitCondition
+    Properties:
+      Handle: {Ref: IReadyHandle}
+      Count: 1
+      Timeout: '1800'
+
+  GPUInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /etc/chef/setup-runlist.json:
+              content:
+                run_list:
+                  - "recipe[rr-vc::setup]"
+                  - "recipe[unigine]"
+            /var/chef/chef-repo/Cheffile:
+              content:
+                Fn::Join:
+                  - "\n"
+                  -
+                    - "#!/usr/bin/env ruby"
+                    - "site 'http://community.opscode.com/api/v1'"
+                    - "cookbook 'rr-vc',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'rr-vc'"
+                    - "cookbook 'unigine',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'unigine'"
+              mode: "00400"
+              owner: root
+              group: root
+
+    Properties:
+      ImageId: {Ref: 'xlcloud:defaultImageId'}
+      InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
+      KeyName: {Ref: 'xlcloud:defaultKeyName'}
+      SecurityGroups: [{"Ref" : "LayerSecurityGroup"}]
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - '#!/bin/bash -ve
+
+            '
+            - '# HOME is required by librarian
+
+            '
+            - 'export HOME=/root
+
+            '
+            - 'source /etc/profile
+
+            '
+            - 'echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
+
+            '
+            - 'hostname `cat /etc/hostname`
+
+            '
+            - 'pip install --upgrade heat-cfntools
+
+            '
+            - 'cfn-init
+
+            '
+            - 'cd /var/chef/chef-repo
+
+            '
+            - 'librarian-chef install --clean --verbose
+
+            '
+            - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
+
+            '
+            - "cfn-signal -e 0 -i $(hostname) '"
+            - {Ref: IReadyHandle}
+            - "'"
