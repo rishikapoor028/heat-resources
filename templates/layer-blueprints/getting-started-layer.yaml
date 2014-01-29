@@ -53,6 +53,17 @@ Resources:
             ToPort: "22"
             CidrIp: "0.0.0.0/0"
 
+  Handle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  Ready:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: GettingStarted
+    Properties:
+      Handle: {Ref: Handle}
+      Count: '1'
+      Timeout: '600'
+
   GettingStarted:
     Type: AWS::EC2::Instance
     Metadata:
@@ -148,7 +159,7 @@ Resources:
             - 'export HOME=/root
 
             '
-            - 'source /etc/profile.d/proxy.sh
+            - 'source /etc/profile
 
             '
             - 'echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
@@ -175,6 +186,9 @@ Resources:
             - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
 
               '
+            - "cfn-signal -e 0 '"
+            - {Ref: Handle}
+            - "'"
 Outputs:
   InstanceIp:
     Value: {"Fn::Join" : ["", ["ssh ec2-user@", {"Fn::GetAtt": ["GettingStarted", "PublicIp"]}]]}
