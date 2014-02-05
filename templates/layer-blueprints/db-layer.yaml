@@ -35,6 +35,7 @@ Parameters:
     AllowedValues: ["mysql", "postgresql"]
     Type: String
     Description: "DB service type"
+    Default: "mysql"
   "xlcloud:dbPassword":
     Type: String
     Description: "DB admin password"
@@ -85,7 +86,7 @@ Resources:
     Properties:
       Handle: {Ref: Handle}
       Count: '1'
-      Timeout: '600'
+      Timeout: '900'
 
   DbServer:
     Type: AWS::EC2::Instance
@@ -129,7 +130,7 @@ Resources:
                   password: {Ref: "xlcloud:dbPassword"}
                   listen_port: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : "xlcloud:dbType" }, "port"]}
                 run_list:
-                    - "recipe[xlc-db]"
+                    - "recipe[xlc-db::setup]"
 
             /etc/chef/configure-runlist.json:
               content: {}
