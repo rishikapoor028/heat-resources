@@ -136,7 +136,13 @@ Resources:
               content: {}
 
             /etc/chef/deploy-runlist.json:
-              content: {}
+              content:
+                xlc-db:
+                  type: {Ref: "xlcloud:dbType"}
+                  password: {Ref: "xlcloud:dbPassword"}
+                  listen_port: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : "xlcloud:dbType" }, "port"]}
+                run_list:
+                    - "recipe[xlc-db::deploy]"
 
             /etc/chef/undeploy-runlist.json:
               content: {}
