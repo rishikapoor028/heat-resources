@@ -13,8 +13,6 @@ Parameters:
   "xlcloud:defaultImageId":
     Type: String
     ConstraintDescription: must be a valid XLcloud image name.
-    AllowedValues:
-    - F19-x86_64-xlcloud
     Description: Cloud image Id for instances in this stack
   "xlcloud:stackId":
      Description: "The identifier of the parent stack"
@@ -156,7 +154,7 @@ Resources:
     Metadata:
       AWS::CloudFormation::Init:
         configSets: &config-sets
-          default: [ "xlcloud-facts", "xlcloud-agent", "monitoring-agent", "hpc-vc", "userdata" ]
+          default: [ "xlcloud-facts", "xlcloud-agent", "monitoring-agent", "hpc-vc" ]
 
         xlcloud-facts:
           files:
@@ -325,6 +323,9 @@ Resources:
                   -
                     - "#!/usr/bin/env ruby"
                     - "site 'http://community.opscode.com/api/v1'"
+                    - "cookbook 'xlc-common',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'xlc-common'"
                     - "cookbook 'hpc-vc',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'hpc-vc'"
@@ -361,24 +362,6 @@ Resources:
 
             01_chef_solo:
                 command: "/bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/setup-runlist.json"
-
-        userdata:
-          files:
-            /tmp/userdata:
-              content:
-                Fn::Join:
-                - ''
-                - - '#!/bin/bash -ve
-
-                  '
-                  - 'echo 42 | logger -t userdata'
-              mode: "00500"
-              owner: root
-              group: root
-
-          commands:
-            00_run_userdata:
-                command: "/tmp/userdata"
 
     Properties:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
@@ -428,24 +411,6 @@ Resources:
         xlcloud-agent: *xlcloud-agent
         monitoring-agent: *monitoring-agent
         hpc-vc: *hpc-vc
-
-        userdata:
-          files:
-            /tmp/userdata:
-              content:
-                Fn::Join:
-                - ''
-                - - '#!/bin/bash -ve
-
-                  '
-                  - 'echo 42 | logger -t userdata'
-              mode: "00500"
-              owner: root
-              group: root
-
-          commands:
-            00_run_userdata:
-                command: "/tmp/userdata"
 
     Properties:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
