@@ -31,15 +31,15 @@ Parameters:
   "xlcloud:brokerPassword":
     Type: "String"
     Description: "RabbitMQ broker password"
-  "xlcloud:dbType":
+  dbType:
     AllowedValues: ["mysql", "postgresql"]
     Type: String
     Description: "DB service type"
     Default: "mysql"
-  "xlcloud:dbPassword":
+  dbPassword:
     Type: String
     Description: "DB admin password"
-  "xlcloud:allowedSubnet":
+  allowedSubnet:
     Type: String
     Description: "IP subnet (in CIDR notation) allowed to connect to the service"
     Default: "0.0.0.0/0"
@@ -73,9 +73,9 @@ Resources:
           CidrIp: "0.0.0.0/0"
         -
           IpProtocol: "tcp"
-          FromPort: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : "xlcloud:dbType" }, "port"]}
-          ToPort: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : "xlcloud:dbType" }, "port"]}
-          CidrIp: {Ref: "xlcloud:allowedSubnet"}
+          FromPort: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : dbType }, "port"]}
+          ToPort: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : dbType }, "port"]}
+          CidrIp: {Ref: allowedSubnet}
 
   Handle:
     Type: AWS::CloudFormation::WaitConditionHandle
@@ -126,9 +126,9 @@ Resources:
             /etc/chef/setup-runlist.json:
               content:
                 xlc-db:
-                  type: {Ref: "xlcloud:dbType"}
-                  password: {Ref: "xlcloud:dbPassword"}
-                  listen_port: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : "xlcloud:dbType" }, "port"]}
+                  type: {Ref: dbType}
+                  password: {Ref: dbPassword}
+                  listen_port: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : dbType }, "port"]}
                 run_list:
                     - "recipe[xlc-db::setup]"
 
@@ -138,9 +138,9 @@ Resources:
             /etc/chef/deploy-runlist.json:
               content:
                 xlc-db:
-                  type: {Ref: "xlcloud:dbType"}
-                  password: {Ref: "xlcloud:dbPassword"}
-                  listen_port: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : "xlcloud:dbType" }, "port"]}
+                  type: {Ref: dbType}
+                  password: {Ref: dbPassword}
+                  listen_port: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : dbType }, "port"]}
                 run_list:
                     - "recipe[xlc-db::deploy]"
 
@@ -221,8 +221,8 @@ Outputs:
     Value: {'Fn:GetAtt': ['DbServer', 'PrivateIp']}
     Description: IP address of the DB server
   DbPort:
-    Value: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : "xlcloud:dbType" }, "port"]}
+    Value: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : dbType }, "port"]}
     Description: TCP port where the DB service is running
   DbAdminUser:
-    Value: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : "xlcloud:dbType" }, "admin_user"]}
+    Value: {"Fn::FindInMap" : [ "DbTypeMap", { "Ref" : dbType }, "admin_user"]}
     Description: Administrator username
