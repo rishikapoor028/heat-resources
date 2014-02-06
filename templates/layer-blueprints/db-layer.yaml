@@ -192,6 +192,7 @@ Resources:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
+      SecurityGroups: [{"Ref" : "DbSecurityGroup"}]
       SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
       Tags:
       - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
