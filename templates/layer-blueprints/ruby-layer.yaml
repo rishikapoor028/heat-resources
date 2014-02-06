@@ -1,0 +1,209 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploy a single-instance Ruby server
+
+Parameters:
+  "xlcloud:defaultKeyName":
+    Description: "Name of an existing EC2 KeyPair to enable SSH access to the instances"
+    Type: String
+  "xlcloud:defaultImageId":
+    Type: String
+    ConstraintDescription: must be a valid XLcloud image name.
+    Description: Cloud image Id for instances in this stack
+  "xlcloud:stackId":
+     Description: "The identifier of the parent stack"
+     Type: String
+  "xlcloud:layerSubnetUuid":
+     Description: "The subnet identifier this layer is connected to"
+     Type: String
+  "xlcloud:defaultInstanceType":
+    Type: String
+    Default: "m1.medium"
+  "xlcloud:brokerAddress":
+    Type: "String"
+    Description: "RabbitMQ broker address"
+  "xlcloud:brokerPort":
+    Type: "String"
+    Description: "RabbitMQ broker port"
+  "xlcloud:brokerUsername":
+    Type: "String"
+    Description: "RabbitMQ broker username"
+  "xlcloud:brokerPassword":
+    Type: "String"
+    Description: "RabbitMQ broker password"
+
+Resources:
+  ServerIp: { Type: 'AWS::EC2::EIP' }
+
+  ServerIpAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: {Ref: Server}
+      EIP: {Ref: ServerIp}
+
+  ServerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Allow SSH access + ICMP + HTTP + HTTPS from anywhere"
+      VpcId: neutron
+      SecurityGroupIngress:
+        -
+          IpProtocol: "icmp"
+          FromPort: "-1"
+          ToPort: "-1"
+          CidrIp: "0.0.0.0/0"
+        -
+          IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+        -
+          IpProtocol: "tcp"
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: "0.0.0.0/0"
+        -
+          IpProtocol: "tcp"
+          FromPort: "443"
+          ToPort: "443"
+          CidrIp: "0.0.0.0/0"
+
+  Handle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  Ready:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: Server
+    Properties:
+      Handle: {Ref: Handle}
+      Count: '1'
+      Timeout: '900'
+
+  Server:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /etc/xlcloud/facts.json:
+              content:
+                layer_id: {Ref: 'AWS::StackId'}
+                stack_id: {Ref: 'xlcloud:stackId'}
+                logical_resource_id: "DbServer"
+              mode: "00400"
+              owner: root
+              group: root
+
+            /etc/chef/xlcloud-agent-runlist.json:
+              content:
+                mcollective:
+                  enable_puppetlabs_repo: false
+                  connector: "rabbitmq"
+                  factsource: "ohai"
+                  psk: "supersecret"
+                  stomp:
+                    hostname: {Ref: "xlcloud:brokerAddress"}
+                    port: {Ref: "xlcloud:brokerPort"}
+                    username: {Ref: "xlcloud:brokerUsername"}
+                    password: {Ref: "xlcloud:brokerPassword"}
+                run_list:
+                  - "recipe[ohai]"
+                  - "recipe[mcollective::server]"
+                  - "recipe[xlc-mco-agent]"
+              mode: "00400"
+              owner: root
+              group: root
+
+            /etc/chef/setup-runlist.json:
+              content:
+                run_list:
+                    - "recipe[xlc-rails::setup]"
+
+            /etc/chef/configure-runlist.json:
+              content:
+                run_list:
+                    - "recipe[xlc-rails::configure]"
+
+            /etc/chef/deploy-runlist.json:
+              content:
+                run_list:
+                    - "recipe[xlc-rails::deploy]"
+
+            /etc/chef/undeploy-runlist.json:
+              content: {}
+
+            /etc/chef/suspend-runlist.json:
+              content: {}
+
+            /etc/chef/resume-runlist.json:
+              content: {}
+
+            /etc/chef/shutdown-runlist.json:
+              content: {}
+
+            /var/chef/chef-repo/Cheffile:
+              content:
+                Fn::Join:
+                  - "\n"
+                  -
+                    - "#!/usr/bin/env ruby"
+                    - "site 'http://community.opscode.com/api/v1'"
+                    - "cookbook 'ohai'"
+                    - "cookbook 'mcollective',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'mcollective'"
+                    - "cookbook 'xlc-mco-agent',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'xlc-mco-agent'"
+                    - "cookbook 'application_ruby',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'application_ruby'"
+                    - "cookbook 'xlc-rails',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'xlc-rails'"
+              mode: "00400"
+              owner: root
+              group: root
+
+          commands:
+            00_librarian_chef:
+              env: { HOME: "/root" }
+              command: "source /etc/profile; cd /var/chef/chef-repo && /usr/local/bin/librarian-chef install"
+
+            01_install_agent:
+                command: "source /etc/profile; /bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/xlcloud-agent-runlist.json"
+
+            02_setup:
+                command: "source /etc/profile; /bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/setup-runlist.json"
+
+    Properties:
+      ImageId: {Ref: 'xlcloud:defaultImageId'}
+      InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
+      KeyName: {Ref: 'xlcloud:defaultKeyName'}
+      SecurityGroups: [{"Ref" : "ServerSecurityGroup"}]
+      SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
+      Tags:
+      - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - '#!/bin/bash -ve
+
+            '
+            - 'source /etc/profile.d/proxy.sh
+
+            '
+            - 'pip install --upgrade heat-cfntools
+
+            '
+            - 'cfn-init
+
+            '
+            - "cfn-signal -e 0 '"
+            - {Ref: Handle}
+            - "'"
+
+Outputs:
+  ServerAddress:
+    Value: {Ref: ServerIp}
+    Description: IP address of the app server
