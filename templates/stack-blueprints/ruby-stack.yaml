@@ -1,0 +1,105 @@
+# TODO(pasquier-s): add monitoring layer
+Description: XLcloud Ruby Stack
+HeatTemplateFormatVersion: '2012-12-12'
+Outputs:
+  AppServerAddress:
+    Description: "Public address of the application server"
+    Value: {'Fn::GetAtt': ['AppServer', 'Outputs.ServerAddress']}
+  DbAddress:
+    Description: "Private address of the database server"
+    Value: {'Fn::GetAtt': ['Db', 'Outputs.DbAddress']}
+  DbPort:
+    Value: {'Fn::GetAtt': ['Db', 'Outputs.DbPort']}
+    Description: TCP port where the DB service is running
+  DbAdminUser:
+    Value: {'Fn::GetAtt': ['Db', 'Outputs.DbAdminUser']}
+    Description: Administrator username
+
+Parameters:
+  "xlcloud:defaultImageId":
+    Type: String
+    ConstraintDescription: Must be a valid XLcloud image name.
+    Description: Default image name for instances in this stack
+    AllowedValues: ["ubuntu-12_04-x86_64-xlcloud", "CentOS-6.5-x86_64-xlcloud"]
+    Default: CentOS-6.5-x86_64-xlcloud
+
+  "xlcloud:defaultInstanceType":
+    Type: String
+    ConstraintDescription: must be a valid XLcloud instance type.
+    AllowedValues:
+    - m1.tiny
+    - m1.small
+    - m1.medium
+    - m1.large
+    - m1.xlarge
+    Description: Default instance type (flavor) for instances in this stack
+    Default: m1.medium
+
+  "xlcloud:defaultKeyName":
+    Type: String
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+
+  "xlcloud:brokerAddress":
+    Type: "String"
+    Description: "RabbitMQ broker address"
+
+  "xlcloud:brokerPort":
+    Type: "String"
+    Description: "RabbitMQ broker port"
+    Default: '63613'
+
+  "xlcloud:brokerUsername":
+    Type: "String"
+    Description: "RabbitMQ broker username"
+    Default: 'xlcloud'
+
+  "xlcloud:brokerPassword":
+    Type: "String"
+    Description: "RabbitMQ broker password"
+    Default: 'xlcloud'
+
+  dbType:
+    Type: "String"
+    Description: "Database flavor"
+    AllowedValues: ["mysql", "postgresql"]
+    Default: 'mysql'
+
+  dbAdminPassword:
+    Default: "changeit"
+    NoEcho: "TRUE"
+    Type: "String"
+
+Resources:
+  Db:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters: {
+                    'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
+                    'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
+                    'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
+                    'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
+                    'xlcloud:brokerPort' : {Ref: 'xlcloud:brokerPort'},
+                    'xlcloud:brokerUsername' : {Ref: 'xlcloud:brokerUsername'},
+                    'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
+                    'xlcloud:layerSubnetUuid' : "",
+                    'xlcloud:stackId' : {Ref: 'AWS::StackId'},
+                    dbPassword : {Ref: dbAdminPassword},
+                    dbType : {Ref: dbType}}
+      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/db-layer.yaml'
+      TimeoutInMinutes: 20
+
+  AppServer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters: {
+                    'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
+                    'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
+                    'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
+                    'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
+                    'xlcloud:brokerPort' : {Ref: 'xlcloud:brokerPort'},
+                    'xlcloud:brokerUsername' : {Ref: 'xlcloud:brokerUsername'},
+                    'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
+                    'xlcloud:layerSubnetUuid' : "",
+                    'xlcloud:stackId' : {Ref: 'AWS::StackId'}}
+      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/ruby-layer.yaml'
+      TimeoutInMinutes: 20
