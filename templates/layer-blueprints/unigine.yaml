@@ -58,8 +58,8 @@ Resources:
                   - "recipe[rr-vc::setup]"
                   - "recipe[unigine]"
                   - "recipe[ganglia]"
-                  - "recipe[ganglia:stack]"
-                  - "recipe[ganglia:python_rr]"
+                  - "recipe[ganglia::stack]"
+                  - "recipe[ganglia::python_rr]"
             /var/chef/chef-repo/Cheffile:
               content:
                 Fn::Join:
