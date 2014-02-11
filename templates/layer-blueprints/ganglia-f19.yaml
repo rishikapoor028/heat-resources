@@ -158,7 +158,6 @@ Resources:
                   run_list:
                     - "recipe[ganglia]"
                     - "recipe[ganglia::web]"
-                    - "recipe[ganglia::python_rr]"
 
                   json_class: "Chef::Role"
                   name: "ganglia-server"
