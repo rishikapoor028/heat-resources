@@ -57,6 +57,9 @@ Resources:
                 run_list:
                   - "recipe[rr-vc::setup]"
                   - "recipe[unigine]"
+                  - "recipe[ganglia]"
+                  - "recipe[ganglia:stack]"
+                  - "recipe[ganglia:python_rr]"
             /var/chef/chef-repo/Cheffile:
               content:
                 Fn::Join:
@@ -70,6 +73,9 @@ Resources:
                     - "cookbook 'unigine',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'unigine'"
+                    - "cookbook 'ganglia',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'ganglia'"
               mode: "00400"
               owner: root
               group: root
