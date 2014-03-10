@@ -1,20 +1,35 @@
-# heat stack-create -f unigine.yaml stackgpu
+# heat stack-create mystack -P 'xlcloud:defaultKeyName=mykey;xlcloud:defaultImageId=centos6;xlcloud:layerSubnetUuid=147ef19a-2572-4659-a1d7-56b1884df417;xlcloud:defaultInstanceType=g1.large' -f unigine.yaml
 
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Start an instance, install nvidia drivers and Unigine benchmarks
 
 Parameters:
-    "xlcloud:defaultKeyName":
-        Type: String
-        Default: "mykey"
-    "xlcloud:defaultInstanceType":
-        Type: String
-        Default: m1.small
-    "xlcloud:defaultImageId":
-        Type: String
-        Default: "centos6"
+  "xlcloud:defaultKeyName":
+    Description: "Name of an existing EC2 KeyPair to enable SSH access to the instances"
+    Type: String
+  "xlcloud:defaultImageId":
+    Type: String
+    ConstraintDescription: must be a valid XLcloud image name.
+    Description: Cloud image Id for instances in this stack
+  "xlcloud:stackId":
+    Description: "The identifier of the parent stack"
+    Type: String
+    Default: "Will be overwritten by XMS"
+  "xlcloud:layerSubnetUuid":
+    Description: "The subnet identifier this layer is connected to"
+    Type: String
+  "xlcloud:defaultInstanceType":
+    Type: String
 
 Resources:
+  NodeIPAddress: {Type: "AWS::EC2::EIP"}
+
+  NodeIPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: {Ref: GPUInstance}
+      EIP: {Ref: NodeIPAddress}
+
   LayerSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
@@ -52,6 +67,14 @@ Resources:
       AWS::CloudFormation::Init:
         config:
           files:
+            /etc/xlcloud/facts.json:
+              content:
+                layer_id: {Ref: 'AWS::StackId'}
+                stack_id: {Ref: 'xlcloud:stackId'}
+              mode: "00400"
+              owner: root
+              group: root
+
             /var/chef/chef-repo/roles/ganglia-server.json:
               content:
                   chef_type: "role"
@@ -73,6 +96,7 @@ Resources:
               mode: "00400"
               owner: root
               group: root
+
             /etc/chef/setup-runlist.json:
               content:
                 run_list:
@@ -82,6 +106,7 @@ Resources:
                   #- "recipe[ganglia]"
                   #- "recipe[ganglia::stack]"
                   #- "recipe[ganglia::python_rr]"
+
             /var/chef/chef-repo/Cheffile:
               content:
                 Fn::Join:
@@ -107,6 +132,7 @@ Resources:
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups: [{"Ref" : "LayerSecurityGroup"}]
+      SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
       UserData:
         Fn::Base64:
           Fn::Join:
