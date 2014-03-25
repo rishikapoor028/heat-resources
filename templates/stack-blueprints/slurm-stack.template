@@ -60,6 +60,14 @@
       "Default": "63613", 
       "Type": "String", 
       "Description": "RabbitMQ broker port"
+    },
+    "xlcloud:stackSecret": {
+      "Description": "Secret for service authentication",
+      "Type": "String"
+    },
+    "xlcloud:xmsAddress": {
+      "Description": "Address of XLCloud Management System",
+      "Type": "String"
     }
   }, 
   "Outputs": {
@@ -144,6 +152,12 @@
           }, 
           "xlcloud:brokerPort": {
             "Ref": "xlcloud:brokerPort"
+          },
+          "xlcloud:stackSecret": {
+            "Ref": "xlcloud:stackSecret"
+          },
+          "xlcloud:xmsAddress": {
+            "Ref": "xlcloud:xmsAddress"
           }
         }
       }, 
@@ -184,6 +198,12 @@
           }, 
           "xlcloud:brokerPort": {
             "Ref": "xlcloud:brokerPort"
+          },
+          "xlcloud:stackSecret": {
+            "Ref": "xlcloud:stackSecret"
+          },
+          "xlcloud:xmsAddress": {
+            "Ref": "xlcloud:xmsAddress"
           }
         }
       }

@@ -80,6 +80,14 @@
     "xlcloud:stackId": {
       "Description": "The identifier of the parent stack",
       "Type": "String"
+    },
+    "xlcloud:stackSecret": {
+      "Description": "Secret for service authentication",
+      "Type": "String"
+    },
+    "xlcloud:xmsAddress": {
+      "Description": "Address of XLCloud Management System",
+      "Type": "String"
     }
   },
   "Resources": {

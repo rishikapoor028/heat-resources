@@ -50,6 +50,14 @@
     "xlcloud:brokerPort": {
       "Type": "String", 
       "Description": "RabbitMQ broker port"
+    },
+    "xlcloud:stackSecret": {
+      "Description": "Secret for service authentication",
+      "Type": "String"
+    },
+    "xlcloud:xmsAddress": {
+      "Description": "Address of XLCloud Management System",
+      "Type": "String"
     }
   }, 
   "Outputs": {
