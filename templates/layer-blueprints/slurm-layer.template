@@ -83,7 +83,8 @@
     },
     "xlcloud:stackSecret": {
       "Description": "Secret for service authentication",
-      "Type": "String"
+      "Type": "String",
+      "NoEcho": "TRUE"
     },
     "xlcloud:xmsAddress": {
       "Description": "Address of XLCloud Management System",
