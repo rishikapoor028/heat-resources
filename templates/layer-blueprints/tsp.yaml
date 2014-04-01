@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Start an instance, install nvidia drivers, ganglia and unzip
-    TSP tools into /space directory.
+    TSP tools into /opt/space directory.
 
 Parameters:
   "xlcloud:defaultKeyName":
@@ -101,7 +101,7 @@ Resources:
               content:
                 run_list:
                   - "recipe[rr-vc::setup]"
-                  - "recipe[tsp]"
+                  - "recipe[rr-vc::tsp]"
                   - "role[ganglia-server]"
 
             /var/chef/chef-repo/Cheffile:
@@ -114,9 +114,6 @@ Resources:
                     - "cookbook 'rr-vc',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'rr-vc'"
-                    - "cookbook 'tsp',"
-                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
-                    - "    :path => 'tsp'"
                     - "cookbook 'ganglia',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'ganglia'"
