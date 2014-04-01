@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Start an instance, install nvidia drivers, ganglia and unzip
+    TSP tools into /space directory.
+
+Parameters:
+  "xlcloud:defaultKeyName":
+    Description: Name of an existing EC2 KeyPair to enable SSH access to
+        the instances.
+    Type: String
+  "xlcloud:defaultImageId":
+    Type: String
+    ConstraintDescription: must be a valid XLcloud image name.
+    Description: Cloud image Id for instances in this stack
+  "xlcloud:stackId":
+    Description: The identifier of the parent stack.
+    Type: String
+    Default: "Will be overwritten by XMS"
+  "xlcloud:layerSubnetUuid":
+    Description: The subnet identifier this layer is connected to.
+    Type: String
+  "xlcloud:defaultInstanceType":
+    Type: String
+
+Resources:
+  NodeIPAddress: {Type: "AWS::EC2::EIP"}
+
+  NodeIPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: {Ref: GPUInstance}
+      EIP: {Ref: NodeIPAddress}
+
+  LayerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Enable SSH access, ICMP and VNC"
+      SecurityGroupIngress:
+        -
+          IpProtocol: "icmp"
+          FromPort: "-1"
+          ToPort: "-1"
+          CidrIp: "0.0.0.0/0"
+        -
+          IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+        -
+          IpProtocol: "tcp"
+          FromPort: "5900"
+          ToPort: "5910"
+          CidrIp: "0.0.0.0/0"
+
+  IReadyHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  InstanceReady:
+    Type: AWS::CloudFormation::WaitCondition
+    Properties:
+      Handle: {Ref: IReadyHandle}
+      Count: 1
+      Timeout: '1800'
+
+  GPUInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /etc/xlcloud/facts.json:
+              content:
+                layer_id: {Ref: 'AWS::StackId'}
+                stack_id: {Ref: 'xlcloud:stackId'}
+              mode: "00400"
+              owner: root
+              group: root
+
+            /var/chef/chef-repo/roles/ganglia-server.json:
+              content:
+                  chef_type: "role"
+                  default_attributes: {}
+                  override_attributes:
+                    ganglia:
+                      central_monit: true
+                      cluster:
+                        collector_host: "127.0.0.1"
+                        name: "Remote Rendering"
+                  description: "This is a role to install the ganglia service"
+                  run_list:
+                    - "recipe[ganglia]"
+                    - "recipe[ganglia::web]"
+                    - "recipe[ganglia::python_rr]"
+                  json_class: "Chef::Role"
+                  name: "ganglia-server"
+
+              mode: "00400"
+              owner: root
+              group: root
+
+            /etc/chef/setup-runlist.json:
+              content:
+                run_list:
+                  - "recipe[rr-vc::setup]"
+                  - "recipe[tsp]"
+                  - "role[ganglia-server]"
+
+            /var/chef/chef-repo/Cheffile:
+              content:
+                Fn::Join:
+                  - "\n"
+                  -
+                    - "#!/usr/bin/env ruby"
+                    - "site 'http://community.opscode.com/api/v1'"
+                    - "cookbook 'rr-vc',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'rr-vc'"
+                    - "cookbook 'tsp',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'tsp'"
+                    - "cookbook 'ganglia',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'ganglia'"
+              mode: "00400"
+              owner: root
+              group: root
+
+    Properties:
+      ImageId: {Ref: 'xlcloud:defaultImageId'}
+      InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
+      KeyName: {Ref: 'xlcloud:defaultKeyName'}
+      SecurityGroups: [{"Ref" : "LayerSecurityGroup"}]
+      SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - '#!/bin/bash -ve
+
+            '
+            - '# HOME is required by librarian
+
+            '
+            - 'export HOME=/root
+
+            '
+            - 'source /etc/profile
+
+            '
+            - 'echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
+
+            '
+            - 'hostname `cat /etc/hostname`
+
+            '
+            - 'pip install --upgrade heat-cfntools
+
+            '
+            - 'cfn-init
+
+            '
+            - 'cd /var/chef/chef-repo
+
+            '
+            - 'librarian-chef install --clean --verbose
+
+            '
+            - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
+
+            '
+            - "cfn-signal -e 0 -i $(hostname) '"
+            - {Ref: IReadyHandle}
+            - "'"
