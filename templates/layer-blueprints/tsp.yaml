@@ -59,7 +59,7 @@ Resources:
     Properties:
       Handle: {Ref: IReadyHandle}
       Count: 1
-      Timeout: '1800'
+      Timeout: '3600'
 
   GPUInstance:
     Type: AWS::EC2::Instance
