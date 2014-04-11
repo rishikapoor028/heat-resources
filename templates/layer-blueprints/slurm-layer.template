@@ -327,7 +327,8 @@
               },
               "xsa": {
                 "application_war_url": "http://toolcloud.ecfrec.xlcloud.org/integ/xlcloud-xsa.war",
-                "public_ip_address": {"Ref": "LoginIp"}
+                "public_ip_address": {"Ref": "LoginIp"},
+                "xms_uri": {"Ref": "xlcloud:xmsAddress"}
               }
             },
             "run_list": []
