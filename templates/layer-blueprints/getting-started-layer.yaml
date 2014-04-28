@@ -34,6 +34,13 @@ Parameters:
   "xlcloud:brokerPassword":
       Type: "String"
       Description: "RabbitMQ broker password"
+  "xlcloud:stackSecret":
+      Description: "Secret for service authentication"
+      Type: "String"
+      NoEcho: "TRUE"
+  "xlcloud:xmsAddress":
+      Description: "Address of XLCloud Management System"
+      Type: "String"
 
 Resources:
   LayerSecurityGroup:

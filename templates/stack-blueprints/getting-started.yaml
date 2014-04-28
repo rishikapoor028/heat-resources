@@ -44,6 +44,15 @@ Parameters:
       Description: "RabbitMQ broker password"
       Default: 'xlcloud'
 
+  "xlcloud:stackSecret":
+      Description: "Secret for service authentication"
+      Type: "String"
+      NoEcho: "TRUE"
+
+  "xlcloud:xmsAddress":
+      Description: "Address of XLCloud Management System"
+      Type: "String"
+
 Resources:
   GettingStarted:
     Type: AWS::CloudFormation::Stack
@@ -56,6 +65,8 @@ Resources:
                     'xlcloud:brokerPort' : {Ref: 'xlcloud:brokerPort'},
                     'xlcloud:brokerUsername' : {Ref: 'xlcloud:brokerUsername'},
                     'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
+                    'xlcloud:xmsAddress' : {Ref: 'xlcloud:xmsAddress'},
+                    'xlcloud:stackSecret' : {Ref: 'xlcloud:stackSecret'},
                     'xlcloud:stackId' : {Ref: 'AWS::StackId'}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/getting-started-layer.yaml'
       TimeoutInMinutes: 10

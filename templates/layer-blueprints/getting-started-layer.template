@@ -1,262 +1,279 @@
 {
-  "AWSTemplateFormatVersion": "2010-09-09", 
-  "Parameters": {
-    "BrokerAddress": {
-      "Type": "String", 
-      "Description": "RabbitMQ broker address"
-    }, 
-    "BrokerPassword": {
-      "Type": "String", 
-      "Description": "RabbitMQ broker password"
-    }, 
-    "KeyName": {
-      "Type": "String", 
-      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances"
-    }, 
-    "StackId": {
-      "Type": "String", 
-      "Description": "The identifier of the parent stack"
-    }, 
-    "BrokerUsername": {
-      "Type": "String", 
-      "Description": "RabbitMQ broker username"
-    }, 
-    "LayerSubnetUuid": {
-      "Type": "String", 
-      "Description": "The subnet identifier this layer is connected to"
-    }, 
-    "ImageId": {
-      "Type": "String", 
-      "ConstraintDescription": "must be a valid XLcloud image name.", 
-      "Description": "Cloud image Id for instances in this stack", 
-      "AllowedValues": [
-        "F19-x86_64-xlcloud"
-      ]
-    }, 
-    "InstanceType": {
-      "Default": "m1.small", 
-      "Type": "String", 
-      "AllowedValues": [
-        "m1.small", 
-        "m1.medium", 
-        "m1.large", 
-        "m1.xlarge"
-      ]
-    }, 
-    "BrokerPort": {
-      "Type": "String", 
-      "Description": "RabbitMQ broker port"
-    }
-  }, 
-  "Description": "Simple Getting-Started Layer", 
-  "Resources": {
-    "LayerSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup", 
-      "Properties": {
-        "SecurityGroupIngress": [
-          {
-            "ToPort": "-1", 
-            "IpProtocol": "icmp", 
-            "FromPort": "-1", 
-            "CidrIp": "0.0.0.0/0"
-          }, 
-          {
-            "ToPort": {
-              "Ref": "xlcloud:brokerPort"
-            }, 
-            "IpProtocol": "tcp", 
-            "FromPort": {
-              "Ref": "xlcloud:brokerPort"
-            }, 
-            "CidrIp": "0.0.0.0/0"
-          }, 
-          {
-            "ToPort": "22", 
-            "IpProtocol": "tcp", 
-            "FromPort": "22", 
-            "CidrIp": "0.0.0.0/0"
-          }
-        ], 
-        "VpcId": "neutron", 
-        "GroupDescription": "Enable SSH access + ICMP"
-      }
-    }, 
-    "LoginHandle": {
-      "Type": "AWS::CloudFormation::WaitConditionHandle"
-    },
-    "LoginReady": {
-      "Type": "AWS::CloudFormation::WaitCondition", 
-      "Properties": {
-        "Count": "1", 
-        "Handle": {
-          "Ref": "LoginHandle"
-        }, 
-        "Timeout": "2400"
-      }, 
-      "DependsOn": "LoginNode"
-    },
-    "LoginNode": {
-      "Type": "AWS::EC2::Instance", 
-      "Properties": {
-        "UserData": {
-          "Fn::Base64": {
-            "Fn::Join": [
-              "", 
-              [
-                "#!/bin/bash -ve\n", 
-                "# HOME is required by librarian\n", 
-                "export HOME=/root\n", 
-                "source /etc/profile.d/proxy.sh\n", 
-                "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname\n", 
-                "hostname `cat /etc/hostname`\n", 
-                "pip install --upgrade heat-cfntools\n", 
-                "cfn-init\n", 
-                "cd /var/chef/chef-repo\n", 
-                "/usr/local/bin/librarian-chef install --clean --verbose\n", 
-                "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log\n",
-                "cfn-signal -e 0 '", 
-
-                {
-                  "Ref": "LoginHandle"
-                }, 
-                "'"
-              ]
-            ]
-          }
-        }, 
-        "KeyName": {
-          "Ref": "xlcloud:defaultKeyName"
-        }, 
-        "SecurityGroups": [
-          "default", 
-          {
-            "Ref": "LayerSecurityGroup"
-          }
-        ], 
-        "Tags": [
-          {
-            "Key": "metering.StackId", 
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Simple Getting-Started Layer",
+    "Outputs": {
+        "InstanceIp": {
+            "Description": "ssh command to login to the node",
             "Value": {
-              "Ref": "AWS::StackId"
-            }
-          }
-        ], 
-        "SubnetId": {
-          "Ref": "xlcloud:layerSubnetUuid"
-        }, 
-        "InstanceType": {
-          "Ref": "xlcloud:defaultInstanceType"
-        }, 
-        "ImageId": {
-          "Ref": "xlcloud:defaultImageId"
-        }
-      }, 
-      "Metadata": {
-        "AWS::CloudFormation::Init": {
-          "config": {
-            "files": {
-              "/var/chef/chef-repo/roles/xlc-mco-agent.json": {
-                "content": {
-                  "chef_type": "role", 
-                  "default_attributes": {}, 
-                  "description": "This is a role to install ohai + mcollective server + xlcloud agent.", 
-                  "run_list": [
-                    "recipe[ohai]", 
-                    "recipe[mcollective::server]", 
-                    "recipe[xlc-mco-agent]"
-                  ], 
-                  "override_attributes": {
-                    "mcollective": {
-                      "connector": "rabbitmq", 
-                      "psk": "supersecret", 
-                      "stomp": {
-                        "username": {
-                          "Ref": "xlcloud:brokerUsername"
-                        }, 
-                        "password": {
-                          "Ref": "xlcloud:brokerPassword"
-                        }, 
-                        "hostname": {
-                          "Ref": "xlcloud:brokerAddress"
-                        }, 
-                        "port": {
-                          "Ref": "xlcloud:brokerPort"
-                        }
-                      }, 
-                      "factsource": "ohai", 
-                      "enable_puppetlabs_repo": false
-                    }
-                  }, 
-                  "json_class": "Chef::Role", 
-                  "name": "xlc-mco-agent"
-                }, 
-                "owner": "root", 
-                "group": "root", 
-                "mode": "00400"
-              },
-              "/etc/chef/setup-runlist.json": {
-                "content": {
-                  "run_list": [
-                    "recipe[getting-started]"
-                  ]
-                }
-              }, 
-              "/etc/xlcloud-facts.json": {
-                "content": {
-                  "stack_id": {
-                    "Ref": "xlcloud:stackId"
-                  }, 
-                  "layer_id": {
-                    "Ref": "AWS::StackId"
-                  }, 
-                  "logical_resource_id": "LoginNode"
-                }
-              }, 
-              "/var/chef/chef-repo/Cheffile": {
-                "content": {
-                  "Fn::Join": [
-                    "\n", 
+                "Fn::Join": [
+                    "",
                     [
-                      "#!/usr/bin/env ruby", 
-                      "site 'http://community.opscode.com/api/v1'", 
-                      "cookbook 'ohai'", 
-                      "cookbook 'getting-started'", 
-                      "cookbook 'mcollective',", 
-                      "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',", 
-                      "    :path => 'mcollective'", 
-                      "cookbook 'xlc-mco-agent',", 
-                      "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',", 
-                      "    :path => 'xlc-mco-agent'"
+                        "ssh ec2-user@",
+                        {
+                            "Fn::GetAtt": [
+                                "GettingStarted",
+                                "PublicIp"
+                            ]
+                        }
                     ]
-                  ]
-                }, 
-                "owner": "root", 
-                "group": "root", 
-                "mode": "00400"
-              }
+                ]
             }
-          }
         }
-      }
+    },
+    "Parameters": {
+        "xlcloud:brokerAddress": {
+            "Description": "RabbitMQ broker address",
+            "Type": "String"
+        },
+        "xlcloud:brokerPassword": {
+            "Description": "RabbitMQ broker password",
+            "Type": "String"
+        },
+        "xlcloud:brokerPort": {
+            "Description": "RabbitMQ broker port",
+            "Type": "String"
+        },
+        "xlcloud:brokerUsername": {
+            "Description": "RabbitMQ broker username",
+            "Type": "String"
+        },
+        "xlcloud:defaultImageId": {
+            "AllowedValues": [
+                "F19-x86_64-xlcloud",
+                "ubuntu-12_04-x86_64-xlcloud"
+            ],
+            "ConstraintDescription": "must be a valid XLcloud image name.",
+            "Description": "Cloud image Id for instances in this stack",
+            "Type": "String"
+        },
+        "xlcloud:defaultInstanceType": {
+            "AllowedValues": [
+                "m1.small",
+                "m1.medium",
+                "m1.large",
+                "m1.xlarge"
+            ],
+            "Default": "m1.small",
+            "Type": "String"
+        },
+        "xlcloud:defaultKeyName": {
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+            "Type": "String"
+        },
+        "xlcloud:layerSubnetUuid": {
+            "Description": "The subnet identifier this layer is connected to",
+            "Type": "String"
+        },
+        "xlcloud:stackId": {
+            "Description": "The identifier of the parent stack",
+            "Type": "String"
+        },
+        "xlcloud:stackSecret": {
+            "Description": "Secret for service authentication",
+            "NoEcho": "TRUE",
+            "Type": "String"
+        },
+        "xlcloud:xmsAddress": {
+            "Description": "Address of XLCloud Management System",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "GettingStarted": {
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "/etc/chef/configure-runlist.json": {
+                                "content": {}
+                            },
+                            "/etc/chef/deploy-runlist.json": {
+                                "content": {}
+                            },
+                            "/etc/chef/resume-runlist.json": {
+                                "content": {}
+                            },
+                            "/etc/chef/setup-runlist.json": {
+                                "content": {
+                                    "run_list": [
+                                        "recipe[getting-started]"
+                                    ]
+                                }
+                            },
+                            "/etc/chef/shutdown-runlist.json": {
+                                "content": {}
+                            },
+                            "/etc/chef/suspend-runlist.json": {
+                                "content": {}
+                            },
+                            "/etc/chef/undeploy-runlist.json": {
+                                "content": {}
+                            },
+                            "/etc/xlcloud-facts.json": {
+                                "content": {
+                                    "layer_id": {
+                                        "Ref": "AWS::StackId"
+                                    },
+                                    "logical_resource_id": "GettingStarted",
+                                    "stack_id": {
+                                        "Ref": "xlcloud:stackId"
+                                    }
+                                }
+                            },
+                            "/var/chef/chef-repo/Cheffile": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "\n",
+                                        [
+                                            "#!/usr/bin/env ruby",
+                                            "site 'http://community.opscode.com/api/v1'",
+                                            "cookbook 'ohai'",
+                                            "cookbook 'getting-started'",
+                                            "cookbook 'mcollective',",
+                                            "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
+                                            "    :path => 'mcollective'",
+                                            "cookbook 'xlc-mco-agent',",
+                                            "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
+                                            "    :path => 'xlc-mco-agent'"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "00400",
+                                "owner": "root"
+                            },
+                            "/var/chef/chef-repo/roles/xlc-mco-agent.json": {
+                                "content": {
+                                    "chef_type": "role",
+                                    "default_attributes": {},
+                                    "description": "This is a role to install ohai + mcollective server + xlcloud agent.",
+                                    "json_class": "Chef::Role",
+                                    "name": "xlc-mco-agent",
+                                    "override_attributes": {
+                                        "mcollective": {
+                                            "connector": "rabbitmq",
+                                            "enable_puppetlabs_repo": false,
+                                            "factsource": "ohai",
+                                            "psk": "supersecret",
+                                            "stomp": {
+                                                "hostname": {
+                                                    "Ref": "xlcloud:brokerAddress"
+                                                },
+                                                "password": {
+                                                    "Ref": "xlcloud:brokerPassword"
+                                                },
+                                                "port": {
+                                                    "Ref": "xlcloud:brokerPort"
+                                                },
+                                                "username": {
+                                                    "Ref": "xlcloud:brokerUsername"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "run_list": [
+                                        "recipe[ohai]",
+                                        "recipe[mcollective::server]",
+                                        "recipe[xlc-mco-agent]"
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "00400",
+                                "owner": "root"
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "ImageId": {
+                    "Ref": "xlcloud:defaultImageId"
+                },
+                "InstanceType": {
+                    "Ref": "xlcloud:defaultInstanceType"
+                },
+                "KeyName": {
+                    "Ref": "xlcloud:defaultKeyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "LayerSecurityGroup"
+                    }
+                ],
+                "SubnetId": {
+                    "Ref": "xlcloud:layerSubnetUuid"
+                },
+                "Tags": [
+                    {
+                        "Key": "metering.StackId",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -ve\n",
+                                "# HOME is required by librarian\n",
+                                "export HOME=/root\n",
+                                "source /etc/profile\n",
+                                "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname\n",
+                                "hostname `cat /etc/hostname`\n",
+                                "pip install --upgrade heat-cfntools\n",
+                                "cfn-init\n",
+                                "cd /var/chef/chef-repo\n",
+                                "/usr/local/bin/librarian-chef install --clean --verbose\n",
+                                "/bin/chef-solo -c /etc/chef/solo.rb -o \"role[xlc-mco-agent]\" -L /var/log/chef-solo.log\n",
+                                "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log\n",
+                                "cfn-signal -e 0 '",
+                                {
+                                    "Ref": "Handle"
+                                },
+                                "'"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::EC2::Instance"
+        },
+        "Handle": {
+            "Type": "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "LayerSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Enable SSH access + ICMP",
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "-1",
+                        "IpProtocol": "icmp",
+                        "ToPort": "-1"
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    }
+                ],
+                "VpcId": "neutron"
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "Ready": {
+            "DependsOn": "GettingStarted",
+            "Properties": {
+                "Count": "1",
+                "Handle": {
+                    "Ref": "Handle"
+                },
+                "Timeout": "600"
+            },
+            "Type": "AWS::CloudFormation::WaitCondition"
+        }
     }
-  },
-  "Outputs": {
-    "InstanceIp": {
-      "Description": "My ssh command", 
-      "Value": {
-        "Fn::Join": [
-          "", 
-          [
-            "ssh ec2-user@", 
-            {
-              "Fn::GetAtt": [
-                "LoginNode", 
-                "PublicIp"
-              ]
-            }
-          ]
-        ]
-      }
-    }
-  }
 }
