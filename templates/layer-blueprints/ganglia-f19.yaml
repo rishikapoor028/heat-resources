@@ -49,6 +49,13 @@ Parameters:
   xlcloud:defaultKeyName:
     Type: String
     Description: Name of an existing EC2 KeyPair to enable SSH access
+  xlcloud:stackSecret:
+      Description: Secret for service authentication
+      Type: String
+      NoEcho: "TRUE"
+  xlcloud:xmsAddress:
+      Description: Address of XLCloud Management System
+      Type: String
 
 Resources:
   MonitorSecurityGroup:

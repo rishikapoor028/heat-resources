@@ -79,6 +79,14 @@ Parameters:
       AllowedPattern: '[a-z|A-Z|0-9]*'
       Default: 'SLURM'
 
+  "xlcloud:stackSecret":
+      Description: "Secret for service authentication"
+      Type: "String"
+      NoEcho: "TRUE"
+
+  "xlcloud:xmsAddress":
+      Description: "Address of XLCloud Management System"
+      Type: "String"
 
 Resources:
   Slurm:
@@ -96,6 +104,8 @@ Resources:
                     'xlcloud:monitorIP' : {'Fn::GetAtt': ['Monitor', 'Outputs.MonitorIP']},
                     'xlcloud:monitoringCluster': {Ref: 'xlcloud:monitoringCluster'},
                     'xlcloud:stackId' : {Ref: 'AWS::StackId'},
+                    'xlcloud:xmsAddress' : {Ref: 'xlcloud:xmsAddress'},
+                    'xlcloud:stackSecret' : {Ref: 'xlcloud:stackSecret'},
                     'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml'
       TimeoutInMinutes: 40
@@ -113,6 +123,8 @@ Resources:
                     'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
                     'xlcloud:monitoringCluster': {Ref: 'xlcloud:monitoringCluster'},
                     'xlcloud:stackId' : {Ref: 'AWS::StackId'},
+                    'xlcloud:xmsAddress' : {Ref: 'xlcloud:xmsAddress'},
+                    'xlcloud:stackSecret' : {Ref: 'xlcloud:stackSecret'},
                     'MonitorPort' : {Ref: MonitorPort}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/ganglia-f19.yaml'
       TimeoutInMinutes: 5
