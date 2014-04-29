@@ -42,6 +42,13 @@ Parameters:
       Default: "/dev/vdc"
       AllowedPattern: '/dev/vd[b-z]'
       Description: "The volume device exposed to the instance"
+  "xlcloud:stackSecret":
+      Description: "Secret for service authentication"
+      Type: "String"
+      NoEcho: "TRUE"
+  "xlcloud:xmsAddress":
+      Description: "Address of XLCloud Management System"
+      Type: "String"
 
 Resources:
   NfsIp: { Type: 'AWS::EC2::EIP' }
