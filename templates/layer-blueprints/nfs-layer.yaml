@@ -110,6 +110,10 @@ Resources:
 
             /etc/chef/configure-runlist.json: {content: '{}'}
             /etc/chef/deploy-runlist.json: {content: '{}'}
+            /etc/chef/undeploy-runlist.json: {content: '{}'}
+            /etc/chef/suspend-runlist.json: {content: '{}'}
+            /etc/chef/resume-runlist.json: {content: '{}'}
+            /etc/chef/shutdown-runlist.json: {content: '{}'}
 
             /etc/xlcloud-facts.json:
                 content:
