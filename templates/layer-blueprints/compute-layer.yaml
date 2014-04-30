@@ -2,8 +2,11 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: Deploy a cluster with N (default=2) compute nodes + 1 front-end node.
 
 Parameters:
-  "xlcloud:monitorIP":
-    Description: "IP of the Ganglia Metadata server (gmond)"
+  "monitorAddress":
+    Description: "IP address of the Ganglia Metadata server (gmond)"
+    Type: String
+  "nfsAddress":
+    Description: "IP address of the NFS server"
     Type: String
   "xlcloud:defaultKeyName":
     Description: "Name of an existing EC2 KeyPair to enable SSH access to the instances"
@@ -154,6 +157,7 @@ Resources:
               content:
                 run_list:
                     - "role[ganglia-agent]"
+                    - "role[nfs-client]"
 
             /etc/chef/configure-runlist.json: &configure-runlist
               content: {}
@@ -187,7 +191,7 @@ Resources:
                     ganglia:
                         central_monit: false
                         cluster:
-                            collector_host: {Ref: "xlcloud:monitorIP"}
+                            collector_host: {Ref: "monitorAddress"}
                             name: {Ref: "xlcloud:monitoringCluster"}
                   description: "This is a role to install the monitoring agent."
                   run_list:
@@ -195,6 +199,22 @@ Resources:
                     - "recipe[ganglia::stack]"
                   json_class: "Chef::Role"
                   name: "ganglia-agent"
+              mode: "00400"
+              owner: root
+              group: root
+
+            /var/chef/chef-repo/roles/nfs-client.json: &nfs-client
+              content:
+                  chef_type: "role"
+                  default_attributes: {}
+                  override_attributes:
+                    nfs-client:
+                      server: {Ref: "nfsAddress"}
+                  description: "This is a role to install the NFS client."
+                  run_list:
+                    - "recipe[nfs-client::setup]"
+                  json_class: "Chef::Role"
+                  name: "nfs-client"
               mode: "00400"
               owner: root
               group: root
@@ -245,6 +265,9 @@ Resources:
                     - "cookbook 'ganglia',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'ganglia'"
+                    - "cookbook 'nfs-client',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'nfs-client'"
               mode: "00400"
               owner: root
               group: root
@@ -324,6 +347,7 @@ Resources:
 
             /var/chef/chef-repo/roles/xlc-mco-agent.json: *xlc-mco-agent
             /var/chef/chef-repo/roles/ganglia-agent.json: *ganglia-agent
+            /var/chef/chef-repo/roles/nfs-client.json: *nfs-client
 
             /var/chef/chef-repo/Cheffile: *Cheffile
 

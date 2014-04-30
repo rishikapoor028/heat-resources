@@ -14,6 +14,13 @@ Parameters:
     Type: String
     Description: TCP port of monitoring traffic data
 
+  "SharedStorageSize":
+    Type: "Number"
+    Default: 1
+    MinValue: 1
+    MaxValue: 1024
+    Description: "Size of the shared storage (in Gb)"
+
   "xlcloud:Computes:size":
     Description: "Number of compute nodes to launch"
     Type: String
@@ -95,7 +102,8 @@ Resources:
                     'xlcloud:brokerPort' : {Ref: 'xlcloud:brokerPort'},
                     'xlcloud:brokerUsername' : {Ref: 'xlcloud:brokerUsername'},
                     'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
-                    'xlcloud:monitorIP' : {'Fn::GetAtt': ['Monitor', 'Outputs.MonitorIP']},
+                    'monitorAddress' : {'Fn::GetAtt': ['Monitor', 'Outputs.MonitorIP']},
+                    'nfsAddress' : {'Fn::GetAtt': ['Nfs', 'Outputs.NfsAddress']},
                     'xlcloud:monitoringCluster': {Ref: 'xlcloud:monitoringCluster'},
                     'xlcloud:stackId' : {Ref: 'AWS::StackId'},
                     'xlcloud:xmsAddress' : {Ref: 'xlcloud:xmsAddress'},
@@ -103,6 +111,24 @@ Resources:
                     'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/compute-layer.yaml'
       TimeoutInMinutes: 20
+
+  Nfs:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters: {
+                    'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
+                    'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
+                    'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
+                    'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
+                    'xlcloud:brokerPort' : {Ref: 'xlcloud:brokerPort'},
+                    'xlcloud:brokerUsername' : {Ref: 'xlcloud:brokerUsername'},
+                    'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
+                    'xlcloud:stackId' : {Ref: 'AWS::StackId'},
+                    'xlcloud:xmsAddress' : {Ref: 'xlcloud:xmsAddress'},
+                    'xlcloud:stackSecret' : {Ref: 'xlcloud:stackSecret'},
+                    'volumeSize' : {Ref: SharedStorageSize}}
+      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/nfs-layer.yaml'
+      TimeoutInMinutes: 5
 
   Monitor:
     Type: AWS::CloudFormation::Stack
