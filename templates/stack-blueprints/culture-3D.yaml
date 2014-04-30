@@ -128,7 +128,7 @@ Resources:
                     'xlcloud:stackSecret' : {Ref: 'xlcloud:stackSecret'},
                     'volumeSize' : {Ref: SharedStorageSize}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/nfs-layer.yaml'
-      TimeoutInMinutes: 5
+      TimeoutInMinutes: 10
 
   Monitor:
     Type: AWS::CloudFormation::Stack
