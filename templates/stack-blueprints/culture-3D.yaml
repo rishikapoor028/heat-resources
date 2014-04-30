@@ -78,7 +78,7 @@ Parameters:
       Type: "String"
       Description: "Name of the cluster in the monitoring system"
       AllowedPattern: '[a-z|A-Z|0-9]*'
-      Default: 'SLURM'
+      Default: 'Culture3D'
 
   "xlcloud:stackSecret":
       Description: "Secret for service authentication"
