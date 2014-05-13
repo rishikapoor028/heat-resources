@@ -7,6 +7,7 @@ Parameters:
     AllowedValues:
     - F19-x86_64-xlcloud
     - ubuntu-12_04-x86_64-xlcloud
+    - CentOS-6.5-x86_64-xlcloud
     Description: Default image name for instances in this stack
 
   "xlcloud:defaultInstanceType":
