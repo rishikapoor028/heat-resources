@@ -1,0 +1,250 @@
+{
+    "Description": "XLcloud Culture 3D stack",
+    "HeatTemplateFormatVersion": "2012-12-12",
+    "Outputs": {
+        "MonitorURL": {
+            "Description": "Public URL of the monitoring node",
+            "Value": {
+                "Fn::GetAtt": [
+                    "Monitor",
+                    "Outputs.PublicURL"
+                ]
+            }
+        },
+        "WebIP": {
+            "Description": "Public address of the web server",
+            "Value": {
+                "Fn::GetAtt": [
+                    "Compute",
+                    "Outputs.FrontAddress"
+                ]
+            }
+        }
+    },
+    "Parameters": {
+        "MonitorPort": {
+            "Default": "8649",
+            "Description": "TCP port of monitoring traffic data",
+            "Type": "String"
+        },
+        "SharedStorageSize": {
+            "Default": 1,
+            "Description": "Size of the shared storage (in Gb)",
+            "MaxValue": 1024,
+            "MinValue": 1,
+            "Type": "Number"
+        },
+        "xlcloud:Computes:size": {
+            "Default": "2",
+            "Description": "Number of compute nodes to launch",
+            "Type": "String"
+        },
+        "xlcloud:brokerAddress": {
+            "Description": "RabbitMQ broker address",
+            "Type": "String"
+        },
+        "xlcloud:brokerPassword": {
+            "Default": "xlcloud",
+            "Description": "RabbitMQ broker password",
+            "Type": "String"
+        },
+        "xlcloud:brokerPort": {
+            "Default": "63613",
+            "Description": "RabbitMQ broker port",
+            "Type": "String"
+        },
+        "xlcloud:brokerUsername": {
+            "Default": "xlcloud",
+            "Description": "RabbitMQ broker username",
+            "Type": "String"
+        },
+        "xlcloud:defaultImageId": {
+            "AllowedValues": [
+                "F19-x86_64-xlcloud"
+            ],
+            "ConstraintDescription": "Must be a valid XLcloud image name.",
+            "Default": "F19-x86_64-xlcloud",
+            "Description": "Default image name for instances in this stack",
+            "Type": "String"
+        },
+        "xlcloud:defaultInstanceType": {
+            "AllowedValues": [
+                "m1.tiny",
+                "m1.small",
+                "m1.medium",
+                "m1.large",
+                "m1.xlarge"
+            ],
+            "ConstraintDescription": "must be a valid XLcloud instance type.",
+            "Default": "m1.small",
+            "Description": "Default instance type (flavor) for instances in this stack",
+            "Type": "String"
+        },
+        "xlcloud:defaultKeyName": {
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access",
+            "Type": "String"
+        },
+        "xlcloud:monitoringCluster": {
+            "AllowedPattern": "[a-z|A-Z|0-9]*",
+            "Default": "Culture3D",
+            "Description": "Name of the cluster in the monitoring system",
+            "Type": "String"
+        },
+        "xlcloud:stackSecret": {
+            "Description": "Secret for service authentication",
+            "NoEcho": "TRUE",
+            "Type": "String"
+        },
+        "xlcloud:xmsAddress": {
+            "Description": "Address of XLCloud Management System",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "Compute": {
+            "DependsOn": "Monitor",
+            "Properties": {
+                "Parameters": {
+                    "monitorAddress": {
+                        "Fn::GetAtt": [
+                            "Monitor",
+                            "Outputs.MonitorIP"
+                        ]
+                    },
+                    "nfsAddress": {
+                        "Fn::GetAtt": [
+                            "Nfs",
+                            "Outputs.NfsAddress"
+                        ]
+                    },
+                    "xlcloud:Computes:size": {
+                        "Ref": "xlcloud:Computes:size"
+                    },
+                    "xlcloud:brokerAddress": {
+                        "Ref": "xlcloud:brokerAddress"
+                    },
+                    "xlcloud:brokerPassword": {
+                        "Ref": "xlcloud:brokerPassword"
+                    },
+                    "xlcloud:brokerPort": {
+                        "Ref": "xlcloud:brokerPort"
+                    },
+                    "xlcloud:brokerUsername": {
+                        "Ref": "xlcloud:brokerUsername"
+                    },
+                    "xlcloud:defaultImageId": {
+                        "Ref": "xlcloud:defaultImageId"
+                    },
+                    "xlcloud:defaultInstanceType": {
+                        "Ref": "xlcloud:defaultInstanceType"
+                    },
+                    "xlcloud:defaultKeyName": {
+                        "Ref": "xlcloud:defaultKeyName"
+                    },
+                    "xlcloud:monitoringCluster": {
+                        "Ref": "xlcloud:monitoringCluster"
+                    },
+                    "xlcloud:stackId": {
+                        "Ref": "AWS::StackId"
+                    },
+                    "xlcloud:stackSecret": {
+                        "Ref": "xlcloud:stackSecret"
+                    },
+                    "xlcloud:xmsAddress": {
+                        "Ref": "xlcloud:xmsAddress"
+                    }
+                },
+                "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/compute-layer.yaml",
+                "TimeoutInMinutes": 20
+            },
+            "Type": "AWS::CloudFormation::Stack"
+        },
+        "Monitor": {
+            "Properties": {
+                "Parameters": {
+                    "MonitorPort": {
+                        "Ref": "MonitorPort"
+                    },
+                    "xlcloud:brokerAddress": {
+                        "Ref": "xlcloud:brokerAddress"
+                    },
+                    "xlcloud:brokerPassword": {
+                        "Ref": "xlcloud:brokerPassword"
+                    },
+                    "xlcloud:brokerPort": {
+                        "Ref": "xlcloud:brokerPort"
+                    },
+                    "xlcloud:brokerUsername": {
+                        "Ref": "xlcloud:brokerUsername"
+                    },
+                    "xlcloud:defaultImageId": {
+                        "Ref": "xlcloud:defaultImageId"
+                    },
+                    "xlcloud:defaultInstanceType": {
+                        "Ref": "xlcloud:defaultInstanceType"
+                    },
+                    "xlcloud:defaultKeyName": {
+                        "Ref": "xlcloud:defaultKeyName"
+                    },
+                    "xlcloud:monitoringCluster": {
+                        "Ref": "xlcloud:monitoringCluster"
+                    },
+                    "xlcloud:stackId": {
+                        "Ref": "AWS::StackId"
+                    },
+                    "xlcloud:stackSecret": {
+                        "Ref": "xlcloud:stackSecret"
+                    },
+                    "xlcloud:xmsAddress": {
+                        "Ref": "xlcloud:xmsAddress"
+                    }
+                },
+                "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/ganglia-f19.yaml",
+                "TimeoutInMinutes": 5
+            },
+            "Type": "AWS::CloudFormation::Stack"
+        },
+        "Nfs": {
+            "Properties": {
+                "Parameters": {
+                    "volumeSize": {
+                        "Ref": "SharedStorageSize"
+                    },
+                    "xlcloud:brokerAddress": {
+                        "Ref": "xlcloud:brokerAddress"
+                    },
+                    "xlcloud:brokerPassword": {
+                        "Ref": "xlcloud:brokerPassword"
+                    },
+                    "xlcloud:brokerPort": {
+                        "Ref": "xlcloud:brokerPort"
+                    },
+                    "xlcloud:brokerUsername": {
+                        "Ref": "xlcloud:brokerUsername"
+                    },
+                    "xlcloud:defaultImageId": {
+                        "Ref": "xlcloud:defaultImageId"
+                    },
+                    "xlcloud:defaultInstanceType": {
+                        "Ref": "xlcloud:defaultInstanceType"
+                    },
+                    "xlcloud:defaultKeyName": {
+                        "Ref": "xlcloud:defaultKeyName"
+                    },
+                    "xlcloud:stackId": {
+                        "Ref": "AWS::StackId"
+                    },
+                    "xlcloud:stackSecret": {
+                        "Ref": "xlcloud:stackSecret"
+                    },
+                    "xlcloud:xmsAddress": {
+                        "Ref": "xlcloud:xmsAddress"
+                    }
+                },
+                "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/nfs-layer.yaml",
+                "TimeoutInMinutes": 10
+            },
+            "Type": "AWS::CloudFormation::Stack"
+        }
+    }
+}
