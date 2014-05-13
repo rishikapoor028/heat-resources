@@ -1,26 +1,31 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "Simple Getting-Started Layer",
+    "Description": "Deploy a NFS service",
     "Outputs": {
-        "InstanceIp": {
-            "Description": "ssh command to login to the node",
+        "NfsAddress": {
+            "Description": "IP address of the NFS server",
             "Value": {
-                "Fn::Join": [
-                    "",
-                    [
-                        "ssh ec2-user@",
-                        {
-                            "Fn::GetAtt": [
-                                "GettingStarted",
-                                "PublicIp"
-                            ]
-                        }
-                    ]
+                "Fn::GetAtt": [
+                    "NfsNode",
+                    "PrivateIp"
                 ]
             }
         }
     },
     "Parameters": {
+        "mountPoint": {
+            "AllowedPattern": "/dev/vd[b-z]",
+            "Default": "/dev/vdc",
+            "Description": "The volume device exposed to the instance",
+            "Type": "String"
+        },
+        "volumeSize": {
+            "Default": 1,
+            "Description": "Size of the NFS volume (in Gb)",
+            "MaxValue": 1024,
+            "MinValue": 1,
+            "Type": "Number"
+        },
         "xlcloud:brokerAddress": {
             "Description": "RabbitMQ broker address",
             "Type": "String"
@@ -38,10 +43,6 @@
             "Type": "String"
         },
         "xlcloud:defaultImageId": {
-            "AllowedValues": [
-                "F19-x86_64-xlcloud",
-                "ubuntu-12_04-x86_64-xlcloud"
-            ],
             "ConstraintDescription": "must be a valid XLcloud image name.",
             "Description": "Cloud image Id for instances in this stack",
             "Type": "String"
@@ -53,11 +54,11 @@
                 "m1.large",
                 "m1.xlarge"
             ],
-            "Default": "m1.small",
+            "Default": "m1.medium",
             "Type": "String"
         },
         "xlcloud:defaultKeyName": {
-            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the NFS server",
             "Type": "String"
         },
         "xlcloud:layerSubnetUuid": {
@@ -79,19 +80,22 @@
         }
     },
     "Resources": {
-        "GettingStarted": {
+        "NfsHandle": {
+            "Type": "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "NfsNode": {
             "Metadata": {
                 "AWS::CloudFormation::Init": {
                     "config": {
                         "files": {
                             "/etc/chef/configure-runlist.json": {
-                                "content": {}
+                                "content": "{}"
                             },
                             "/etc/chef/deploy-runlist.json": {
-                                "content": {}
+                                "content": "{}"
                             },
                             "/etc/chef/resume-runlist.json": {
-                                "content": {}
+                                "content": "{}"
                             },
                             "/etc/chef/setup-runlist.json": {
                                 "content": {
@@ -114,29 +118,39 @@
                                             }
                                         }
                                     },
+                                    "nfs-server": {
+                                        "volumes": [
+                                            {
+                                                "allowed_net": "*",
+                                                "mount_point": {
+                                                    "Ref": "mountPoint"
+                                                }
+                                            }
+                                        ]
+                                    },
                                     "run_list": [
+                                        "recipe[nfs-server]",
                                         "recipe[ohai]",
                                         "recipe[mcollective::server]",
-                                        "recipe[xlc-mco-agent]",
-                                        "recipe[getting-started]"
+                                        "recipe[xlc-mco-agent]"
                                     ]
                                 }
                             },
                             "/etc/chef/shutdown-runlist.json": {
-                                "content": {}
+                                "content": "{}"
                             },
                             "/etc/chef/suspend-runlist.json": {
-                                "content": {}
+                                "content": "{}"
                             },
                             "/etc/chef/undeploy-runlist.json": {
-                                "content": {}
+                                "content": "{}"
                             },
                             "/etc/xlcloud-facts.json": {
                                 "content": {
                                     "layer_id": {
                                         "Ref": "AWS::StackId"
                                     },
-                                    "logical_resource_id": "GettingStarted",
+                                    "logical_resource_id": "NfsNode",
                                     "stack_id": {
                                         "Ref": "xlcloud:stackId"
                                     }
@@ -150,13 +164,27 @@
                                             "#!/usr/bin/env ruby",
                                             "site 'http://community.opscode.com/api/v1'",
                                             "cookbook 'ohai'",
-                                            "cookbook 'getting-started'",
                                             "cookbook 'mcollective',",
                                             "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
                                             "    :path => 'mcollective'",
                                             "cookbook 'xlc-mco-agent',",
                                             "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
-                                            "    :path => 'xlc-mco-agent'"
+                                            "    :path => 'xlc-mco-agent'",
+                                            "cookbook 'hostsfile',",
+                                            "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
+                                            "    :path => 'hostsfile'",
+                                            "cookbook 'line',",
+                                            "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
+                                            "    :path => 'line'",
+                                            "cookbook 'nfs',",
+                                            "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
+                                            "    :path => 'nfs'",
+                                            "cookbook 'nfs-server',",
+                                            "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
+                                            "    :path => 'nfs-server'",
+                                            "cookbook 'nfs_export',",
+                                            "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
+                                            "    :path => 'nfs_export'"
                                         ]
                                     ]
                                 },
@@ -180,7 +208,7 @@
                 },
                 "SecurityGroups": [
                     {
-                        "Ref": "LayerSecurityGroup"
+                        "Ref": "PublicNfsSecurityGroup"
                     }
                 ],
                 "SubnetId": {
@@ -202,7 +230,7 @@
                                 "#!/bin/bash -ve\n",
                                 "# HOME is required by librarian\n",
                                 "export HOME=/root\n",
-                                "source /etc/profile\n",
+                                "source /etc/profile.d/proxy.sh\n",
                                 "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname\n",
                                 "hostname `cat /etc/hostname`\n",
                                 "pip install --upgrade heat-cfntools\n",
@@ -212,7 +240,7 @@
                                 "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log\n",
                                 "cfn-signal -e 0 '",
                                 {
-                                    "Ref": "Handle"
+                                    "Ref": "NfsHandle"
                                 },
                                 "'"
                             ]
@@ -222,13 +250,55 @@
             },
             "Type": "AWS::EC2::Instance"
         },
-        "Handle": {
-            "Type": "AWS::CloudFormation::WaitConditionHandle"
-        },
-        "LayerSecurityGroup": {
+        "NfsReady": {
+            "DependsOn": "NfsNode",
             "Properties": {
-                "GroupDescription": "Enable SSH access + ICMP",
+                "Count": "1",
+                "Handle": {
+                    "Ref": "NfsHandle"
+                },
+                "Timeout": "600"
+            },
+            "Type": "AWS::CloudFormation::WaitCondition"
+        },
+        "NfsVolume": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::GetAtt": [
+                        "NfsNode",
+                        "AvailabilityZone"
+                    ]
+                },
+                "Size": {
+                    "Ref": "volumeSize"
+                }
+            },
+            "Type": "AWS::EC2::Volume"
+        },
+        "NfsVolumeAttachment": {
+            "Properties": {
+                "Device": {
+                    "Ref": "mountPoint"
+                },
+                "InstanceId": {
+                    "Ref": "NfsNode"
+                },
+                "VolumeId": {
+                    "Ref": "NfsVolume"
+                }
+            },
+            "Type": "AWS::EC2::VolumeAttachment"
+        },
+        "PublicNfsSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Allow access to NFS service from anywhere",
                 "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "2049",
+                        "IpProtocol": "tcp",
+                        "ToPort": "2049"
+                    },
                     {
                         "CidrIp": "0.0.0.0/0",
                         "FromPort": "-1",
@@ -245,17 +315,6 @@
                 "VpcId": "neutron"
             },
             "Type": "AWS::EC2::SecurityGroup"
-        },
-        "Ready": {
-            "DependsOn": "GettingStarted",
-            "Properties": {
-                "Count": "1",
-                "Handle": {
-                    "Ref": "Handle"
-                },
-                "Timeout": "600"
-            },
-            "Type": "AWS::CloudFormation::WaitCondition"
         }
     }
 }

@@ -164,21 +164,56 @@ Resources:
           files:
             /etc/chef/setup-runlist.json: &setup-runlist
               content:
+                mcollective:
+                  connector: "rabbitmq"
+                  factsource: "ohai"
+                  psk: "supersecret"
+                  stomp:
+                    hostname: {Ref: "xlcloud:brokerAddress"}
+                    port: {Ref: "xlcloud:brokerPort"}
+                    username: {Ref: "xlcloud:brokerUsername"}
+                    password: {Ref: "xlcloud:brokerPassword"}
+                ganglia:
+                    central_monit: "false"
+                    cluster:
+                        collector_host: {Ref: "xlcloud:monitorIP"}
+                        name: {Ref: "xlcloud:monitoringCluster"}
+                slurm:
+                  master_ip: {'Fn::GetAtt': ['LoginNetworkInterface', 'PrivateIpAddress']}
+                  cpus: {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
+                xsa:
+                  application_war_url: "http://toolcloud.ecfrec.xlcloud.org/integ/xlcloud-xsa.war"
+                  public_ip_address: {Ref: LoginIp}
+                  xms_uri: {'Fn::Join': ['', ['http://', {Ref: 'xlcloud:xmsAddress'}, ':8080/xlcloud-xms']]}
                 run_list:
-                    - "role[ganglia-agent]"
-                    - "role[hpc-vc]"
+                    - "recipe[ohai]"
+                    - "recipe[mcollective::server]"
+                    - "recipe[ganglia]"
+                    - "recipe[ganglia::stack]"
                     - "recipe[hpc-vc::setup]"
 
             /etc/chef/configure-runlist.json: &configure-runlist
               content:
+                slurm:
+                  master_ip: {'Fn::GetAtt': ['LoginNetworkInterface', 'PrivateIpAddress']}
+                  cpus: {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
+                xsa:
+                  application_war_url: "http://toolcloud.ecfrec.xlcloud.org/integ/xlcloud-xsa.war"
+                  public_ip_address: {Ref: LoginIp}
+                  xms_uri: {'Fn::Join': ['', ['http://', {Ref: 'xlcloud:xmsAddress'}, ':8080/xlcloud-xms']]}
                 run_list:
-                    - "role[hpc-vc]"
                     - "recipe[hpc-vc::configure]"
 
             /etc/chef/deploy-runlist.json: &deploy-runlist
               content:
+                slurm:
+                  master_ip: {'Fn::GetAtt': ['LoginNetworkInterface', 'PrivateIpAddress']}
+                  cpus: {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
+                xsa:
+                  application_war_url: "http://toolcloud.ecfrec.xlcloud.org/integ/xlcloud-xsa.war"
+                  public_ip_address: {Ref: LoginIp}
+                  xms_uri: {'Fn::Join': ['', ['http://', {Ref: 'xlcloud:xmsAddress'}, ':8080/xlcloud-xms']]}
                 run_list:
-                    - "role[hpc-vc]"
                     - "recipe[hpc-vc::deploy]"
 
             /etc/chef/undeploy-runlist.json: &undeploy-runlist
@@ -213,72 +248,6 @@ Resources:
                     - '
 
                       '
-              mode: "00400"
-              owner: root
-              group: root
-
-            /var/chef/chef-repo/roles/ganglia-agent.json: &ganglia-agent
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    ganglia:
-                        central_monit: false
-                        cluster:
-                            collector_host: {Ref: "xlcloud:monitorIP"}
-                            name: {Ref: "xlcloud:monitoringCluster"}
-                  description: "This is a role to install the monitoring agent."
-                  run_list:
-                    - "recipe[ganglia]"
-                    - "recipe[ganglia::stack]"
-                  json_class: "Chef::Role"
-                  name: "ganglia-agent"
-              mode: "00400"
-              owner: root
-              group: root
-
-            /var/chef/chef-repo/roles/hpc-vc.json: &hpc-vc
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    slurm:
-                      master_ip: {'Fn::GetAtt': ['LoginNetworkInterface', 'PrivateIpAddress']}
-                      cpus: {'Fn::FindInMap': ["SlurmParameters", {Ref: "xlcloud:defaultInstanceType"}, "cpus"]}
-                    xsa:
-                      application_war_url: "http://toolcloud.ecfrec.xlcloud.org/integ/xlcloud-xsa.war"
-                      public_ip_address: {Ref: LoginIp}
-                      xms_uri: {'Fn::Join': ['', ['http://', {Ref: 'xlcloud:xmsAddress'}, ':8080/xlcloud-xms']]}
-                  description: "This is a role to install HPC VC."
-                  run_list: []
-                  json_class: "Chef::Role"
-                  name: "hpc-vc"
-              mode: "00400"
-              owner: root
-              group: root
-
-            /var/chef/chef-repo/roles/xlc-mco-agent.json: &xlc-mco-agent
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    mcollective:
-                      enable_puppetlabs_repo: false
-                      connector: "rabbitmq"
-                      factsource: "ohai"
-                      psk: "supersecret"
-                      stomp:
-                        hostname: {Ref: "xlcloud:brokerAddress"}
-                        port: {Ref: "xlcloud:brokerPort"}
-                        username: {Ref: "xlcloud:brokerUsername"}
-                        password: {Ref: "xlcloud:brokerPassword"}
-                  description: "This is a role to install ohai + mcollective server + xlcloud agent."
-                  run_list:
-                    - "recipe[ohai]"
-                    - "recipe[mcollective::server]"
-                    - "recipe[xlc-mco-agent]"
-                  json_class: "Chef::Role"
-                  name: "xlc-mco-agent"
               mode: "00400"
               owner: root
               group: root
@@ -376,9 +345,6 @@ Resources:
             - '/usr/local/bin/librarian-chef install --clean --verbose
 
             '
-            - '/bin/chef-solo -c /etc/chef/solo.rb -o "role[xlc-mco-agent]" -L /var/log/chef-solo.log
-
-              '
             - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
 
               '
@@ -408,10 +374,6 @@ Resources:
                     layer_id: {Ref: 'AWS::StackId'}
                     stack_id: {Ref: 'xlcloud:stackId'}
                     logical_resource_id: "Computes"
-
-            /var/chef/chef-repo/roles/xlc-mco-agent.json: *xlc-mco-agent
-            /var/chef/chef-repo/roles/ganglia-agent.json: *ganglia-agent
-            /var/chef/chef-repo/roles/hpc-vc.json: *hpc-vc
 
             /var/chef/chef-repo/Cheffile: *Cheffile
 
@@ -453,9 +415,6 @@ Resources:
 
                 "
               - "/usr/local/bin/librarian-chef install --clean --verbose
-
-                "
-              - "/bin/chef-solo -c /etc/chef/solo.rb -o 'role[xlc-mco-agent]' -L /var/log/chef-solo.log
 
                 "
               - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log

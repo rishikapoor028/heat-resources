@@ -1,26 +1,72 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "Simple Getting-Started Layer",
+    "Description": "Deploy a single-instance relational database service",
+    "Mappings": {
+        "DbTypeMap": {
+            "mysql": {
+                "admin_user": "root",
+                "port": "3306"
+            },
+            "postgresql": {
+                "admin_user": "postgres",
+                "port": "5432"
+            }
+        }
+    },
     "Outputs": {
-        "InstanceIp": {
-            "Description": "ssh command to login to the node",
+        "DbAddress": {
+            "Description": "IP address of the DB server",
             "Value": {
-                "Fn::Join": [
-                    "",
-                    [
-                        "ssh ec2-user@",
-                        {
-                            "Fn::GetAtt": [
-                                "GettingStarted",
-                                "PublicIp"
-                            ]
-                        }
-                    ]
+                "Fn:GetAtt": [
+                    "DbServer",
+                    "PrivateIp"
+                ]
+            }
+        },
+        "DbAdminUser": {
+            "Description": "Administrator username",
+            "Value": {
+                "Fn::FindInMap": [
+                    "DbTypeMap",
+                    {
+                        "Ref": "dbType"
+                    },
+                    "admin_user"
+                ]
+            }
+        },
+        "DbPort": {
+            "Description": "TCP port where the DB service is running",
+            "Value": {
+                "Fn::FindInMap": [
+                    "DbTypeMap",
+                    {
+                        "Ref": "dbType"
+                    },
+                    "port"
                 ]
             }
         }
     },
     "Parameters": {
+        "allowedSubnet": {
+            "Default": "0.0.0.0/0",
+            "Description": "IP subnet (in CIDR notation) allowed to connect to the service",
+            "Type": "String"
+        },
+        "dbPassword": {
+            "Description": "DB admin password",
+            "Type": "String"
+        },
+        "dbType": {
+            "AllowedValues": [
+                "mysql",
+                "postgresql"
+            ],
+            "Default": "mysql",
+            "Description": "DB service type",
+            "Type": "String"
+        },
         "xlcloud:brokerAddress": {
             "Description": "RabbitMQ broker address",
             "Type": "String"
@@ -38,10 +84,6 @@
             "Type": "String"
         },
         "xlcloud:defaultImageId": {
-            "AllowedValues": [
-                "F19-x86_64-xlcloud",
-                "ubuntu-12_04-x86_64-xlcloud"
-            ],
             "ConstraintDescription": "must be a valid XLcloud image name.",
             "Description": "Cloud image Id for instances in this stack",
             "Type": "String"
@@ -53,7 +95,7 @@
                 "m1.large",
                 "m1.xlarge"
             ],
-            "Default": "m1.small",
+            "Default": "m1.medium",
             "Type": "String"
         },
         "xlcloud:defaultKeyName": {
@@ -67,19 +109,55 @@
         "xlcloud:stackId": {
             "Description": "The identifier of the parent stack",
             "Type": "String"
-        },
-        "xlcloud:stackSecret": {
-            "Description": "Secret for service authentication",
-            "NoEcho": "TRUE",
-            "Type": "String"
-        },
-        "xlcloud:xmsAddress": {
-            "Description": "Address of XLCloud Management System",
-            "Type": "String"
         }
     },
     "Resources": {
-        "GettingStarted": {
+        "DbSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Allow SSH access + ICMP from anywhere + DB service from authorized subnet",
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "-1",
+                        "IpProtocol": "icmp",
+                        "ToPort": "-1"
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    },
+                    {
+                        "CidrIp": {
+                            "Ref": "allowedSubnet"
+                        },
+                        "FromPort": {
+                            "Fn::FindInMap": [
+                                "DbTypeMap",
+                                {
+                                    "Ref": "dbType"
+                                },
+                                "port"
+                            ]
+                        },
+                        "IpProtocol": "tcp",
+                        "ToPort": {
+                            "Fn::FindInMap": [
+                                "DbTypeMap",
+                                {
+                                    "Ref": "dbType"
+                                },
+                                "port"
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": "neutron"
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "DbServer": {
             "Metadata": {
                 "AWS::CloudFormation::Init": {
                     "config": {
@@ -88,7 +166,28 @@
                                 "content": {}
                             },
                             "/etc/chef/deploy-runlist.json": {
-                                "content": {}
+                                "content": {
+                                    "run_list": [
+                                        "recipe[xlc-db::deploy]"
+                                    ],
+                                    "xlc-db": {
+                                        "listen_port": {
+                                            "Fn::FindInMap": [
+                                                "DbTypeMap",
+                                                {
+                                                    "Ref": "dbType"
+                                                },
+                                                "port"
+                                            ]
+                                        },
+                                        "password": {
+                                            "Ref": "dbPassword"
+                                        },
+                                        "type": {
+                                            "Ref": "dbType"
+                                        }
+                                    }
+                                }
                             },
                             "/etc/chef/resume-runlist.json": {
                                 "content": {}
@@ -118,8 +217,25 @@
                                         "recipe[ohai]",
                                         "recipe[mcollective::server]",
                                         "recipe[xlc-mco-agent]",
-                                        "recipe[getting-started]"
-                                    ]
+                                        "recipe[xlc-db::setup]"
+                                    ],
+                                    "xlc-db": {
+                                        "listen_port": {
+                                            "Fn::FindInMap": [
+                                                "DbTypeMap",
+                                                {
+                                                    "Ref": "dbType"
+                                                },
+                                                "port"
+                                            ]
+                                        },
+                                        "password": {
+                                            "Ref": "dbPassword"
+                                        },
+                                        "type": {
+                                            "Ref": "dbType"
+                                        }
+                                    }
                                 }
                             },
                             "/etc/chef/shutdown-runlist.json": {
@@ -131,16 +247,19 @@
                             "/etc/chef/undeploy-runlist.json": {
                                 "content": {}
                             },
-                            "/etc/xlcloud-facts.json": {
+                            "/etc/xlcloud/facts.json": {
                                 "content": {
                                     "layer_id": {
                                         "Ref": "AWS::StackId"
                                     },
-                                    "logical_resource_id": "GettingStarted",
+                                    "logical_resource_id": "DbServer",
                                     "stack_id": {
                                         "Ref": "xlcloud:stackId"
                                     }
-                                }
+                                },
+                                "group": "root",
+                                "mode": "00400",
+                                "owner": "root"
                             },
                             "/var/chef/chef-repo/Cheffile": {
                                 "content": {
@@ -150,13 +269,15 @@
                                             "#!/usr/bin/env ruby",
                                             "site 'http://community.opscode.com/api/v1'",
                                             "cookbook 'ohai'",
-                                            "cookbook 'getting-started'",
                                             "cookbook 'mcollective',",
                                             "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
                                             "    :path => 'mcollective'",
                                             "cookbook 'xlc-mco-agent',",
                                             "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
-                                            "    :path => 'xlc-mco-agent'"
+                                            "    :path => 'xlc-mco-agent'",
+                                            "cookbook 'xlc-db',",
+                                            "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
+                                            "    :path => 'xlc-db'"
                                         ]
                                     ]
                                 },
@@ -180,7 +301,7 @@
                 },
                 "SecurityGroups": [
                     {
-                        "Ref": "LayerSecurityGroup"
+                        "Ref": "DbSecurityGroup"
                     }
                 ],
                 "SubnetId": {
@@ -200,16 +321,12 @@
                             "",
                             [
                                 "#!/bin/bash -ve\n",
-                                "# HOME is required by librarian\n",
-                                "export HOME=/root\n",
-                                "source /etc/profile\n",
-                                "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname\n",
-                                "hostname `cat /etc/hostname`\n",
+                                "source /etc/profile.d/proxy.sh\n",
                                 "pip install --upgrade heat-cfntools\n",
                                 "cfn-init\n",
                                 "cd /var/chef/chef-repo\n",
                                 "/usr/local/bin/librarian-chef install --clean --verbose\n",
-                                "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log\n",
+                                "/bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/setup-runlist.json\n",
                                 "cfn-signal -e 0 '",
                                 {
                                     "Ref": "Handle"
@@ -225,35 +342,14 @@
         "Handle": {
             "Type": "AWS::CloudFormation::WaitConditionHandle"
         },
-        "LayerSecurityGroup": {
-            "Properties": {
-                "GroupDescription": "Enable SSH access + ICMP",
-                "SecurityGroupIngress": [
-                    {
-                        "CidrIp": "0.0.0.0/0",
-                        "FromPort": "-1",
-                        "IpProtocol": "icmp",
-                        "ToPort": "-1"
-                    },
-                    {
-                        "CidrIp": "0.0.0.0/0",
-                        "FromPort": "22",
-                        "IpProtocol": "tcp",
-                        "ToPort": "22"
-                    }
-                ],
-                "VpcId": "neutron"
-            },
-            "Type": "AWS::EC2::SecurityGroup"
-        },
         "Ready": {
-            "DependsOn": "GettingStarted",
+            "DependsOn": "DbServer",
             "Properties": {
                 "Count": "1",
                 "Handle": {
                     "Ref": "Handle"
                 },
-                "Timeout": "600"
+                "Timeout": "900"
             },
             "Type": "AWS::CloudFormation::WaitCondition"
         }

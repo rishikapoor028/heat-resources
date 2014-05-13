@@ -111,9 +111,27 @@ Resources:
               content: {}
             /etc/chef/setup-runlist.json:
               content:
+                mcollective:
+                  connector: "rabbitmq"
+                  factsource: "ohai"
+                  psk: "supersecret"
+                  stomp:
+                    hostname: {Ref: "xlcloud:brokerAddress"}
+                    port: {Ref: "xlcloud:brokerPort"}
+                    username: {Ref: "xlcloud:brokerUsername"}
+                    password: {Ref: "xlcloud:brokerPassword"}
+                ganglia:
+                  central_monit: "true"
+                  cluster:
+                    collector_host: "127.0.0.1"
+                    name: {Ref: "xlcloud:monitoringCluster"}
                 run_list:
-                    - "role[xlc-mco-agent]"
-                    - "role[ganglia-server]"
+                  - "recipe[ohai]"
+                  - "recipe[mcollective::server]"
+                  - "recipe[xlc-mco-agent]"
+                  - "recipe[ganglia]"
+                  - "recipe[ganglia::web]"
+
             /etc/chef/undeploy-runlist.json: &undeploy-runlist
               content: {}
             /etc/chef/suspend-runlist.json:
@@ -122,56 +140,6 @@ Resources:
               content: {}
             /etc/chef/shutdown-runlist.json:
               content: {}
-
-            /var/chef/chef-repo/roles/xlc-mco-agent.json:
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    mcollective:
-                      enable_puppetlabs_repo: false
-                      connector: "rabbitmq"
-                      factsource: "ohai"
-                      psk: "supersecret"
-                      stomp:
-                        hostname: {Ref: "xlcloud:brokerAddress"}
-                        port: {Ref: "xlcloud:brokerPort"}
-                        username: {Ref: "xlcloud:brokerUsername"}
-                        password: {Ref: "xlcloud:brokerPassword"}
-                  description: "This is a role to install ohai + mcollective server + xlcloud agent."
-                  run_list:
-                    - "recipe[ohai]"
-                    - "recipe[mcollective::server]"
-                    - "recipe[xlc-mco-agent]"
-
-                  json_class: "Chef::Role"
-                  name: "xlc-mco-agent"
-
-              mode: "00400"
-              owner: root
-              group: root
-
-            /var/chef/chef-repo/roles/ganglia-server.json:
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    ganglia:
-                      central_monit: true
-                      cluster:
-                        collector_host: "127.0.0.1"
-                        name: {Ref: "xlcloud:monitoringCluster"}
-                  description: "This is a role to install the ganglia service"
-                  run_list:
-                    - "recipe[ganglia]"
-                    - "recipe[ganglia::web]"
-
-                  json_class: "Chef::Role"
-                  name: "ganglia-server"
-
-              mode: "00400"
-              owner: root
-              group: root
 
             /var/chef/chef-repo/Cheffile: &Cheffile
               content:

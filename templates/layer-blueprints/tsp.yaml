@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Start an instance, install nvidia drivers, ganglia and unzip
+Description: Start an instance, install NVIDIA drivers, Ganglia and unzip
     TSP tools into /opt/space directory.
 
 Parameters:
@@ -75,34 +75,19 @@ Resources:
               owner: root
               group: root
 
-            /var/chef/chef-repo/roles/ganglia-server.json:
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    ganglia:
-                      central_monit: true
-                      cluster:
-                        collector_host: "127.0.0.1"
-                        name: "Remote Rendering"
-                  description: "This is a role to install the ganglia service"
-                  run_list:
-                    - "recipe[ganglia]"
-                    - "recipe[ganglia::web]"
-                    - "recipe[ganglia::python_rr]"
-                  json_class: "Chef::Role"
-                  name: "ganglia-server"
-
-              mode: "00400"
-              owner: root
-              group: root
-
             /etc/chef/setup-runlist.json:
               content:
+                ganglia:
+                  central_monit: "true"
+                  cluster:
+                    collector_host: "127.0.0.1"
+                    name: "Remote Rendering"
                 run_list:
                   - "recipe[rr-vc::setup]"
                   - "recipe[rr-vc::tsp]"
-                  - "role[ganglia-server]"
+                  - "recipe[ganglia]"
+                  - "recipe[ganglia::web]"
+                  - "recipe[ganglia::python_rr]"
 
             /var/chef/chef-repo/Cheffile:
               content:

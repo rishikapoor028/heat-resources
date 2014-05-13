@@ -1,22 +1,11 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "Simple Getting-Started Layer",
+    "Description": "Deploy a single-instance Ruby server",
     "Outputs": {
-        "InstanceIp": {
-            "Description": "ssh command to login to the node",
+        "ServerAddress": {
+            "Description": "IP address of the app server",
             "Value": {
-                "Fn::Join": [
-                    "",
-                    [
-                        "ssh ec2-user@",
-                        {
-                            "Fn::GetAtt": [
-                                "GettingStarted",
-                                "PublicIp"
-                            ]
-                        }
-                    ]
-                ]
+                "Ref": "ServerIp"
             }
         }
     },
@@ -38,22 +27,12 @@
             "Type": "String"
         },
         "xlcloud:defaultImageId": {
-            "AllowedValues": [
-                "F19-x86_64-xlcloud",
-                "ubuntu-12_04-x86_64-xlcloud"
-            ],
             "ConstraintDescription": "must be a valid XLcloud image name.",
             "Description": "Cloud image Id for instances in this stack",
             "Type": "String"
         },
         "xlcloud:defaultInstanceType": {
-            "AllowedValues": [
-                "m1.small",
-                "m1.medium",
-                "m1.large",
-                "m1.xlarge"
-            ],
-            "Default": "m1.small",
+            "Default": "m1.medium",
             "Type": "String"
         },
         "xlcloud:defaultKeyName": {
@@ -67,28 +46,41 @@
         "xlcloud:stackId": {
             "Description": "The identifier of the parent stack",
             "Type": "String"
-        },
-        "xlcloud:stackSecret": {
-            "Description": "Secret for service authentication",
-            "NoEcho": "TRUE",
-            "Type": "String"
-        },
-        "xlcloud:xmsAddress": {
-            "Description": "Address of XLCloud Management System",
-            "Type": "String"
         }
     },
     "Resources": {
-        "GettingStarted": {
+        "Handle": {
+            "Type": "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "Ready": {
+            "DependsOn": "Server",
+            "Properties": {
+                "Count": "1",
+                "Handle": {
+                    "Ref": "Handle"
+                },
+                "Timeout": "900"
+            },
+            "Type": "AWS::CloudFormation::WaitCondition"
+        },
+        "Server": {
             "Metadata": {
                 "AWS::CloudFormation::Init": {
                     "config": {
                         "files": {
                             "/etc/chef/configure-runlist.json": {
-                                "content": {}
+                                "content": {
+                                    "run_list": [
+                                        "recipe[xlc-rails::configure]"
+                                    ]
+                                }
                             },
                             "/etc/chef/deploy-runlist.json": {
-                                "content": {}
+                                "content": {
+                                    "run_list": [
+                                        "recipe[xlc-rails::deploy]"
+                                    ]
+                                }
                             },
                             "/etc/chef/resume-runlist.json": {
                                 "content": {}
@@ -118,7 +110,7 @@
                                         "recipe[ohai]",
                                         "recipe[mcollective::server]",
                                         "recipe[xlc-mco-agent]",
-                                        "recipe[getting-started]"
+                                        "recipe[xlc-rails::setup]"
                                     ]
                                 }
                             },
@@ -131,16 +123,19 @@
                             "/etc/chef/undeploy-runlist.json": {
                                 "content": {}
                             },
-                            "/etc/xlcloud-facts.json": {
+                            "/etc/xlcloud/facts.json": {
                                 "content": {
                                     "layer_id": {
                                         "Ref": "AWS::StackId"
                                     },
-                                    "logical_resource_id": "GettingStarted",
+                                    "logical_resource_id": "DbServer",
                                     "stack_id": {
                                         "Ref": "xlcloud:stackId"
                                     }
-                                }
+                                },
+                                "group": "root",
+                                "mode": "00400",
+                                "owner": "root"
                             },
                             "/var/chef/chef-repo/Cheffile": {
                                 "content": {
@@ -150,13 +145,18 @@
                                             "#!/usr/bin/env ruby",
                                             "site 'http://community.opscode.com/api/v1'",
                                             "cookbook 'ohai'",
-                                            "cookbook 'getting-started'",
                                             "cookbook 'mcollective',",
                                             "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
                                             "    :path => 'mcollective'",
                                             "cookbook 'xlc-mco-agent',",
                                             "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
-                                            "    :path => 'xlc-mco-agent'"
+                                            "    :path => 'xlc-mco-agent'",
+                                            "cookbook 'application_ruby',",
+                                            "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
+                                            "    :path => 'application_ruby'",
+                                            "cookbook 'xlc-rails',",
+                                            "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
+                                            "    :path => 'xlc-rails'"
                                         ]
                                     ]
                                 },
@@ -180,7 +180,7 @@
                 },
                 "SecurityGroups": [
                     {
-                        "Ref": "LayerSecurityGroup"
+                        "Ref": "ServerSecurityGroup"
                     }
                 ],
                 "SubnetId": {
@@ -200,16 +200,12 @@
                             "",
                             [
                                 "#!/bin/bash -ve\n",
-                                "# HOME is required by librarian\n",
-                                "export HOME=/root\n",
-                                "source /etc/profile\n",
-                                "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname\n",
-                                "hostname `cat /etc/hostname`\n",
+                                "source /etc/profile.d/proxy.sh\n",
                                 "pip install --upgrade heat-cfntools\n",
                                 "cfn-init\n",
                                 "cd /var/chef/chef-repo\n",
                                 "/usr/local/bin/librarian-chef install --clean --verbose\n",
-                                "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log\n",
+                                "/bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/setup-runlist.json\n",
                                 "cfn-signal -e 0 '",
                                 {
                                     "Ref": "Handle"
@@ -222,12 +218,23 @@
             },
             "Type": "AWS::EC2::Instance"
         },
-        "Handle": {
-            "Type": "AWS::CloudFormation::WaitConditionHandle"
+        "ServerIp": {
+            "Type": "AWS::EC2::EIP"
         },
-        "LayerSecurityGroup": {
+        "ServerIpAssoc": {
             "Properties": {
-                "GroupDescription": "Enable SSH access + ICMP",
+                "EIP": {
+                    "Ref": "ServerIp"
+                },
+                "InstanceId": {
+                    "Ref": "Server"
+                }
+            },
+            "Type": "AWS::EC2::EIPAssociation"
+        },
+        "ServerSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Allow SSH access + ICMP + HTTP + HTTPS from anywhere",
                 "SecurityGroupIngress": [
                     {
                         "CidrIp": "0.0.0.0/0",
@@ -240,22 +247,23 @@
                         "FromPort": "22",
                         "IpProtocol": "tcp",
                         "ToPort": "22"
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "443",
+                        "IpProtocol": "tcp",
+                        "ToPort": "443"
                     }
                 ],
                 "VpcId": "neutron"
             },
             "Type": "AWS::EC2::SecurityGroup"
-        },
-        "Ready": {
-            "DependsOn": "GettingStarted",
-            "Properties": {
-                "Count": "1",
-                "Handle": {
-                    "Ref": "Handle"
-                },
-                "Timeout": "600"
-            },
-            "Type": "AWS::CloudFormation::WaitCondition"
         }
     }
 }

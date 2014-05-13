@@ -79,8 +79,21 @@ Resources:
           files:
             /etc/chef/setup-runlist.json:
               content:
+                mcollective:
+                  connector: "rabbitmq"
+                  factsource: "ohai"
+                  psk: "supersecret"
+                  stomp:
+                    hostname: {Ref: "xlcloud:brokerAddress"}
+                    port: {Ref: "xlcloud:brokerPort"}
+                    username: {Ref: "xlcloud:brokerUsername"}
+                    password: {Ref: "xlcloud:brokerPassword"}
                 run_list:
+                    - "recipe[ohai]"
+                    - "recipe[mcollective::server]"
+                    - "recipe[xlc-mco-agent]"
                     - "recipe[getting-started]"
+
             /etc/chef/configure-runlist.json:
               content: {}
             /etc/chef/deploy-runlist.json:
@@ -99,32 +112,6 @@ Resources:
                     layer_id: {Ref: 'AWS::StackId'}
                     stack_id: {Ref: 'xlcloud:stackId'}
                     logical_resource_id: "GettingStarted"
-
-            /var/chef/chef-repo/roles/xlc-mco-agent.json:
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    mcollective:
-                      enable_puppetlabs_repo: false
-                      connector: "rabbitmq"
-                      factsource: "ohai"
-                      psk: "supersecret"
-                      stomp:
-                        hostname: {Ref: "xlcloud:brokerAddress"}
-                        port: {Ref: "xlcloud:brokerPort"}
-                        username: {Ref: "xlcloud:brokerUsername"}
-                        password: {Ref: "xlcloud:brokerPassword"}
-                  description: "This is a role to install ohai + mcollective server + xlcloud agent."
-                  run_list:
-                    - "recipe[ohai]"
-                    - "recipe[mcollective::server]"
-                    - "recipe[xlc-mco-agent]"
-                  json_class: "Chef::Role"
-                  name: "xlc-mco-agent"
-              mode: "00400"
-              owner: root
-              group: root
 
             /var/chef/chef-repo/Cheffile:
               content:
@@ -187,9 +174,6 @@ Resources:
             - '/usr/local/bin/librarian-chef install --clean --verbose
 
             '
-            - '/bin/chef-solo -c /etc/chef/solo.rb -o "role[xlc-mco-agent]" -L /var/log/chef-solo.log
-
-              '
             - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
 
               '

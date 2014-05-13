@@ -155,9 +155,29 @@ Resources:
           files:
             /etc/chef/setup-runlist.json: &setup-runlist
               content:
+                mcollective:
+                  connector: "rabbitmq"
+                  factsource: "ohai"
+                  psk: "supersecret"
+                  stomp:
+                    hostname: {Ref: "xlcloud:brokerAddress"}
+                    port: {Ref: "xlcloud:brokerPort"}
+                    username: {Ref: "xlcloud:brokerUsername"}
+                    password: {Ref: "xlcloud:brokerPassword"}
+                ganglia:
+                  central_monit: "false"
+                  cluster:
+                    collector_host: {Ref: "monitorAddress"}
+                    name: {Ref: "xlcloud:monitoringCluster"}
+                nfs-client:
+                  server: {Ref: "nfsAddress"}
                 run_list:
-                    - "role[ganglia-agent]"
-                    - "role[nfs-client]"
+                    - "recipe[ohai]"
+                    - "recipe[mcollective::server]"
+                    - "recipe[xlc-mco-agent]"
+                    - "recipe[ganglia]"
+                    - "recipe[ganglia::stack]"
+                    - "recipe[nfs-client::setup]"
 
             /etc/chef/configure-runlist.json: &configure-runlist
               content: {}
@@ -182,68 +202,6 @@ Resources:
                     layer_id: {Ref: 'AWS::StackId'}
                     stack_id: {Ref: 'xlcloud:stackId'}
                     logical_resource_id: "Front"
-
-            /var/chef/chef-repo/roles/ganglia-agent.json: &ganglia-agent
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    ganglia:
-                        central_monit: false
-                        cluster:
-                            collector_host: {Ref: "monitorAddress"}
-                            name: {Ref: "xlcloud:monitoringCluster"}
-                  description: "This is a role to install the monitoring agent."
-                  run_list:
-                    - "recipe[ganglia]"
-                    - "recipe[ganglia::stack]"
-                  json_class: "Chef::Role"
-                  name: "ganglia-agent"
-              mode: "00400"
-              owner: root
-              group: root
-
-            /var/chef/chef-repo/roles/nfs-client.json: &nfs-client
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    nfs-client:
-                      server: {Ref: "nfsAddress"}
-                  description: "This is a role to install the NFS client."
-                  run_list:
-                    - "recipe[nfs-client::setup]"
-                  json_class: "Chef::Role"
-                  name: "nfs-client"
-              mode: "00400"
-              owner: root
-              group: root
-
-            /var/chef/chef-repo/roles/xlc-mco-agent.json: &xlc-mco-agent
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    mcollective:
-                      enable_puppetlabs_repo: false
-                      connector: "rabbitmq"
-                      factsource: "ohai"
-                      psk: "supersecret"
-                      stomp:
-                        hostname: {Ref: "xlcloud:brokerAddress"}
-                        port: {Ref: "xlcloud:brokerPort"}
-                        username: {Ref: "xlcloud:brokerUsername"}
-                        password: {Ref: "xlcloud:brokerPassword"}
-                  description: "This is a role to install ohai + mcollective server + xlcloud agent."
-                  run_list:
-                    - "recipe[ohai]"
-                    - "recipe[mcollective::server]"
-                    - "recipe[xlc-mco-agent]"
-                  json_class: "Chef::Role"
-                  name: "xlc-mco-agent"
-              mode: "00400"
-              owner: root
-              group: root
 
             /var/chef/chef-repo/Cheffile: &Cheffile
               content:
@@ -314,9 +272,6 @@ Resources:
             - '/usr/local/bin/librarian-chef install --clean --verbose
 
             '
-            - '/bin/chef-solo -c /etc/chef/solo.rb -o "role[xlc-mco-agent]" -L /var/log/chef-solo.log
-
-              '
             - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
 
               '
@@ -344,10 +299,6 @@ Resources:
                     layer_id: {Ref: 'AWS::StackId'}
                     stack_id: {Ref: 'xlcloud:stackId'}
                     logical_resource_id: "Computes"
-
-            /var/chef/chef-repo/roles/xlc-mco-agent.json: *xlc-mco-agent
-            /var/chef/chef-repo/roles/ganglia-agent.json: *ganglia-agent
-            /var/chef/chef-repo/roles/nfs-client.json: *nfs-client
 
             /var/chef/chef-repo/Cheffile: *Cheffile
 
@@ -389,9 +340,6 @@ Resources:
 
                 "
               - "/usr/local/bin/librarian-chef install --clean --verbose
-
-                "
-              - "/bin/chef-solo -c /etc/chef/solo.rb -o 'role[xlc-mco-agent]' -L /var/log/chef-solo.log
 
                 "
               - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log

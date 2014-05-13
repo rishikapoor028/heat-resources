@@ -93,10 +93,9 @@ Resources:
               owner: root
               group: root
 
-            /etc/chef/xlcloud-agent-runlist.json:
+            /etc/chef/setup-runlist.json:
               content:
                 mcollective:
-                  enable_puppetlabs_repo: false
                   connector: "rabbitmq"
                   factsource: "ohai"
                   psk: "supersecret"
@@ -109,14 +108,7 @@ Resources:
                   - "recipe[ohai]"
                   - "recipe[mcollective::server]"
                   - "recipe[xlc-mco-agent]"
-              mode: "00400"
-              owner: root
-              group: root
-
-            /etc/chef/setup-runlist.json:
-              content:
-                run_list:
-                    - "recipe[xlc-rails::setup]"
+                  - "recipe[xlc-rails::setup]"
 
             /etc/chef/configure-runlist.json:
               content:
@@ -164,17 +156,6 @@ Resources:
               owner: root
               group: root
 
-          commands:
-            00_librarian_chef:
-              env: { HOME: "/root" }
-              command: "source /etc/profile; cd /var/chef/chef-repo && /usr/local/bin/librarian-chef install"
-
-            01_install_agent:
-                command: "source /etc/profile; /bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/xlcloud-agent-runlist.json"
-
-            02_setup:
-                command: "source /etc/profile; /bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/setup-runlist.json"
-
     Properties:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
@@ -197,6 +178,15 @@ Resources:
 
             '
             - 'cfn-init
+
+            '
+            - 'cd /var/chef/chef-repo
+
+            '
+            - '/usr/local/bin/librarian-chef install --clean --verbose
+
+            '
+            - '/bin/chef-solo -c /etc/chef/solo.rb -L /var/log/chef-solo.log -j /etc/chef/setup-runlist.json
 
             '
             - "cfn-signal -e 0 '"

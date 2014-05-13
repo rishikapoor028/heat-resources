@@ -1,7 +1,7 @@
 # heat stack-create mystack -P 'xlcloud:defaultKeyName=mykey;xlcloud:defaultImageId=centos6;xlcloud:layerSubnetUuid=147ef19a-2572-4659-a1d7-56b1884df417;xlcloud:defaultInstanceType=g1.large' -f unigine.yaml
 
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Start an instance, install nvidia drivers and Unigine benchmarks
+Description: Start an instance, install the NVIDIA drivers and Unigine benchmarks, and setup Ganglia server for GPU monitoring
 
 Parameters:
   "xlcloud:defaultKeyName":
@@ -75,37 +75,19 @@ Resources:
               owner: root
               group: root
 
-            /var/chef/chef-repo/roles/ganglia-server.json:
-              content:
-                  chef_type: "role"
-                  default_attributes: {}
-                  override_attributes:
-                    ganglia:
-                      central_monit: true
-                      cluster:
-                        collector_host: "127.0.0.1"
-                        name: "Remote Rendering"
-                  description: "This is a role to install the ganglia service"
-                  run_list:
-                    - "recipe[ganglia]"
-                    - "recipe[ganglia::web]"
-                    - "recipe[ganglia::python_rr]"
-                  json_class: "Chef::Role"
-                  name: "ganglia-server"
-
-              mode: "00400"
-              owner: root
-              group: root
-
             /etc/chef/setup-runlist.json:
               content:
+                ganglia:
+                  central_monit: "true"
+                  cluster:
+                    collector_host: "127.0.0.1"
+                    name: "Remote Rendering"
                 run_list:
                   - "recipe[rr-vc::setup]"
                   - "recipe[unigine]"
-                  - "role[ganglia-server]"
-                  #- "recipe[ganglia]"
-                  #- "recipe[ganglia::stack]"
-                  #- "recipe[ganglia::python_rr]"
+                  - "recipe[ganglia]"
+                  - "recipe[ganglia::web]"
+                  - "recipe[ganglia::python_rr]"
 
             /var/chef/chef-repo/Cheffile:
               content:
