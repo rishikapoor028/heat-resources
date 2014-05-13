@@ -50,9 +50,6 @@
             "Type": "String"
         },
         "xlcloud:defaultImageId": {
-            "AllowedValues": [
-                "F19-x86_64-xlcloud"
-            ],
             "ConstraintDescription": "must be a valid XLcloud image name.",
             "Description": "Default image name for instances in this stack",
             "Type": "String"

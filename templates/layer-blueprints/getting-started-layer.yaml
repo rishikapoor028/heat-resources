@@ -8,9 +8,6 @@ Parameters:
   "xlcloud:defaultImageId":
     Type: String
     ConstraintDescription: must be a valid XLcloud image name.
-    AllowedValues:
-    - F19-x86_64-xlcloud
-    - ubuntu-12_04-x86_64-xlcloud
     Description: Cloud image Id for instances in this stack
   "xlcloud:stackId":
      Description: "The identifier of the parent stack"

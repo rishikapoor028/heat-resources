@@ -38,10 +38,6 @@
             "Type": "String"
         },
         "xlcloud:defaultImageId": {
-            "AllowedValues": [
-                "F19-x86_64-xlcloud",
-                "ubuntu-12_04-x86_64-xlcloud"
-            ],
             "ConstraintDescription": "must be a valid XLcloud image name.",
             "Description": "Cloud image Id for instances in this stack",
             "Type": "String"
