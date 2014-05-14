@@ -188,6 +188,7 @@ Resources:
                 run_list:
                     - "recipe[ohai]"
                     - "recipe[mcollective::server]"
+                    - "recipe[xlc-mco-agent]"
                     - "recipe[ganglia]"
                     - "recipe[ganglia::stack]"
                     - "recipe[hpc-vc::setup]"
@@ -333,6 +334,9 @@ Resources:
             - 'hostname `cat /etc/hostname`
 
             '
+            - 'echo "127.0.0.2 `cat /etc/hostname`" >> /etc/hosts
+
+            '
             - 'pip install --upgrade heat-cfntools
 
             '
@@ -405,6 +409,9 @@ Resources:
               - "hostname `cat /etc/hostname`
 
                 "
+              - 'echo "127.0.0.2 `cat /etc/hostname`" >> /etc/hosts
+
+                '
               - "pip install --upgrade heat-cfntools
 
                 "

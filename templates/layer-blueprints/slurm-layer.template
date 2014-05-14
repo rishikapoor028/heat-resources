@@ -246,6 +246,7 @@
                                     "run_list": [
                                         "recipe[ohai]",
                                         "recipe[mcollective::server]",
+                                        "recipe[xlc-mco-agent]",
                                         "recipe[ganglia]",
                                         "recipe[ganglia::stack]",
                                         "recipe[hpc-vc::setup]"
@@ -521,6 +522,7 @@
                                     "run_list": [
                                         "recipe[ohai]",
                                         "recipe[mcollective::server]",
+                                        "recipe[xlc-mco-agent]",
                                         "recipe[ganglia]",
                                         "recipe[ganglia::stack]",
                                         "recipe[hpc-vc::setup]"
@@ -669,6 +671,7 @@
                                 "source /etc/profile.d/proxy.sh\n",
                                 "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname\n",
                                 "hostname `cat /etc/hostname`\n",
+                                "echo \"127.0.0.2 `cat /etc/hostname`\" >> /etc/hosts\n",
                                 "pip install --upgrade heat-cfntools\n",
                                 "cfn-init\n",
                                 "cd /var/chef/chef-repo\n",
@@ -885,6 +888,7 @@
                                     "run_list": [
                                         "recipe[ohai]",
                                         "recipe[mcollective::server]",
+                                        "recipe[xlc-mco-agent]",
                                         "recipe[ganglia]",
                                         "recipe[ganglia::stack]",
                                         "recipe[hpc-vc::setup]"
@@ -1041,6 +1045,7 @@
                                 "source /etc/profile.d/proxy.sh\n",
                                 "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname\n",
                                 "hostname `cat /etc/hostname`\n",
+                                "echo \"127.0.0.2 `cat /etc/hostname`\" >> /etc/hosts\n",
                                 "pip install --upgrade heat-cfntools\n",
                                 "cfn-init\n",
                                 "cd /var/chef/chef-repo\n",
