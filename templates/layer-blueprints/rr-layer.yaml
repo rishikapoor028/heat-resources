@@ -3,6 +3,12 @@ Description: Start an instance, install NVIDIA drivers, Ganglia and unzip
     TSP tools into /opt/space directory.
 
 Parameters:
+  "monitorAddress":
+    Description: "IP address of the Ganglia Metadata server (gmond)"
+    Type: String
+  "nfsAddress":
+    Description: "IP address of the NFS server"
+    Type: String
   "xlcloud:defaultKeyName":
     Description: Name of an existing EC2 KeyPair to enable SSH access to
         the instances.
@@ -19,7 +25,31 @@ Parameters:
     Description: The subnet identifier this layer is connected to.
     Type: String
   "xlcloud:defaultInstanceType":
+    AllowedValues: ["g1.medium", "g1.large"]
     Type: String
+    Default: "g1.medium"
+  "xlcloud:brokerAddress":
+      Type: "String"
+      Description: "RabbitMQ broker address"
+  "xlcloud:brokerPort":
+      Type: "String"
+      Description: "RabbitMQ broker port"
+  "xlcloud:brokerUsername":
+      Type: "String"
+      Description: "RabbitMQ broker username"
+  "xlcloud:brokerPassword":
+      Type: "String"
+      Description: "RabbitMQ broker password"
+  "xlcloud:monitoringCluster":
+      Type: "String"
+      Description: "Name of the cluster in the monitoring system"
+  "xlcloud:stackSecret":
+      Description: "Secret for service authentication"
+      Type: "String"
+      NoEcho: "TRUE"
+  "xlcloud:xmsAddress":
+      Description: "Address of XLCloud Management System"
+      Type: "String"
 
 Resources:
   NodeIPAddress: {Type: "AWS::EC2::EIP"}
@@ -71,23 +101,57 @@ Resources:
               content:
                 layer_id: {Ref: 'AWS::StackId'}
                 stack_id: {Ref: 'xlcloud:stackId'}
+                logical_resource_id: "GPUInstance"
               mode: "00400"
               owner: root
               group: root
 
             /etc/chef/setup-runlist.json:
               content:
+                mcollective:
+                  connector: "rabbitmq"
+                  factsource: "ohai"
+                  psk: "supersecret"
+                  stomp:
+                    hostname: {Ref: "xlcloud:brokerAddress"}
+                    port: {Ref: "xlcloud:brokerPort"}
+                    username: {Ref: "xlcloud:brokerUsername"}
+                    password: {Ref: "xlcloud:brokerPassword"}
                 ganglia:
-                  central_monit: "true"
+                  central_monit: "false"
                   cluster:
-                    collector_host: "127.0.0.1"
-                    name: "Remote Rendering"
+                    collector_host: {Ref: "monitorAddress"}
+                    name: {Ref: "xlcloud:monitoringCluster"}
+                nfs-client:
+                  server: {Ref: "nfsAddress"}
                 run_list:
+                  - "recipe[ohai]"
+                  - "recipe[mcollective::server]"
+                  - "recipe[xlc-mco-agent]"
+                  - "recipe[nfs-client::setup]"
                   - "recipe[rr-vc::setup]"
-                  - "recipe[rr-vc::tsp]"
+#                  - "recipe[rr-vc::tsp]"
                   - "recipe[ganglia]"
-                  - "recipe[ganglia::web]"
+                  - "recipe[ganglia::stack]"
                   - "recipe[ganglia::python_rr]"
+
+            /etc/chef/configure-runlist.json:
+              content: {}
+
+            /etc/chef/deploy-runlist.json:
+              content: {}
+
+            /etc/chef/undeploy-runlist.json:
+              content: {}
+
+            /etc/chef/suspend-runlist.json:
+              content: {}
+
+            /etc/chef/resume-runlist.json:
+              content: {}
+
+            /etc/chef/shutdown-runlist.json:
+              content: {}
 
             /var/chef/chef-repo/Cheffile:
               content:
@@ -96,12 +160,25 @@ Resources:
                   -
                     - "#!/usr/bin/env ruby"
                     - "site 'http://community.opscode.com/api/v1'"
-                    - "cookbook 'rr-vc',"
+                    - "cookbook 'ohai'"
+                    - "cookbook 'mcollective',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
-                    - "    :path => 'rr-vc'"
+                    - "    :path => 'mcollective'"
+                    - "cookbook 'xlc-common',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'xlc-common'"
+                    - "cookbook 'xlc-mco-agent',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'xlc-mco-agent'"
                     - "cookbook 'ganglia',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'ganglia'"
+                    - "cookbook 'nfs-client',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'nfs-client'"
+                    - "cookbook 'rr-vc',"
+                    - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
+                    - "    :path => 'rr-vc'"
               mode: "00400"
               owner: root
               group: root
@@ -112,6 +189,8 @@ Resources:
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups: [{"Ref" : "LayerSecurityGroup"}]
       SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
+      Tags:
+      - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
       UserData:
         Fn::Base64:
           Fn::Join:
