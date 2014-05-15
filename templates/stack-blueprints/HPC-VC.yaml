@@ -1,4 +1,4 @@
-Description: XLcloud Slurm Stack
+Description: XLcloud HPC Virtual Cluster
 HeatTemplateFormatVersion: '2012-12-12'
 Outputs:
   "xlcloud:xsaIp":
@@ -30,8 +30,9 @@ Parameters:
     ConstraintDescription: Must be a valid XLcloud image name.
     AllowedValues: 
     - F19-x86_64-xlcloud
+    - CentOS-6.5-x86_64-xlcloud
     Description: Default image name for instances in this stack
-    Default: F19-x86_64-xlcloud
+    Default: CentOS-6.5-x86_64-xlcloud
 
   "xlcloud:defaultInstanceType":
     Type: String
