@@ -337,7 +337,7 @@ Resources:
             - 'echo "127.0.0.2 `cat /etc/hostname`" >> /etc/hosts
 
             '
-            - 'pip install --upgrade heat-cfntools
+            - 'pip install --upgrade boto==2.5.2 heat-cfntools
 
             '
             - 'cfn-init
@@ -412,7 +412,7 @@ Resources:
               - 'echo "127.0.0.2 `cat /etc/hostname`" >> /etc/hosts
 
                 '
-              - "pip install --upgrade heat-cfntools
+              - "pip install --upgrade boto==2.5.2 heat-cfntools
 
                 "
               - "cfn-init
