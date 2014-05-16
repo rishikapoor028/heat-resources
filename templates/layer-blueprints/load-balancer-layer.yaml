@@ -1,38 +1,39 @@
-AWSTemplateFormatVersion: "2010-09-09"
-Description: Deploy a cluster with N (default=2) compute nodes
+LoadBalancer: "2010-09-09"
+Description: Deploy a resizable load-balancer instance
 
 Parameters:
   "monitorAddress":
     Description: "IP address of the Ganglia Metadata server (gmond)"
     Type: String
-  "nfsAddress":
-    Description: "IP address of the NFS server"
+  "backendAddresses":
+    Description: "Comma-separated list of the IP addresses of the backend instances"
     Type: String
-  "servicePort":
-    Description: "TCP port on which the compute instances will listen"
+  "loadBalancerPort":
+    Description: "TCP port on which the load-balancer will listen"
+    Type: String
+    Default: "80"
+  "backendPort":
+    Description: "TCP port on which the backend instances will listen"
     Type: String
     Default: "80"
   "xlcloud:defaultKeyName":
-    Description: "Name of an existing EC2 KeyPair to enable SSH access to the instances"
+    Description: Name of an existing EC2 KeyPair to enable SSH access to
+        the instances.
     Type: String
   "xlcloud:defaultImageId":
     Type: String
     ConstraintDescription: must be a valid XLcloud image name.
     Description: Cloud image Id for instances in this stack
   "xlcloud:stackId":
-     Description: "The identifier of the parent stack"
-     Type: String
+    Description: The identifier of the parent stack.
+    Type: String
+    Default: "Will be overwritten by XMS"
   "xlcloud:layerSubnetUuid":
-     Description: "The subnet identifier this layer is connected to"
-     Type: String
+    Description: The subnet identifier this layer is connected to.
+    Type: String
   "xlcloud:defaultInstanceType":
-    AllowedValues: ["m1.small", "m1.medium", "m1.large", "m1.xlarge"]
+    AllowedValues: ["m1.small","m1.medium","m1.large","m1.xlarge"]
     Type: String
-    Default: "m1.medium"
-  "xlcloud:Computes:size":
-    Description: "Number of compute nodes to launch"
-    Type: String
-    Default: '2'
   "xlcloud:brokerAddress":
       Type: "String"
       Description: "RabbitMQ broker address"
@@ -57,11 +58,24 @@ Parameters:
       Type: "String"
 
 Resources:
-  PublicLayerSecurityGroup:
+  EIPAddress: {Type: "AWS::EC2::EIP"}
+  IPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: {Ref: LBInstance}
+      EIP: {Ref: EIPAddress}
+
+  CfnUser:
+    Type: AWS::IAM::User
+  CfnUserKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: {Ref: CfnUser}
+
+  LayerSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
-      GroupDescription: "Allow SSH access + ICMP from anywhere"
-      VpcId: neutron
+      GroupDescription: "Enable SSH access, ICMP and VNC"
       SecurityGroupIngress:
         -
           IpProtocol: "icmp"
@@ -75,47 +89,36 @@ Resources:
           CidrIp: "0.0.0.0/0"
         -
           IpProtocol: "tcp"
-          FromPort: {Ref: servicePort}
-          ToPort: {Ref: servicePort}
+          FromPort: {Ref: loadBalancerPort}
+          ToPort: {Ref: loadBalancerPort}
           CidrIp: "0.0.0.0/0"
 
-  PrivateLayerSecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
-    Properties:
-      GroupDescription: "Allow any traffic from all instances of the layer"
-      VpcId: neutron
-      SecurityGroupIngress:
-        -
-          SourceSecurityGroupId: {Ref: 'PublicLayerSecurityGroup' }
-
-  Computes:
-    Type: AWS::AutoScaling::AutoScalingGroup
-    Properties:
-      LaunchConfigurationName: {Ref: ComputeConfiguration}
-      MinSize: {Ref: "xlcloud:Computes:size"}
-      MaxSize: {Ref: "xlcloud:Computes:size"}
-      AvailabilityZones: {'Fn::GetAZs': ''}
-      VPCZoneIdentifier: [ {Ref: 'xlcloud:layerSubnetUuid'} ]
-      Tags:
-      - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
-
-  ComputeHandle:
+  IReadyHandle:
     Type: AWS::CloudFormation::WaitConditionHandle
 
-  ComputeReady:
+  InstanceReady:
     Type: AWS::CloudFormation::WaitCondition
-    DependsOn: Computes
+    DependsOn: LBInstance
     Properties:
-      Handle: {Ref: ComputeHandle}
-      Count: {Ref: "xlcloud:Computes:size"}
-      Timeout: '2400'
+      Handle: {Ref: IReadyHandle}
+      Count: 1
+      Timeout: '600'
 
-  ComputeConfiguration:
-    Type: AWS::AutoScaling::LaunchConfiguration
+  LBInstance:
+    Type: AWS::EC2::Instance
     Metadata:
       AWS::CloudFormation::Init:
         config:
           files:
+            /etc/xlcloud/facts.json:
+              content:
+                layer_id: {Ref: 'AWS::StackId'}
+                stack_id: {Ref: 'xlcloud:stackId'}
+                logical_resource_id: "LBInstance"
+              mode: "00400"
+              owner: root
+              group: root
+
             /etc/chef/setup-runlist.json: &setup-runlist
               content:
                 mcollective:
@@ -132,18 +135,22 @@ Resources:
                   cluster:
                     collector_host: {Ref: "monitorAddress"}
                     name: {Ref: "xlcloud:monitoringCluster"}
-                nfs-client:
-                  server: {Ref: "nfsAddress"}
                 run_list:
-                    - "recipe[ohai]"
-                    - "recipe[mcollective::server]"
-                    - "recipe[xlc-mco-agent]"
-                    - "recipe[ganglia]"
-                    - "recipe[ganglia::stack]"
-                    - "recipe[nfs-client::setup]"
+                  - "recipe[ohai]"
+                  - "recipe[mcollective::server]"
+                  - "recipe[xlc-mco-agent]"
+                  - "recipe[ganglia]"
+                  - "recipe[ganglia::stack]"
+                  - "recipe[haproxy::setup]"
 
             /etc/chef/configure-runlist.json: &configure-runlist
-              content: {}
+              content:
+                haproxy:
+                  configure:
+                    load_balancer_port: {Ref: loadBalancerPort}
+                    backend_port: {Ref: backendPort}
+                run_list:
+                  - "recipe[haproxy::configure]"
 
             /etc/chef/deploy-runlist.json: &deploy-runlist
               content: {}
@@ -180,71 +187,84 @@ Resources:
                     - "cookbook 'ganglia',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
                     - "    :path => 'ganglia'"
-                    - "cookbook 'nfs-client',"
+                    - "cookbook 'haproxy',"
                     - "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',"
-                    - "    :path => 'nfs-client'"
+                    - "    :path => 'haproxy'"
               mode: "00400"
               owner: root
               group: root
 
-            /etc/xlcloud-facts.json:
-                content:
-                    layer_id: {Ref: 'AWS::StackId'}
-                    stack_id: {Ref: 'xlcloud:stackId'}
-                    logical_resource_id: "Computes"
+            /etc/cfn/cfn-credentials: &cfn-credentials
+              content:
+                Fn::Join:
+                  - ''
+                  - - AWSAccessKeyId=
+                    - {Ref : CfnUserKey}
+                    - '
+
+                      '
+                    - AWSSecretKey=
+                    - 'Fn::GetAtt': [CfnUserKey, SecretAccessKey]
+                    - '
+
+                      '
+              mode: "00400"
+              owner: root
+              group: root
 
     Properties:
       ImageId: {Ref: 'xlcloud:defaultImageId'}
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
-      SecurityGroups: [{"Ref" : "PublicLayerSecurityGroup"}, {"Ref" : "PrivateLayerSecurityGroup"}]
+      SecurityGroups: [{"Ref" : "LayerSecurityGroup"}]
+      SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}
+      Tags:
+      - { Key: metering.StackId, Value: {Ref: 'AWS::StackId'}}
       UserData:
         Fn::Base64:
           Fn::Join:
-            - ""
-            -
-              - "#!/bin/bash -ve
+          - ''
+          - - '#!/bin/bash -ve
 
-                "
-              - "#HOME is required by librarian
+            '
+            - '# HOME is required by librarian
 
-                "
-              - "export HOME=/root
+            '
+            - 'export HOME=/root
 
-                "
-              - "source /etc/profile.d/proxy.sh
+            '
+            - 'source /etc/profile
 
-                "
-              - "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
+            '
+            - 'echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname
 
-                "
-              - "hostname `cat /etc/hostname`
+            '
+            - 'hostname `cat /etc/hostname`
 
-                "
-              - "pip install --upgrade heat-cfntools
+            '
+            - 'pip install --upgrade boto==2.5.2 heat-cfntools
 
-                "
-              - "cfn-init
+            '
+            - 'cfn-init
 
-                "
-              - "cd /var/chef/chef-repo
+            '
+            - 'cd /var/chef/chef-repo
 
-                "
-              - "/usr/local/bin/librarian-chef install --clean --verbose
+            '
+            - 'librarian-chef install --clean --verbose
 
-                "
-              - "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
+            '
+            - '/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log
 
-                "
-              - "cfn-signal -e 0 -i $(hostname) '"
-              - {Ref: ComputeHandle}
-              - "'"
+            '
+            - "cfn-signal -e 0 -i $(hostname) '"
+            - {Ref: IReadyHandle}
+            - "'"
 
   ClusterMetaData:
     Type: AWS::AutoScaling::LaunchConfiguration
     Metadata:
-      IpAddresses: {'Fn::GetAtt': [Computes, InstanceList]}
-      Size: {Ref: "xlcloud:Computes:size"}
+      BackendAddresses: {Ref: backendAddresses}
       AWS::CloudFormation::Init:
         config:
           files:
@@ -261,6 +281,7 @@ Resources:
       InstanceType: foobar
 
 Outputs:
-  ClusterAddresses:
-    Value: {'Fn::GetAtt': [Computes, InstanceList]}
-    Description: IP addresses of the cluster's compute nodes
+  PublicAddress:
+    Value: {Ref: EIPAddress}
+    Description: Public IP address of the load-balancer
+
