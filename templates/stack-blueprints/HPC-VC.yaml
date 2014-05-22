@@ -127,5 +127,5 @@ Resources:
                     'xlcloud:xmsAddress' : {Ref: 'xlcloud:xmsAddress'},
                     'xlcloud:stackSecret' : {Ref: 'xlcloud:stackSecret'},
                     'MonitorPort' : {Ref: MonitorPort}}
-      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/ganglia-f19.yaml'
+      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/monitoring-layer.yaml'
       TimeoutInMinutes: 5

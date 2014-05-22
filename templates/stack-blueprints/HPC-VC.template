@@ -162,7 +162,7 @@
                         "Ref": "xlcloud:xmsAddress"
                     }
                 },
-                "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/ganglia-f19.yaml",
+                "TemplateURL": "layer-blueprints/2",
                 "TimeoutInMinutes": 5
             },
             "Type": "AWS::CloudFormation::Stack"
@@ -214,7 +214,7 @@
                         "Ref": "xlcloud:xmsAddress"
                     }
                 },
-                "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml",
+                "TemplateURL": "layer-blueprints/1",
                 "TimeoutInMinutes": 40
             },
             "Type": "AWS::CloudFormation::Stack"
