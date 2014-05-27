@@ -2,10 +2,6 @@
    "AWSTemplateFormatVersion":"2010-09-09",
    "Description":"RabbitMQ broker for mcollective",
    "Parameters":{
-      "xlcloud:defaultKeyName":{
-         "Description":"Name of an existing EC2 KeyPair to enable SSH access",
-         "Type":"String"
-      },
       "xlcloud:defaultInstanceType":{
          "Description":"Default instance type (flavor) for instances in this stack",
          "Type":"String",
@@ -22,7 +18,7 @@
       "xlcloud:defaultImageId":{
          "Description":"Default image name for instances in this stack",
          "Type":"String",
-         "Default":"F19-x86_64-xlcloud",
+         "Default":"CentOS-6.5-x86_64-xlcloud",
          "ConstraintDescription":"must be a valid XLcloud image name."
       },
       "xlcloud:defaultSubnetUuid":{
@@ -55,7 +51,7 @@
          "Properties":{
            "Handle": {"Ref": "Handle"},
            "Count": "1",
-           "Timeout": "600"
+           "Timeout": "1200"
          }
       },
       "IPAddress":{
@@ -106,42 +102,10 @@
             "AWS::CloudFormation::Init":{
                "config":{
                   "files":{
-                     "/etc/chef/solo.rb":{
-                        "content":{
-                           "Fn::Join":[
-                              "\n",
-                              [
-                                 "file_cache_path  '/var/chef/cache'",
-                                 "cookbook_path    [ '/var/chef/chef-repo/cookbooks' ]",
-                                 "role_path    [ '/var/chef/chef-repo/roles' ]",
-                                 "log_level :info",
-                                 "log_location STDOUT",
-                                 "ssl_verify_mode :verify_none",
-                                 "http_proxy 'http://10.197.217.62:3128'",
-                                 "https_proxy 'http://10.197.217.62:3128'",
-                                 "no_proxy '127.0.0.1,localhost'"
-                              ]
-                           ]
-                        }
-                     },
                      "/etc/chef/runlist-setup.json":{
                         "content":{
                            "run_list":[
                               "role[rabbitmq-for-mcollective]"
-                           ]
-                        }
-                     },
-                     "/root/.chef/knife.rb":{
-                        "content":{
-                           "Fn::Join":[
-                              "\n",
-                              [
-                                 "cookbook_path  [ '/var/chef/chef-repo/cookbooks' ]",
-                                 "role_path    [ '/var/chef/chef-repo/roles' ]",
-                                 "http_proxy 'http://10.197.217.62:3128'",
-                                 "https_proxy 'http://10.197.217.62:3128'",
-                                 "no_proxy '127.0.0.1,localhost'"
-                              ]
                            ]
                         }
                      },
@@ -150,7 +114,6 @@
                            "name":"rabbitmq-for-mcollective",
                            "default_attributes":{
                               "rabbitmq":{
-                                 "use_distro_version": false,
                                  "policies": [],
                                  "port":{"Ref": "RabbitPort"},
                                  "virtualhosts":[
@@ -218,9 +181,6 @@
             },
             "InstanceType":{
                "Ref":"xlcloud:defaultInstanceType"
-            },
-            "KeyName":{
-               "Ref":"xlcloud:defaultKeyName"
             },
             "SubnetId":{
                "Ref":"xlcloud:defaultSubnetUuid"
