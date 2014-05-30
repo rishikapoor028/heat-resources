@@ -108,7 +108,7 @@ Resources:
                     'xlcloud:xmsAddress' : {Ref: 'xlcloud:xmsAddress'},
                     'xlcloud:stackSecret' : {Ref: 'xlcloud:stackSecret'},
                     'xlcloud:Computes:size' : {Ref: 'xlcloud:Computes:size'}}
-      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/slurm-layer.yaml'
+      TemplateURL : 'layer-blueprints/1'
       TimeoutInMinutes: 40
 
   Monitor:
@@ -127,5 +127,5 @@ Resources:
                     'xlcloud:xmsAddress' : {Ref: 'xlcloud:xmsAddress'},
                     'xlcloud:stackSecret' : {Ref: 'xlcloud:stackSecret'},
                     'MonitorPort' : {Ref: MonitorPort}}
-      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/monitoring-layer.yaml'
+      TemplateURL : 'layer-blueprints/2'
       TimeoutInMinutes: 5
