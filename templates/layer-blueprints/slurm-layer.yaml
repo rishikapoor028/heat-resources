@@ -156,6 +156,19 @@ Resources:
       Count: {Ref: "xlcloud:Computes:size"}
       Timeout: '2400'
 
+  NfsVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: { "Fn::GetAtt": [ Login, AvailabilityZone ] }
+      Size: 10
+
+  NfsVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      InstanceId: {Ref: Login}
+      VolumeId: {Ref: NfsVolume}
+      Device: "/dev/vdb"
+
   Login:
     Type: AWS::EC2::Instance
     Metadata:
