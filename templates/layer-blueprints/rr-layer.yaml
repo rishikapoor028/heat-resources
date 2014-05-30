@@ -25,9 +25,9 @@ Parameters:
     Description: The subnet identifier this layer is connected to.
     Type: String
   "xlcloud:defaultInstanceType":
-    AllowedValues: ["g1.medium", "g1.large"]
+    AllowedValues: ["gpu.m2070q", "gpu.k520", "gpu.k20xm"]
     Type: String
-    Default: "g1.medium"
+    Default: "gpu.m2070q"
   "xlcloud:brokerAddress":
       Type: "String"
       Description: "RabbitMQ broker address"
@@ -86,6 +86,7 @@ Resources:
 
   InstanceReady:
     Type: AWS::CloudFormation::WaitCondition
+    DependsOn: GPUInstance
     Properties:
       Handle: {Ref: IReadyHandle}
       Count: 1
@@ -184,7 +185,7 @@ Resources:
               group: root
 
     Properties:
-      ImageId: {Ref: 'xlcloud:defaultImageId'}
+      ImageId: {'Fn::Join': ["", [{Ref: 'xlcloud:defaultImageId'}, "-raw"]]}
       InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups: [{"Ref" : "LayerSecurityGroup"}]
