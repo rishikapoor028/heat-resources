@@ -39,7 +39,7 @@ Parameters:
       Description: "Size of the NFS volume (in Gb)"
   "mountPoint":
       Type: "String"
-      Default: "/dev/vdc"
+      Default: "/dev/vdb"
       AllowedPattern: '/dev/vd[b-z]'
       Description: "The volume device exposed to the instance"
   "xlcloud:stackSecret":

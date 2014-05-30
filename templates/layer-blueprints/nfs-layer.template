@@ -15,7 +15,7 @@
     "Parameters": {
         "mountPoint": {
             "AllowedPattern": "/dev/vd[b-z]",
-            "Default": "/dev/vdc",
+            "Default": "/dev/vdb",
             "Description": "The volume device exposed to the instance",
             "Type": "String"
         },
