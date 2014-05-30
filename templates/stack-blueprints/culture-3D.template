@@ -12,16 +12,26 @@
             }
         },
         "WebIP": {
-            "Description": "Public address of the web server",
+            "Description": "Public address of the web front-end",
             "Value": {
                 "Fn::GetAtt": [
-                    "Compute",
-                    "Outputs.FrontAddress"
+                    "LoadBalancer",
+                    "Outputs.PublicAddress"
                 ]
             }
         }
     },
     "Parameters": {
+        "BackendPort": {
+            "Default": "80",
+            "Description": "TCP port for the internal-facing web service",
+            "Type": "String"
+        },
+        "FrontendPort": {
+            "Default": "80",
+            "Description": "TCP port for the public-facing web service",
+            "Type": "String"
+        },
         "MonitorPort": {
             "Default": "8649",
             "Description": "TCP port of monitoring traffic data",
@@ -118,6 +128,9 @@
                             "Outputs.NfsAddress"
                         ]
                     },
+                    "servicePort": {
+                        "Ref": "BackendPort"
+                    },
                     "xlcloud:Computes:size": {
                         "Ref": "xlcloud:Computes:size"
                     },
@@ -157,6 +170,63 @@
                 },
                 "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/compute-layer.yaml",
                 "TimeoutInMinutes": 20
+            },
+            "Type": "AWS::CloudFormation::Stack"
+        },
+        "LoadBalancer": {
+            "Properties": {
+                "Parameters": {
+                    "backendAddresses": {
+                        "Fn::GetAtt": [
+                            "Compute",
+                            "Outputs.ClusterAddresses"
+                        ]
+                    },
+                    "backendPort": {
+                        "Ref": "BackendPort"
+                    },
+                    "loadBalancerPort": {
+                        "Ref": "FrontendPort"
+                    },
+                    "monitorAddress": {
+                        "Fn::GetAtt": [
+                            "Monitor",
+                            "Outputs.MonitorIP"
+                        ]
+                    },
+                    "xlcloud:brokerAddress": {
+                        "Ref": "xlcloud:brokerAddress"
+                    },
+                    "xlcloud:brokerPassword": {
+                        "Ref": "xlcloud:brokerPassword"
+                    },
+                    "xlcloud:brokerPort": {
+                        "Ref": "xlcloud:brokerPort"
+                    },
+                    "xlcloud:brokerUsername": {
+                        "Ref": "xlcloud:brokerUsername"
+                    },
+                    "xlcloud:defaultImageId": {
+                        "Ref": "xlcloud:defaultImageId"
+                    },
+                    "xlcloud:defaultInstanceType": {
+                        "Ref": "xlcloud:defaultInstanceType"
+                    },
+                    "xlcloud:defaultKeyName": {
+                        "Ref": "xlcloud:defaultKeyName"
+                    },
+                    "xlcloud:stackId": {
+                        "Ref": "AWS::StackId"
+                    },
+                    "xlcloud:stackSecret": {
+                        "Ref": "xlcloud:stackSecret"
+                    },
+                    "xlcloud:xmsAddress": {
+                        "Ref": "xlcloud:xmsAddress"
+                    }
+                },
+                "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/load-balancer-layer.yaml",
+                "TimeoutInMinutes": 10
             },
             "Type": "AWS::CloudFormation::Stack"
         },
@@ -200,7 +270,7 @@
                         "Ref": "xlcloud:xmsAddress"
                     }
                 },
-                "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/ganglia-f19.yaml",
+                "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/monitoring-layer.yaml",
                 "TimeoutInMinutes": 5
             },
             "Type": "AWS::CloudFormation::Stack"
@@ -244,6 +314,57 @@
                 },
                 "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/nfs-layer.yaml",
                 "TimeoutInMinutes": 10
+            },
+            "Type": "AWS::CloudFormation::Stack"
+        },
+        "RemoteRendering": {
+            "Properties": {
+                "Parameters": {
+                    "monitorAddress": {
+                        "Fn::GetAtt": [
+                            "Monitor",
+                            "Outputs.MonitorIP"
+                        ]
+                    },
+                    "nfsAddress": {
+                        "Fn::GetAtt": [
+                            "Nfs",
+                            "Outputs.NfsAddress"
+                        ]
+                    },
+                    "xlcloud:brokerAddress": {
+                        "Ref": "xlcloud:brokerAddress"
+                    },
+                    "xlcloud:brokerPassword": {
+                        "Ref": "xlcloud:brokerPassword"
+                    },
+                    "xlcloud:brokerPort": {
+                        "Ref": "xlcloud:brokerPort"
+                    },
+                    "xlcloud:brokerUsername": {
+                        "Ref": "xlcloud:brokerUsername"
+                    },
+                    "xlcloud:defaultImageId": {
+                        "Ref": "xlcloud:defaultImageId"
+                    },
+                    "xlcloud:defaultInstanceType": {
+                        "Ref": "xlcloud:defaultInstanceType"
+                    },
+                    "xlcloud:defaultKeyName": {
+                        "Ref": "xlcloud:defaultKeyName"
+                    },
+                    "xlcloud:stackId": {
+                        "Ref": "AWS::StackId"
+                    },
+                    "xlcloud:stackSecret": {
+                        "Ref": "xlcloud:stackSecret"
+                    },
+                    "xlcloud:xmsAddress": {
+                        "Ref": "xlcloud:xmsAddress"
+                    }
+                },
+                "TemplateURL": "http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/rr-layer.yaml",
+                "TimeoutInMinutes": 60
             },
             "Type": "AWS::CloudFormation::Stack"
         }

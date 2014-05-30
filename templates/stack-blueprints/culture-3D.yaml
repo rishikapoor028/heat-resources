@@ -163,7 +163,7 @@ Resources:
                     'xlcloud:xmsAddress' : {Ref: 'xlcloud:xmsAddress'},
                     'xlcloud:stackSecret' : {Ref: 'xlcloud:stackSecret'},
                     'MonitorPort' : {Ref: MonitorPort}}
-      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/ganglia-f19.yaml'
+      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/monitoring-layer.yaml'
       TimeoutInMinutes: 5
 
   LoadBalancer:
@@ -186,4 +186,23 @@ Resources:
                     'monitorAddress' : {'Fn::GetAtt': ['Monitor', 'Outputs.MonitorIP']}}
       TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/load-balancer-layer.yaml'
       TimeoutInMinutes: 10
+
+  RemoteRendering:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters: {
+                    'xlcloud:defaultKeyName' : {Ref: 'xlcloud:defaultKeyName'},
+                    'xlcloud:defaultImageId' : {Ref: 'xlcloud:defaultImageId'},
+                    'xlcloud:defaultInstanceType' : {Ref: 'xlcloud:defaultInstanceType'},
+                    'xlcloud:brokerAddress' : {Ref: 'xlcloud:brokerAddress'},
+                    'xlcloud:brokerPort' : {Ref: 'xlcloud:brokerPort'},
+                    'xlcloud:brokerUsername' : {Ref: 'xlcloud:brokerUsername'},
+                    'xlcloud:brokerPassword' : {Ref: 'xlcloud:brokerPassword'},
+                    'xlcloud:stackId' : {Ref: 'AWS::StackId'},
+                    'xlcloud:xmsAddress' : {Ref: 'xlcloud:xmsAddress'},
+                    'xlcloud:stackSecret' : {Ref: 'xlcloud:stackSecret'},
+                    'nfsAddress' : {'Fn::GetAtt': ['Nfs', 'Outputs.NfsAddress']},
+                    'monitorAddress' : {'Fn::GetAtt': ['Monitor', 'Outputs.MonitorIP']}}
+      TemplateURL : 'http://gitorious.ow2.org/xlcloud/heat-resources-ci/blobs/raw/master/templates/layer-blueprints/rr-layer.yaml'
+      TimeoutInMinutes: 60
 
