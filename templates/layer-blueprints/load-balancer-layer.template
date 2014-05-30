@@ -1,34 +1,31 @@
 {
-    "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "Deploy a cluster with N (default=2) compute nodes",
+    "Description": "Deploy a resizable load-balancer instance",
+    "LoadBalancer": "2010-09-09",
     "Outputs": {
-        "ClusterAddresses": {
-            "Description": "IP addresses of the cluster's compute nodes",
+        "PublicAddress": {
+            "Description": "Public IP address of the load-balancer",
             "Value": {
-                "Fn::GetAtt": [
-                    "Computes",
-                    "InstanceList"
-                ]
+                "Ref": "EIPAddress"
             }
         }
     },
     "Parameters": {
+        "backendAddresses": {
+            "Description": "Comma-separated list of the IP addresses of the backend instances",
+            "Type": "String"
+        },
+        "backendPort": {
+            "Default": "80",
+            "Description": "TCP port on which the backend instances will listen",
+            "Type": "String"
+        },
+        "loadBalancerPort": {
+            "Default": "80",
+            "Description": "TCP port on which the load-balancer will listen",
+            "Type": "String"
+        },
         "monitorAddress": {
             "Description": "IP address of the Ganglia Metadata server (gmond)",
-            "Type": "String"
-        },
-        "nfsAddress": {
-            "Description": "IP address of the NFS server",
-            "Type": "String"
-        },
-        "servicePort": {
-            "Default": "80",
-            "Description": "TCP port on which the compute instances will listen",
-            "Type": "String"
-        },
-        "xlcloud:Computes:size": {
-            "Default": "2",
-            "Description": "Number of compute nodes to launch",
             "Type": "String"
         },
         "xlcloud:brokerAddress": {
@@ -59,15 +56,14 @@
                 "m1.large",
                 "m1.xlarge"
             ],
-            "Default": "m1.medium",
             "Type": "String"
         },
         "xlcloud:defaultKeyName": {
-            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances.",
             "Type": "String"
         },
         "xlcloud:layerSubnetUuid": {
-            "Description": "The subnet identifier this layer is connected to",
+            "Description": "The subnet identifier this layer is connected to.",
             "Type": "String"
         },
         "xlcloud:monitoringCluster": {
@@ -75,7 +71,8 @@
             "Type": "String"
         },
         "xlcloud:stackId": {
-            "Description": "The identifier of the parent stack",
+            "Default": "Will be overwritten by XMS",
+            "Description": "The identifier of the parent stack.",
             "Type": "String"
         },
         "xlcloud:stackSecret": {
@@ -89,13 +86,38 @@
         }
     },
     "Resources": {
+        "CfnUser": {
+            "Type": "AWS::IAM::User"
+        },
+        "CfnUserKey": {
+            "Properties": {
+                "UserName": {
+                    "Ref": "CfnUser"
+                }
+            },
+            "Type": "AWS::IAM::AccessKey"
+        },
         "ClusterMetaData": {
             "Metadata": {
                 "AWS::CloudFormation::Init": {
                     "config": {
                         "files": {
                             "/etc/chef/configure-runlist.json": {
-                                "content": {}
+                                "content": {
+                                    "haproxy": {
+                                        "configure": {
+                                            "backend_port": {
+                                                "Ref": "backendPort"
+                                            },
+                                            "load_balancer_port": {
+                                                "Ref": "loadBalancerPort"
+                                            }
+                                        }
+                                    },
+                                    "run_list": [
+                                        "recipe[haproxy::configure]"
+                                    ]
+                                }
                             },
                             "/etc/chef/deploy-runlist.json": {
                                 "content": {}
@@ -135,18 +157,13 @@
                                             }
                                         }
                                     },
-                                    "nfs-client": {
-                                        "server": {
-                                            "Ref": "nfsAddress"
-                                        }
-                                    },
                                     "run_list": [
                                         "recipe[ohai]",
                                         "recipe[mcollective::server]",
                                         "recipe[xlc-mco-agent]",
                                         "recipe[ganglia]",
                                         "recipe[ganglia::stack]",
-                                        "recipe[nfs-client::setup]"
+                                        "recipe[haproxy::setup]"
                                     ]
                                 }
                             },
@@ -179,9 +196,9 @@
                                             "cookbook 'ganglia',",
                                             "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
                                             "    :path => 'ganglia'",
-                                            "cookbook 'nfs-client',",
+                                            "cookbook 'haproxy',",
                                             "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
-                                            "    :path => 'nfs-client'"
+                                            "    :path => 'haproxy'"
                                         ]
                                     ]
                                 },
@@ -192,14 +209,8 @@
                         }
                     }
                 },
-                "IpAddresses": {
-                    "Fn::GetAtt": [
-                        "Computes",
-                        "InstanceList"
-                    ]
-                },
-                "Size": {
-                    "Ref": "xlcloud:Computes:size"
+                "BackendAddresses": {
+                    "Ref": "backendAddresses"
                 }
             },
             "Properties": {
@@ -208,13 +219,80 @@
             },
             "Type": "AWS::AutoScaling::LaunchConfiguration"
         },
-        "ComputeConfiguration": {
+        "EIPAddress": {
+            "Type": "AWS::EC2::EIP"
+        },
+        "IPAssoc": {
+            "Properties": {
+                "EIP": {
+                    "Ref": "EIPAddress"
+                },
+                "InstanceId": {
+                    "Ref": "LBInstance"
+                }
+            },
+            "Type": "AWS::EC2::EIPAssociation"
+        },
+        "IReadyHandle": {
+            "Type": "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "InstanceReady": {
+            "DependsOn": "LBInstance",
+            "Properties": {
+                "Count": 1,
+                "Handle": {
+                    "Ref": "IReadyHandle"
+                },
+                "Timeout": "600"
+            },
+            "Type": "AWS::CloudFormation::WaitCondition"
+        },
+        "LBInstance": {
             "Metadata": {
                 "AWS::CloudFormation::Init": {
                     "config": {
                         "files": {
+                            "/etc/cfn/cfn-credentials": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "AWSAccessKeyId=",
+                                            {
+                                                "Ref": "CfnUserKey"
+                                            },
+                                            "\n",
+                                            "AWSSecretKey=",
+                                            {
+                                                "Fn::GetAtt": [
+                                                    "CfnUserKey",
+                                                    "SecretAccessKey"
+                                                ]
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root",
+                                "mode": "00400",
+                                "owner": "root"
+                            },
                             "/etc/chef/configure-runlist.json": {
-                                "content": {}
+                                "content": {
+                                    "haproxy": {
+                                        "configure": {
+                                            "backend_port": {
+                                                "Ref": "backendPort"
+                                            },
+                                            "load_balancer_port": {
+                                                "Ref": "loadBalancerPort"
+                                            }
+                                        }
+                                    },
+                                    "run_list": [
+                                        "recipe[haproxy::configure]"
+                                    ]
+                                }
                             },
                             "/etc/chef/deploy-runlist.json": {
                                 "content": {}
@@ -254,18 +332,13 @@
                                             }
                                         }
                                     },
-                                    "nfs-client": {
-                                        "server": {
-                                            "Ref": "nfsAddress"
-                                        }
-                                    },
                                     "run_list": [
                                         "recipe[ohai]",
                                         "recipe[mcollective::server]",
                                         "recipe[xlc-mco-agent]",
                                         "recipe[ganglia]",
                                         "recipe[ganglia::stack]",
-                                        "recipe[nfs-client::setup]"
+                                        "recipe[haproxy::setup]"
                                     ]
                                 }
                             },
@@ -278,16 +351,19 @@
                             "/etc/chef/undeploy-runlist.json": {
                                 "content": {}
                             },
-                            "/etc/xlcloud-facts.json": {
+                            "/etc/xlcloud/facts.json": {
                                 "content": {
                                     "layer_id": {
                                         "Ref": "AWS::StackId"
                                     },
-                                    "logical_resource_id": "Computes",
+                                    "logical_resource_id": "LBInstance",
                                     "stack_id": {
                                         "Ref": "xlcloud:stackId"
                                     }
-                                }
+                                },
+                                "group": "root",
+                                "mode": "00400",
+                                "owner": "root"
                             },
                             "/var/chef/chef-repo/Cheffile": {
                                 "content": {
@@ -309,9 +385,9 @@
                                             "cookbook 'ganglia',",
                                             "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
                                             "    :path => 'ganglia'",
-                                            "cookbook 'nfs-client',",
+                                            "cookbook 'haproxy',",
                                             "    :git => 'http://git.gitorious.ow2.org/~xlcloud-continuous-integration/xlcloud/cookbooks-ci.git',",
-                                            "    :path => 'nfs-client'"
+                                            "    :path => 'haproxy'"
                                         ]
                                     ]
                                 },
@@ -335,69 +411,11 @@
                 },
                 "SecurityGroups": [
                     {
-                        "Ref": "PublicLayerSecurityGroup"
-                    },
-                    {
-                        "Ref": "PrivateLayerSecurityGroup"
+                        "Ref": "LayerSecurityGroup"
                     }
                 ],
-                "UserData": {
-                    "Fn::Base64": {
-                        "Fn::Join": [
-                            "",
-                            [
-                                "#!/bin/bash -ve\n",
-                                "#HOME is required by librarian\n",
-                                "export HOME=/root\n",
-                                "source /etc/profile.d/proxy.sh\n",
-                                "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname\n",
-                                "hostname `cat /etc/hostname`\n",
-                                "pip install --upgrade heat-cfntools\n",
-                                "cfn-init\n",
-                                "cd /var/chef/chef-repo\n",
-                                "/usr/local/bin/librarian-chef install --clean --verbose\n",
-                                "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log\n",
-                                "cfn-signal -e 0 -i $(hostname) '",
-                                {
-                                    "Ref": "ComputeHandle"
-                                },
-                                "'"
-                            ]
-                        ]
-                    }
-                }
-            },
-            "Type": "AWS::AutoScaling::LaunchConfiguration"
-        },
-        "ComputeHandle": {
-            "Type": "AWS::CloudFormation::WaitConditionHandle"
-        },
-        "ComputeReady": {
-            "DependsOn": "Computes",
-            "Properties": {
-                "Count": {
-                    "Ref": "xlcloud:Computes:size"
-                },
-                "Handle": {
-                    "Ref": "ComputeHandle"
-                },
-                "Timeout": "2400"
-            },
-            "Type": "AWS::CloudFormation::WaitCondition"
-        },
-        "Computes": {
-            "Properties": {
-                "AvailabilityZones": {
-                    "Fn::GetAZs": ""
-                },
-                "LaunchConfigurationName": {
-                    "Ref": "ComputeConfiguration"
-                },
-                "MaxSize": {
-                    "Ref": "xlcloud:Computes:size"
-                },
-                "MinSize": {
-                    "Ref": "xlcloud:Computes:size"
+                "SubnetId": {
+                    "Ref": "xlcloud:layerSubnetUuid"
                 },
                 "Tags": [
                     {
@@ -407,31 +425,37 @@
                         }
                     }
                 ],
-                "VPCZoneIdentifier": [
-                    {
-                        "Ref": "xlcloud:layerSubnetUuid"
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -ve\n",
+                                "# HOME is required by librarian\n",
+                                "export HOME=/root\n",
+                                "source /etc/profile\n",
+                                "echo `curl -s http://169.254.169.254/latest/meta-data/instance-id` > /etc/hostname\n",
+                                "hostname `cat /etc/hostname`\n",
+                                "pip install --upgrade boto==2.5.2 heat-cfntools\n",
+                                "cfn-init\n",
+                                "cd /var/chef/chef-repo\n",
+                                "librarian-chef install --clean --verbose\n",
+                                "/bin/chef-solo -c /etc/chef/solo.rb -j /etc/chef/setup-runlist.json -L /var/log/chef-solo.log\n",
+                                "cfn-signal -e 0 -i $(hostname) '",
+                                {
+                                    "Ref": "IReadyHandle"
+                                },
+                                "'"
+                            ]
+                        ]
                     }
-                ]
+                }
             },
-            "Type": "AWS::AutoScaling::AutoScalingGroup"
+            "Type": "AWS::EC2::Instance"
         },
-        "PrivateLayerSecurityGroup": {
+        "LayerSecurityGroup": {
             "Properties": {
-                "GroupDescription": "Allow any traffic from all instances of the layer",
-                "SecurityGroupIngress": [
-                    {
-                        "SourceSecurityGroupId": {
-                            "Ref": "PublicLayerSecurityGroup"
-                        }
-                    }
-                ],
-                "VpcId": "neutron"
-            },
-            "Type": "AWS::EC2::SecurityGroup"
-        },
-        "PublicLayerSecurityGroup": {
-            "Properties": {
-                "GroupDescription": "Allow SSH access + ICMP from anywhere",
+                "GroupDescription": "Enable SSH access, ICMP and VNC",
                 "SecurityGroupIngress": [
                     {
                         "CidrIp": "0.0.0.0/0",
@@ -448,15 +472,14 @@
                     {
                         "CidrIp": "0.0.0.0/0",
                         "FromPort": {
-                            "Ref": "servicePort"
+                            "Ref": "loadBalancerPort"
                         },
                         "IpProtocol": "tcp",
                         "ToPort": {
-                            "Ref": "servicePort"
+                            "Ref": "loadBalancerPort"
                         }
                     }
-                ],
-                "VpcId": "neutron"
+                ]
             },
             "Type": "AWS::EC2::SecurityGroup"
         }
