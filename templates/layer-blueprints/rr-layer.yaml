@@ -25,9 +25,7 @@ Parameters:
     Description: The subnet identifier this layer is connected to.
     Type: String
   "xlcloud:defaultInstanceType":
-    AllowedValues: ["gpu.m2070q", "gpu.k520", "gpu.k20xm"]
     Type: String
-    Default: "gpu.m2070q"
   "xlcloud:brokerAddress":
       Type: "String"
       Description: "RabbitMQ broker address"
@@ -50,6 +48,17 @@ Parameters:
   "xlcloud:xmsAddress":
       Description: "Address of XLCloud Management System"
       Type: "String"
+
+Mappings:
+  InstanceTypes:
+    "m1.small": { "gpu": "gpu.m2070q"}
+    "m1.medium": {"gpu": "gpu.k340"}
+    "m1.large": {"gpu": "gpu.k20xm"}
+    "m1.xlarge": {"gpu": "gpu.k520"}
+  Images:
+    "CentOS-6.5-x86_64-xlcloud": {"gpu": "CentOS-6.5-x86_64-xlcloud-raw"}
+    "F19-x86_64-xlcloud": {"gpu": "F19-x86_64-xlcloud-raw"}
+    "ubuntu-12_04-x86_64-xlcloud": {"gpu": "ubuntu-12_04-x86_64-xlcloud-raw"}
 
 Resources:
   NodeIPAddress: {Type: "AWS::EC2::EIP"}
@@ -185,8 +194,8 @@ Resources:
               group: root
 
     Properties:
-      ImageId: {'Fn::Join': ["", [{Ref: 'xlcloud:defaultImageId'}, "-raw"]]}
-      InstanceType: {Ref: 'xlcloud:defaultInstanceType'}
+      ImageId: {'Fn::FindInMap': ["Images", {Ref: "xlcloud:defaultImageId"}, "gpu"]}
+      InstanceType: {'Fn::FindInMap': ["InstanceTypes", {Ref: "xlcloud:defaultInstanceType"}, "gpu"]}
       KeyName: {Ref: 'xlcloud:defaultKeyName'}
       SecurityGroups: [{"Ref" : "LayerSecurityGroup"}]
       SubnetId: {Ref: 'xlcloud:layerSubnetUuid'}

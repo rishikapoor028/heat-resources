@@ -1,6 +1,33 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
     "Description": "Start an instance, install NVIDIA drivers, Ganglia and unzip TSP tools into /opt/space directory.",
+    "Mappings": {
+        "Images": {
+            "CentOS-6.5-x86_64-xlcloud": {
+                "gpu": "CentOS-6.5-x86_64-xlcloud-raw"
+            },
+            "F19-x86_64-xlcloud": {
+                "gpu": "F19-x86_64-xlcloud-raw"
+            },
+            "ubuntu-12_04-x86_64-xlcloud": {
+                "gpu": "ubuntu-12_04-x86_64-xlcloud-raw"
+            }
+        },
+        "InstanceTypes": {
+            "m1.large": {
+                "gpu": "gpu.k20xm"
+            },
+            "m1.medium": {
+                "gpu": "gpu.k340"
+            },
+            "m1.small": {
+                "gpu": "gpu.m2070q"
+            },
+            "m1.xlarge": {
+                "gpu": "gpu.k520"
+            }
+        }
+    },
     "Parameters": {
         "monitorAddress": {
             "Description": "IP address of the Ganglia Metadata server (gmond)",
@@ -32,12 +59,6 @@
             "Type": "String"
         },
         "xlcloud:defaultInstanceType": {
-            "AllowedValues": [
-                "gpu.m2070q",
-                "gpu.k520",
-                "gpu.k20xm"
-            ],
-            "Default": "gpu.m2070q",
             "Type": "String"
         },
         "xlcloud:defaultKeyName": {
@@ -193,18 +214,22 @@
             },
             "Properties": {
                 "ImageId": {
-                    "Fn::Join": [
-                        "",
-                        [
-                            {
-                                "Ref": "xlcloud:defaultImageId"
-                            },
-                            "-raw"
-                        ]
+                    "Fn::FindInMap": [
+                        "Images",
+                        {
+                            "Ref": "xlcloud:defaultImageId"
+                        },
+                        "gpu"
                     ]
                 },
                 "InstanceType": {
-                    "Ref": "xlcloud:defaultInstanceType"
+                    "Fn::FindInMap": [
+                        "InstanceTypes",
+                        {
+                            "Ref": "xlcloud:defaultInstanceType"
+                        },
+                        "gpu"
+                    ]
                 },
                 "KeyName": {
                     "Ref": "xlcloud:defaultKeyName"
